@@ -26,29 +26,29 @@ class HPLASTParser:
     def parse_statement(self):
         if self.current_token.type == 'IDENTIFIER':
             if self.current_token.value == 'echo':
-                self.advance()  # echo
+                self.advance()  # 回显
                 expr = self.parse_expression()
                 self.expect('SEMICOLON')
                 return EchoStatement(expr)
             # 检查下一个标记是否为赋值或调用
             elif self.pos + 1 < len(self.tokens) and self.tokens[self.pos + 1].type == 'ASSIGN':
                 var_name = self.current_token.value
-                self.advance()  # identifier
-                self.advance()  # =
+                self.advance()  # 标识符
+                self.advance()  # 赋值
                 expr = self.parse_expression()
                 self.expect('SEMICOLON')
                 return AssignmentStatement(var_name, expr)
             elif self.pos + 1 < len(self.tokens) and self.tokens[self.pos + 1].type == 'INCREMENT':
                 var_name = self.current_token.value
-                self.advance()  # identifier
-                self.advance()  # ++
+                self.advance()  # 标识符
+                self.advance()  # 自增
                 self.expect('SEMICOLON')
                 return IncrementStatement(var_name)
             else:
                 # 表达式语句（例如，调用）
                 expr = self.parse_expression()
                 self.expect('SEMICOLON')
-                return expr  # Calls are expressions but can be statements
+                return expr  # 调用是表达式但可以是语句
         elif self.current_token.type == 'KEYWORD':
             if self.current_token.value == 'if':
                 return self.parse_if()
@@ -64,7 +64,7 @@ class HPLASTParser:
             raise ValueError(f"Unexpected token {self.current_token}")
 
     def parse_if(self):
-        self.advance()  # if
+        self.advance()  # 如果
         self.expect('LPAREN')
         condition = self.parse_expression()
         self.expect('RPAREN')
@@ -76,18 +76,18 @@ class HPLASTParser:
         return IfStatement(condition, then_block, else_block)
 
     def parse_for(self):
-        self.advance()  # for
+        self.advance()  # 循环
         self.expect('LPAREN')
-        init = self.parse_statement()  # e.g., i = 0;
+        init = self.parse_statement()  # 例如，i = 0;
         condition = self.parse_expression()
         self.expect('SEMICOLON')
-        increment_expr = self.parse_expression()  # e.g., i++
+        increment_expr = self.parse_expression()  # 例如，i++
         self.expect('RPAREN')
         body = self.parse_block()
         return ForStatement(init, condition, increment_expr, body)
 
     def parse_try(self):
-        self.advance()  # try
+        self.advance()  # 尝试
         try_block = self.parse_block()
         self.expect_keyword('catch')
         self.expect('LPAREN')
@@ -97,7 +97,7 @@ class HPLASTParser:
         return TryCatchStatement(try_block, catch_var, catch_block)
 
     def parse_return(self):
-        self.advance()  # return
+        self.advance()  # 返回
         expr = None
         if self.current_token and self.current_token.type != 'SEMICOLON':
             expr = self.parse_expression()
@@ -151,7 +151,7 @@ class HPLASTParser:
                         self.advance()
                         args.append(self.parse_expression())
                 self.expect('RPAREN')
-                return MethodCall(name, method_name, args)
+                return MethodCall(Variable(name), method_name, args)
             elif self.current_token and self.current_token.type == 'INCREMENT':
                 # 后缀递增
                 self.advance()

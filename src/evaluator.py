@@ -5,7 +5,7 @@ class HPLEvaluator:
         self.classes = classes
         self.objects = objects
         self.main_func = main_func
-        self.global_scope = {}  # 全局变量
+        self.global_scope = self.objects  # 全局变量，包括预定义对象
         self.current_obj = None  # 用于方法中的'this'
 
     def run(self):

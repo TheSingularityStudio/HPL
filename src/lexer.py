@@ -34,11 +34,11 @@ class HPLLexer:
 
     def string(self):
         result = ''
-        self.advance()  # skip opening quote
+        self.advance()  # 跳过开始引号
         while self.current_char is not None and self.current_char != '"':
             result += self.current_char
             self.advance()
-        self.advance()  # skip closing quote
+        self.advance()  # 跳过结束引号
         return result
 
     def identifier(self):
