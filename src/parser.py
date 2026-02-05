@@ -1,14 +1,36 @@
 import yaml
+import os
 from src.models import HPLClass, HPLObject, HPLFunction
 from src.lexer import HPLLexer
 from src.ast_parser import HPLASTParser
 
 class HPLParser:
-    def __init__(self, yaml_content):
-        self.data = yaml.safe_load(yaml_content)
+    def __init__(self, hpl_file):
+        self.hpl_file = hpl_file
         self.classes = {}
         self.objects = {}
         self.main_func = None
+        self.data = self.load_data()
+
+    def load_data(self):
+        with open(self.hpl_file, 'r', encoding='utf-8') as f:
+            yaml_content = f.read()
+        data = yaml.safe_load(yaml_content)
+        if 'includes' in data:
+            for include_file in data['includes']:
+                include_path = os.path.join(os.path.dirname(self.hpl_file), include_file)
+                with open(include_path, 'r', encoding='utf-8') as f:
+                    include_content = f.read()
+                include_data = yaml.safe_load(include_content)
+                self.merge_data(data, include_data)
+        return data
+
+    def merge_data(self, main_data, include_data):
+        for key in ['classes', 'objects']:
+            if key in include_data:
+                if key not in main_data:
+                    main_data[key] = {}
+                main_data[key].update(include_data[key])
 
     def parse(self):
         if 'classes' in self.data:

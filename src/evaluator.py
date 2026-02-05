@@ -135,10 +135,6 @@ class HPLEvaluator:
         self.execute_function(method, {param: args[i] for i, param in enumerate(method.params)})
         self.current_obj = prev_obj
 
-    def call_method(self, obj_name, method_name, args):
-        # 遗留代码，现在未使用
-        pass
-
     # 内置函数
     def echo(self, message):
         print(message)

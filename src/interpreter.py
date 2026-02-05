@@ -8,10 +8,7 @@ def main():
         sys.exit(1)
 
     hpl_file = sys.argv[1]
-    with open(hpl_file, 'r', encoding='utf-8') as f:
-        yaml_content = f.read()
-
-    parser = HPLParser(yaml_content)
+    parser = HPLParser(hpl_file)
     classes, objects, main_func = parser.parse()
 
     evaluator = HPLEvaluator(classes, objects, main_func)

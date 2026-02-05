@@ -1,10 +1,7 @@
-classes:
-  BasePrinter:
-    print: |
-      func(message){
-        echo message;
-      }
+includes:
+  - base.hpl
 
+classes:
   MessagePrinter:
     parent: BasePrinter
     showmessage: |
