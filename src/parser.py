@@ -1,5 +1,7 @@
 import yaml
 from src.models import HPLClass, HPLObject, HPLFunction
+from src.lexer import HPLLexer
+from src.ast_parser import HPLASTParser
 
 class HPLParser:
     def __init__(self, yaml_content):
@@ -41,13 +43,17 @@ class HPLParser:
                 self.objects[obj_name] = HPLObject(obj_name, self.classes[class_name])
 
     def parse_function(self, func_str):
-        # 简单解析：func(params){ body; }
-        # 现在，只是将主体存储为字符串；真正的解析器会进行标记化
+        # 解析函数：func(params){ body; }
         start = func_str.find('(')
         end = func_str.find(')')
         params_str = func_str[start+1:end]
         params = [p.strip() for p in params_str.split(',')] if params_str else []
         body_start = func_str.find('{')
         body_end = func_str.rfind('}')
-        body = func_str[body_start+1:body_end].strip()
-        return HPLFunction(params, body)
+        body_str = func_str[body_start+1:body_end].strip()
+        # 标记化和解析AST
+        lexer = HPLLexer(body_str)
+        tokens = lexer.tokenize()
+        ast_parser = HPLASTParser(tokens)
+        body_ast = ast_parser.parse_block()
+        return HPLFunction(params, body_ast)
