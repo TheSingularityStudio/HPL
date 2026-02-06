@@ -1,8 +1,8 @@
 class HPLClass:
-    def __init__(self, name, methods, parent=None):
+    def __init__(self, name, methods, parents=None):
         self.name = name
         self.methods = methods  # 字典：方法名 -> HPLFunction
-        self.parent = parent
+        self.parents = parents or []  # 列表：父类名列表
 
 class HPLObject:
     def __init__(self, name, hpl_class):
@@ -50,6 +50,11 @@ class FunctionCall(Expression):
 class MethodCall(Expression):
     def __init__(self, obj_name, method_name, args):
         self.obj_name = obj_name
+        self.method_name = method_name
+        self.args = args
+
+class SuperCall(Expression):
+    def __init__(self, method_name, args):
         self.method_name = method_name
         self.args = args
 

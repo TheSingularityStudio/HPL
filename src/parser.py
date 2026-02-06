@@ -45,17 +45,18 @@ class HPLParser:
         for class_name, class_def in self.data['classes'].items():
             if isinstance(class_def, dict):
                 methods = {}
-                parent = None
+                parents = []
                 for key, value in class_def.items():
-                    if key == 'parent':  # 假设继承标记不同，但在示例中它是DerivedClass: BaseClass
-                        parent = value
+                    if key == 'parent':
+                        if isinstance(value, list):
+                            parents = value
+                        else:
+                            parents = [value]
                     else:
                         methods[key] = self.parse_function(value)
-                self.classes[class_name] = HPLClass(class_name, methods, parent)
-            elif isinstance(class_def, str):
-                # 继承：DerivedClass: BaseClass
-                parent = class_def
-                self.classes[class_name] = HPLClass(class_name, {}, parent)
+                self.classes[class_name] = HPLClass(class_name, methods, parents)
+            else:
+                raise ValueError(f"Invalid class definition for {class_name}. Use dict with 'parent' key.")
 
     def parse_objects(self):
         for obj_name, obj_def in self.data['objects'].items():

@@ -1,4 +1,4 @@
-from src.models import *
+from models import *
 
 class HPLEvaluator:
     def __init__(self, classes, objects, main_func):
@@ -54,6 +54,11 @@ class HPLEvaluator:
         elif isinstance(stmt, EchoStatement):
             message = self.evaluate_expression(stmt.expr, local_scope)
             self.echo(message)
+        elif isinstance(stmt, IncrementStatement):
+            if stmt.var_name in local_scope:
+                local_scope[stmt.var_name] += 1
+            else:
+                raise ValueError(f"Undefined variable {stmt.var_name}")
         # 暂时忽略其他类型
 
     def evaluate_expression(self, expr, local_scope):
@@ -110,6 +115,19 @@ class HPLEvaluator:
                 self.call_method_on_obj(obj, expr.method_name, [self.evaluate_expression(arg, local_scope) for arg in expr.args])
             else:
                 raise ValueError(f"Cannot call method on {obj}")
+        elif isinstance(expr, SuperCall):
+            if self.current_obj:
+                method = self.find_super_method(self.current_obj.hpl_class, expr.method_name)
+                if method:
+                    prev_obj = self.current_obj
+                    self.current_obj = self.current_obj  # Keep the same 'this'
+                    result = self.execute_function(method, {param: self.evaluate_expression(arg, local_scope) for param, arg in zip(method.params, expr.args)})
+                    self.current_obj = prev_obj
+                    return result
+                else:
+                    raise ValueError(f"Super method {expr.method_name} not found")
+            else:
+                raise ValueError("Super call outside of method context")
         elif isinstance(expr, PostfixIncrement):
             var_name = expr.var.name
             if var_name in local_scope:
@@ -123,17 +141,32 @@ class HPLEvaluator:
 
     def call_method_on_obj(self, obj, method_name, args):
         hpl_class = obj.hpl_class
-        if method_name in hpl_class.methods:
-            method = hpl_class.methods[method_name]
-        elif hpl_class.parent and method_name in self.classes[hpl_class.parent].methods:
-            method = self.classes[hpl_class.parent].methods[method_name]
-        else:
+        method = self.find_method_in_class(hpl_class, method_name)
+        if not method:
             raise ValueError(f"Method {method_name} not found")
         # 为'this'设置current_obj
         prev_obj = self.current_obj
         self.current_obj = obj
         self.execute_function(method, {param: args[i] for i, param in enumerate(method.params)})
         self.current_obj = prev_obj
+
+    def find_method_in_class(self, hpl_class, method_name):
+        if method_name in hpl_class.methods:
+            return hpl_class.methods[method_name]
+        for parent_name in hpl_class.parents:
+            parent_class = self.classes[parent_name]
+            method = self.find_method_in_class(parent_class, method_name)
+            if method:
+                return method
+        return None
+
+    def find_super_method(self, hpl_class, method_name):
+        for parent_name in hpl_class.parents:
+            parent_class = self.classes[parent_name]
+            method = self.find_method_in_class(parent_class, method_name)
+            if method:
+                return method
+        return None
 
     # 内置函数
     def echo(self, message):

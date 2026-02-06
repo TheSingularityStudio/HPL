@@ -4,6 +4,10 @@ includes:
 classes:
   MessagePrinter:
     parent: BasePrinter
+    print: |
+      func(message){
+        super.print("Overridden: " + message);
+      }
     showmessage: |
       func(){
         this.print("Hello World");

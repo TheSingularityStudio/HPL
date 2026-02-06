@@ -128,7 +128,20 @@ class HPLASTParser:
         elif self.current_token.type == 'IDENTIFIER':
             name = self.current_token.value
             self.advance()
-            if self.current_token and self.current_token.type == 'LPAREN':
+            if name == 'super' and self.current_token and self.current_token.type == 'DOT':
+                # super 调用
+                self.advance()
+                method_name = self.expect('IDENTIFIER').value
+                self.expect('LPAREN')
+                args = []
+                if self.current_token and self.current_token.type != 'RPAREN':
+                    args.append(self.parse_expression())
+                    while self.current_token and self.current_token.type == 'COMMA':
+                        self.advance()
+                        args.append(self.parse_expression())
+                self.expect('RPAREN')
+                return SuperCall(method_name, args)
+            elif self.current_token and self.current_token.type == 'LPAREN':
                 # 函数调用
                 self.advance()
                 args = []
