@@ -34,12 +34,14 @@ classes:
   BaseClass:
     baseMethod: func(){ echo "base"; }
 
-  DerivedClass: BaseClass
+  DerivedClass:
+    parent: BaseClass
     derivedMethod: func(){ this.baseMethod(); }
 ```
 
-- 使用冒号 `:` 指定继承关系，如 `DerivedClass: BaseClass`。
+- 使用 `parent` 键指定继承关系，支持单个父类或多个父类列表。
 - 子类可以调用父类方法，使用 `this.methodName()`。
+- 子类可以重写父类方法，并使用 `super.methodName()` 调用父类方法。
 
 ## 3. 对象实例化（objects）
 
@@ -115,12 +117,12 @@ try {
 
 ## 示例程序分析
 
-基于 `example.yaml`：
+基于 `examples/example.hpl`：
 
 - 定义了 `BasePrinter` 类，有 `print` 方法。
-- `MessagePrinter` 继承 `BasePrinter`，添加 `showmessage` 和 `showmessages` 方法。
+- `MessagePrinter` 继承 `BasePrinter`，重写 `print` 方法并使用 `super.print()` 调用父类方法，添加 `showmessage` 和 `showmessages` 方法。
 - 实例化 `printer` 对象。
-- 主函数调用对象方法，展示继承、循环和条件语句。
+- 主函数调用对象方法，展示继承、重写、super 调用、循环和条件语句。
 
 ## 注意事项
 
