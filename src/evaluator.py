@@ -1,4 +1,9 @@
-from src.models import *
+# Handle imports for both module and direct execution
+try:
+    from src.models import *
+except ImportError:
+    from models import *
+
 
 
 class HPLEvaluator:
@@ -83,15 +88,24 @@ class HPLEvaluator:
             left = self.evaluate_expression(expr.left, local_scope)
             right = self.evaluate_expression(expr.right, local_scope)
             if expr.op == '+':
-                return str(left) + str(right)
+                # If both are numbers, do numeric addition; otherwise string concatenation
+                if isinstance(left, (int, float)) and isinstance(right, (int, float)):
+                    return left + right
+                else:
+                    return str(left) + str(right)
             elif expr.op == '-':
                 return left - right
             elif expr.op == '*':
                 return left * right
             elif expr.op == '/':
+                if right == 0:
+                    raise ValueError("Division by zero")
                 return left / right
             elif expr.op == '%':
+                if right == 0:
+                    raise ValueError("Modulo by zero")
                 return left % right
+
             elif expr.op == '==':
                 return left == right
             elif expr.op == '!=':

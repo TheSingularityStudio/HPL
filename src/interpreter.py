@@ -1,8 +1,15 @@
 import sys
 import os
 import yaml
-from src.parser import HPLParser
-from src.evaluator import HPLEvaluator
+
+# Handle imports for both module and direct execution
+try:
+    from src.parser import HPLParser
+    from src.evaluator import HPLEvaluator
+except ImportError:
+    from parser import HPLParser
+    from evaluator import HPLEvaluator
+
 
 
 def main():

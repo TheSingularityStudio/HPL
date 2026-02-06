@@ -76,5 +76,60 @@ class TestHPLLexer(unittest.TestCase):
         self.assertEqual(tokens[0].type, 'IDENTIFIER')
         self.assertEqual(tokens[1].type, 'INCREMENT')
 
+    def test_escape_characters_in_string(self):
+        lexer = HPLLexer('"hello\\nworld"')
+        tokens = lexer.tokenize()
+        self.assertEqual(tokens[0].type, 'STRING')
+        self.assertEqual(tokens[0].value, 'hello\nworld')
+
+        lexer = HPLLexer('"tab\\there"')
+        tokens = lexer.tokenize()
+        self.assertEqual(tokens[0].value, 'tab\there')
+
+        lexer = HPLLexer('"quote\\"test"')
+        tokens = lexer.tokenize()
+        self.assertEqual(tokens[0].value, 'quote"test')
+
+        lexer = HPLLexer('"backslash\\\\test"')
+        tokens = lexer.tokenize()
+        self.assertEqual(tokens[0].value, 'backslash\\test')
+
+    def test_single_quote_string(self):
+        lexer = HPLLexer("'hello world'")
+        tokens = lexer.tokenize()
+        self.assertEqual(tokens[0].type, 'STRING')
+        self.assertEqual(tokens[0].value, 'hello world')
+
+        lexer = HPLLexer("'single\\'quote'")
+        tokens = lexer.tokenize()
+        self.assertEqual(tokens[0].value, "single'quote")
+
+    def test_single_line_comment(self):
+        lexer = HPLLexer("42 // this is a comment")
+        tokens = lexer.tokenize()
+        self.assertEqual(tokens[0].type, 'INTEGER')
+        self.assertEqual(tokens[0].value, 42)
+        self.assertEqual(tokens[1].type, 'EOF')
+
+    def test_multi_line_comment(self):
+        lexer = HPLLexer("42 /* this is a\nmulti-line comment */ 100")
+        tokens = lexer.tokenize()
+        self.assertEqual(tokens[0].type, 'INTEGER')
+        self.assertEqual(tokens[0].value, 42)
+        self.assertEqual(tokens[1].type, 'INTEGER')
+        self.assertEqual(tokens[1].value, 100)
+
+    def test_comment_with_code(self):
+        lexer = HPLLexer("""
+            // Initialize counter
+            i = 0;
+            /* Loop until done */
+            i++;
+        """)
+        tokens = lexer.tokenize()
+        # Should tokenize the code, skipping comments
+        identifiers = [t for t in tokens if t.type == 'IDENTIFIER']
+        self.assertEqual(len(identifiers), 2)  # i and i
+
 if __name__ == '__main__':
     unittest.main()

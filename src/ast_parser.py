@@ -1,4 +1,8 @@
-from src.models import *
+# Handle imports for both module and direct execution
+try:
+    from src.models import *
+except ImportError:
+    from models import *
 
 class HPLASTParser:
     def __init__(self, tokens):

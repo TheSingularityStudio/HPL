@@ -49,9 +49,21 @@ class TestHPLEvaluator(unittest.TestCase):
         evaluator = HPLEvaluator(self.classes, self.objects, None)
         expr = BinaryOp(IntegerLiteral(5), '+', IntegerLiteral(3))
         result = evaluator.evaluate_expression(expr, {})
-        self.assertEqual(result, '53')  # String concatenation in HPL
+        self.assertEqual(result, 8)  # Numeric addition for integers
+
+    def test_evaluate_binary_op_string_concatenation(self):
+        evaluator = HPLEvaluator(self.classes, self.objects, None)
+        # String + String = concatenation
+        expr = BinaryOp(StringLiteral("Hello"), '+', StringLiteral(" World"))
+        result = evaluator.evaluate_expression(expr, {})
+        self.assertEqual(result, "Hello World")
+        # Number + String = concatenation
+        expr2 = BinaryOp(IntegerLiteral(5), '+', StringLiteral(" items"))
+        result2 = evaluator.evaluate_expression(expr2, {})
+        self.assertEqual(result2, "5 items")
 
     def test_evaluate_binary_op_subtraction(self):
+
         evaluator = HPLEvaluator(self.classes, self.objects, None)
         expr = BinaryOp(IntegerLiteral(5), '-', IntegerLiteral(3))
         result = evaluator.evaluate_expression(expr, {})

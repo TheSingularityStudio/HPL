@@ -1,8 +1,16 @@
 import yaml
 import os
-from src.models import HPLClass, HPLObject, HPLFunction
-from src.lexer import HPLLexer
-from src.ast_parser import HPLASTParser
+
+# Handle imports for both module and direct execution
+try:
+    from src.models import HPLClass, HPLObject, HPLFunction
+    from src.lexer import HPLLexer
+    from src.ast_parser import HPLASTParser
+except ImportError:
+    from models import HPLClass, HPLObject, HPLFunction
+    from lexer import HPLLexer
+    from ast_parser import HPLASTParser
+
 
 class HPLParser:
     def __init__(self, hpl_file):

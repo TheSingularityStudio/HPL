@@ -32,14 +32,45 @@ class HPLLexer:
             self.advance()
         return int(result)
 
-    def string(self):
+    def string(self, quote_char):
         result = ''
         self.advance()  # 跳过开始引号
-        while self.current_char is not None and self.current_char != '"':
-            result += self.current_char
+        while self.current_char is not None and self.current_char != quote_char:
+            if self.current_char == '\\':
+                # 处理转义字符
+                self.advance()
+                if self.current_char == 'n':
+                    result += '\n'
+                elif self.current_char == 't':
+                    result += '\t'
+                elif self.current_char == '\\':
+                    result += '\\'
+                elif self.current_char == quote_char:
+                    result += quote_char
+                else:
+                    result += self.current_char
+            else:
+                result += self.current_char
             self.advance()
         self.advance()  # 跳过结束引号
         return result
+
+    def skip_comment(self):
+        # 跳过单行注释 //
+        if self.current_char == '/' and self.pos + 1 < len(self.text) and self.text[self.pos + 1] == '/':
+            while self.current_char is not None and self.current_char != '\n':
+                self.advance()
+        # 跳过多行注释 /* */
+        elif self.current_char == '/' and self.pos + 1 < len(self.text) and self.text[self.pos + 1] == '*':
+            self.advance()  # skip /
+            self.advance()  # skip *
+            while self.current_char is not None:
+                if self.current_char == '*' and self.pos + 1 < len(self.text) and self.text[self.pos + 1] == '/':
+                    self.advance()  # skip *
+                    self.advance()  # skip /
+                    break
+                self.advance()
+
 
     def identifier(self):
         result = ''
@@ -54,12 +85,20 @@ class HPLLexer:
             if self.current_char.isspace():
                 self.skip_whitespace()
                 continue
+            # 跳过注释
+            if self.current_char == '/' and self.pos + 1 < len(self.text) and self.text[self.pos + 1] in ['/', '*']:
+                self.skip_comment()
+                continue
             if self.current_char.isdigit():
                 tokens.append(Token('INTEGER', self.integer()))
                 continue
             if self.current_char == '"':
-                tokens.append(Token('STRING', self.string()))
+                tokens.append(Token('STRING', self.string('"')))
                 continue
+            if self.current_char == "'":
+                tokens.append(Token('STRING', self.string("'")))
+                continue
+
             if self.current_char.isalpha() or self.current_char == '_':
                 ident = self.identifier()
                 if ident in ['if', 'else', 'for', 'try', 'catch', 'func']:
