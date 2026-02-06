@@ -1,4 +1,5 @@
-from models import *
+from src.models import *
+
 
 class HPLEvaluator:
     def __init__(self, classes, objects, main_func):
@@ -51,7 +52,10 @@ class HPLEvaluator:
             self.evaluate_expression(stmt, local_scope)
         elif isinstance(stmt, MethodCall):
             self.evaluate_expression(stmt, local_scope)
+        elif isinstance(stmt, SuperCall):
+            self.evaluate_expression(stmt, local_scope)
         elif isinstance(stmt, EchoStatement):
+
             message = self.evaluate_expression(stmt.expr, local_scope)
             self.echo(message)
         elif isinstance(stmt, IncrementStatement):
@@ -112,9 +116,10 @@ class HPLEvaluator:
         elif isinstance(expr, MethodCall):
             obj = self.evaluate_expression(expr.obj_name, local_scope)
             if isinstance(obj, HPLObject):
-                self.call_method_on_obj(obj, expr.method_name, [self.evaluate_expression(arg, local_scope) for arg in expr.args])
+                return self.call_method_on_obj(obj, expr.method_name, [self.evaluate_expression(arg, local_scope) for arg in expr.args])
             else:
                 raise ValueError(f"Cannot call method on {obj}")
+
         elif isinstance(expr, SuperCall):
             if self.current_obj:
                 method = self.find_super_method(self.current_obj.hpl_class, expr.method_name)
@@ -147,8 +152,10 @@ class HPLEvaluator:
         # 为'this'设置current_obj
         prev_obj = self.current_obj
         self.current_obj = obj
-        self.execute_function(method, {param: args[i] for i, param in enumerate(method.params)})
+        result = self.execute_function(method, {param: args[i] for i, param in enumerate(method.params)})
         self.current_obj = prev_obj
+        return result
+
 
     def find_method_in_class(self, hpl_class, method_name):
         if method_name in hpl_class.methods:

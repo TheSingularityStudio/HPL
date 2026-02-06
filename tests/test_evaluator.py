@@ -6,8 +6,9 @@ from io import StringIO
 # Add src to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
-from evaluator import HPLEvaluator
-from models import HPLClass, HPLObject, HPLFunction, IntegerLiteral, StringLiteral, Variable, BinaryOp, AssignmentStatement, EchoStatement, BlockStatement, IfStatement, ForStatement, TryCatchStatement, FunctionCall, MethodCall, SuperCall, PostfixIncrement, IncrementStatement
+from src.evaluator import HPLEvaluator
+from src.models import HPLClass, HPLObject, HPLFunction, IntegerLiteral, StringLiteral, Variable, BinaryOp, AssignmentStatement, EchoStatement, BlockStatement, IfStatement, ForStatement, TryCatchStatement, FunctionCall, MethodCall, SuperCall, PostfixIncrement, IncrementStatement
+
 
 class TestHPLEvaluator(unittest.TestCase):
 

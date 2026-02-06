@@ -16,4 +16,4 @@ HPL 解释器采用模块化设计，使用 Python 实现。架构包括以下�
 ### 使用
 运行解释器：`python interpreter.py <hpl_file>`
 
-例如：`python interpreter.py exampl.hpl`
+例如：`python interpreter.py example.hpl`

@@ -7,7 +7,8 @@ from io import StringIO
 # Add src to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
-from interpreter import main as interpreter_main
+from src.interpreter import main as interpreter_main
+
 
 class TestHPLInterpreter(unittest.TestCase):
 
@@ -145,8 +146,9 @@ main: |
     def test_invalid_file(self):
         # Test with a non-existent file
         output = self.run_interpreter_with_capture('nonexistent.hpl')
-        # Should not crash, but since we can't easily capture stderr, we'll just check it doesn't produce output
-        self.assertEqual(output.strip(), "")
+        # Should show error message about file not found
+        self.assertIn("Error: File 'nonexistent.hpl' not found.", output)
+
 
 if __name__ == '__main__':
     unittest.main()

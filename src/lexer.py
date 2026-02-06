@@ -136,6 +136,12 @@ class HPLLexer:
                 tokens.append(Token('DOT', '.'))
                 self.advance()
             else:
-                raise ValueError(f"Invalid character: {self.current_char}")
+                # Provide more context about the error
+                context_start = max(0, self.pos - 10)
+                context_end = min(len(self.text), self.pos + 10)
+                context = self.text[context_start:context_end]
+                pointer = " " * (self.pos - context_start) + "^"
+                raise ValueError(f"Invalid character '{self.current_char}' at position {self.pos}\nContext: ...{context}...\n          {pointer}")
+
         tokens.append(Token('EOF', None))
         return tokens
