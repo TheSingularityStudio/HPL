@@ -182,5 +182,85 @@ class TestHPLEvaluator(unittest.TestCase):
         finally:
             sys.stdout = sys.__stdout__
 
+    def test_return_statement(self):
+        # Test that return statements properly return values from functions
+        from src.models import ReturnStatement
+        
+        # Create a function body with a return statement
+        return_stmt = ReturnStatement(IntegerLiteral(42))
+        body = BlockStatement([return_stmt])
+        func = HPLFunction([], body)
+        
+        evaluator = HPLEvaluator(self.classes, self.objects, None)
+        result = evaluator.execute_function(func, {})
+        self.assertEqual(result, 42)
+
+    def test_return_statement_with_expression(self):
+        # Test return with a more complex expression
+        from src.models import ReturnStatement
+        
+        return_stmt = ReturnStatement(BinaryOp(IntegerLiteral(10), '+', IntegerLiteral(5)))
+        body = BlockStatement([return_stmt])
+        func = HPLFunction([], body)
+        
+        evaluator = HPLEvaluator(self.classes, self.objects, None)
+        result = evaluator.execute_function(func, {})
+        self.assertEqual(result, 15)
+
+    def test_type_error_on_string_subtraction(self):
+        # Test that subtracting strings raises HPLTypeError
+        from src.evaluator import HPLTypeError
+        
+        evaluator = HPLEvaluator(self.classes, self.objects, None)
+        expr = BinaryOp(StringLiteral("hello"), '-', StringLiteral("world"))
+        with self.assertRaises(HPLTypeError):
+            evaluator.evaluate_expression(expr, {})
+
+    def test_type_error_on_string_multiplication(self):
+        # Test that multiplying strings raises HPLTypeError
+        from src.evaluator import HPLTypeError
+        
+        evaluator = HPLEvaluator(self.classes, self.objects, None)
+        expr = BinaryOp(StringLiteral("hello"), '*', IntegerLiteral(3))
+        with self.assertRaises(HPLTypeError):
+            evaluator.evaluate_expression(expr, {})
+
+    def test_undefined_variable_error(self):
+        # Test that accessing undefined variable raises HPLUndefinedError
+        from src.evaluator import HPLUndefinedError
+        
+        evaluator = HPLEvaluator(self.classes, self.objects, None)
+        expr = Variable('undefined_var')
+        with self.assertRaises(HPLUndefinedError):
+            evaluator.evaluate_expression(expr, {})
+
+    def test_division_by_zero_error(self):
+        # Test that division by zero raises HPLDivisionByZeroError
+        from src.evaluator import HPLDivisionByZeroError
+        
+        evaluator = HPLEvaluator(self.classes, self.objects, None)
+        expr = BinaryOp(IntegerLiteral(10), '/', IntegerLiteral(0))
+        with self.assertRaises(HPLDivisionByZeroError):
+            evaluator.evaluate_expression(expr, {})
+
+    def test_modulo_by_zero_error(self):
+        # Test that modulo by zero raises HPLDivisionByZeroError
+        from src.evaluator import HPLDivisionByZeroError
+        
+        evaluator = HPLEvaluator(self.classes, self.objects, None)
+        expr = BinaryOp(IntegerLiteral(10), '%', IntegerLiteral(0))
+        with self.assertRaises(HPLDivisionByZeroError):
+            evaluator.evaluate_expression(expr, {})
+
+    def test_type_error_on_non_numeric_increment(self):
+        # Test that incrementing non-numeric value raises HPLTypeError
+        from src.evaluator import HPLTypeError
+        
+        evaluator = HPLEvaluator(self.classes, self.objects, None)
+        local_scope = {'x': "string_value"}
+        expr = PostfixIncrement(Variable('x'))
+        with self.assertRaises(HPLTypeError):
+            evaluator.evaluate_expression(expr, local_scope)
+
 if __name__ == '__main__':
     unittest.main()

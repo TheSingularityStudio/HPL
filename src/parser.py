@@ -1,7 +1,32 @@
+"""
+HPL 解析器模块 (HPL Parser Module)
+
+该模块负责解析 HPL 语言的 YAML 格式源文件，将其转换为内部数据结构。
+它是 HPL 解释器的入口解析阶段，协调词法分析和语法分析过程。
+
+主要功能：
+    - YAML 文件加载：读取并解析 HPL 源文件（YAML 格式）
+    - 文件包含处理：支持通过 includes 关键字包含其他文件
+    - 类定义解析：解析类名、父类关系和方法定义
+    - 对象实例化：根据类定义创建对象实例
+    - 主函数解析：解析程序入口点 main 函数
+    - 函数体解析：将函数字符串解析为 AST
+
+解析流程：
+    1. 加载 YAML 文件
+    2. 处理文件包含（includes）
+    3. 解析类定义（classes）
+    4. 解析对象定义（objects）
+    5. 解析主函数（main）
+    6. 对每个函数体进行词法分析和 AST 解析
+"""
+
 import yaml
 import os
 
-# Handle imports for both module and direct execution
+# 处理模块和直接执行的导入
+
+
 try:
     from src.models import HPLClass, HPLObject, HPLFunction
     from src.lexer import HPLLexer

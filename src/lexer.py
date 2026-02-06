@@ -1,6 +1,30 @@
+"""
+HPL 词法分析器模块 (HPL Lexer Module)
+
+该模块负责将 HPL 源代码文本转换为 Token 序列（词法单元）。
+它是 HPL 语言解释器的第一个处理阶段，为后续的语法分析提供输入。
+
+主要功能：
+    - 字符扫描：逐字符读取源代码
+    - Token 识别：识别标识符、关键字、运算符、分隔符、字面量等
+    - 空白处理：跳过空格、制表符、换行等空白字符
+    - 注释处理：支持单行注释(//)和多行注释(/* */)
+    - 字符串解析：支持双引号和单引号字符串，支持转义字符
+    - 数字解析：识别整数常量
+    - 错误报告：提供详细的词法错误信息
+
+支持的 Token 类型：
+    - 关键字：if, else, for, try, catch, func
+    - 标识符：变量名、函数名
+    - 运算符：+, -, *, /, %, ++, ==, !=, <, <=, >, >=, =
+    - 分隔符：(), {}, ;, ,, .
+    - 字面量：整数、字符串
+"""
+
 import re
 
 class Token:
+
     def __init__(self, type, value):
         self.type = type
         self.value = value
@@ -175,7 +199,8 @@ class HPLLexer:
                 tokens.append(Token('DOT', '.'))
                 self.advance()
             else:
-                # Provide more context about the error
+                # 提供关于错误的更多上下文信息
+
                 context_start = max(0, self.pos - 10)
                 context_end = min(len(self.text), self.pos + 10)
                 context = self.text[context_start:context_end]

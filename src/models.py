@@ -1,4 +1,41 @@
+"""
+HPL 数据模型模块 (HPL Models Module)
+
+该模块定义了 HPL 语言解释器中使用的所有数据模型和 AST 节点类。
+这些类构成了 HPL 语言的抽象语法树和运行时对象表示。
+
+主要类别：
+
+1. 运行时对象模型：
+    - HPLClass: 表示 HPL 类定义，包含类名、方法和父类
+    - HPLObject: 表示 HPL 对象实例，包含对象名、所属类和属性
+    - HPLFunction: 表示 HPL 函数，包含参数列表和函数体
+
+2. 表达式节点（AST）：
+    - Expression: 表达式基类
+    - IntegerLiteral: 整数字面量
+    - StringLiteral: 字符串字面量
+    - BinaryOp: 二元运算表达式
+    - Variable: 变量引用
+    - FunctionCall: 函数调用
+    - MethodCall: 方法调用
+    - SuperCall: 父类方法调用
+    - PostfixIncrement: 后缀自增表达式
+
+3. 语句节点（AST）：
+    - Statement: 语句基类
+    - AssignmentStatement: 赋值语句
+    - ReturnStatement: 返回语句
+    - BlockStatement: 语句块
+    - IfStatement: 条件语句
+    - ForStatement: 循环语句
+    - TryCatchStatement: 异常处理语句
+    - EchoStatement: 输出语句
+    - IncrementStatement: 自增语句
+"""
+
 class HPLClass:
+
     def __init__(self, name, methods, parents=None):
         self.name = name
         self.methods = methods  # 字典：方法名 -> HPLFunction
