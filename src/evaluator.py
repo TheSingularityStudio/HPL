@@ -74,16 +74,34 @@ class ReturnValue(Exception):
 
 class HPLEvaluator:
 
-    def __init__(self, classes, objects, main_func):
+    def __init__(self, classes, objects, main_func, call=None):
         self.classes = classes
         self.objects = objects
         self.main_func = main_func
+        self.call = call  # call 指令
         self.global_scope = self.objects  # 全局变量，包括预定义对象
         self.current_obj = None  # 用于方法中的'this'
 
+
     def run(self):
-        if self.main_func:
+        # 如果有 call 指令，执行指定的函数
+        if self.call:
+            self.execute_call()
+        # 否则执行 main 函数（向后兼容）
+        elif self.main_func:
             self.execute_function(self.main_func, {})
+
+    def execute_call(self):
+        """执行 call 指令"""
+        func_name = self.call['func_name']
+        args = self.call['args']
+        
+        if func_name == 'main' and self.main_func:
+            # 执行 main 函数
+            self.execute_function(self.main_func, {})
+        else:
+            raise HPLError(f"Unknown function to call: {func_name}")
+
 
     def execute_function(self, func, local_scope):
         # 执行语句块，捕获返回值
@@ -256,8 +274,19 @@ class HPLEvaluator:
                 return value
             else:
                 raise HPLUndefinedError(f"Undefined variable '{var_name}'")
+        elif isinstance(expr, PropertyAccess):
+            # 属性访问: obj.property
+            obj = self.evaluate_expression(expr.obj_name, local_scope)
+            if isinstance(obj, HPLObject):
+                if expr.property_name in obj.attributes:
+                    return obj.attributes[expr.property_name]
+                else:
+                    raise HPLUndefinedError(f"Property '{expr.property_name}' not found in object '{obj.name}'")
+            else:
+                raise HPLTypeError(f"Cannot access property on {type(obj).__name__}, expected HPLObject")
         else:
             raise HPLError(f"Unknown expression type {type(expr).__name__}")
+
 
 
     def call_method_on_obj(self, obj, method_name, args):

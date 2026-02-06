@@ -182,18 +182,24 @@ class HPLASTParser:
                 self.expect('RPAREN')
                 return FunctionCall(name, args)
             elif self.current_token and self.current_token.type == 'DOT':
-                # 方法调用
+                # 方法调用或属性访问
                 self.advance()
-                method_name = self.expect('IDENTIFIER').value
-                self.expect('LPAREN')
-                args = []
-                if self.current_token and self.current_token.type != 'RPAREN':
-                    args.append(self.parse_expression())
-                    while self.current_token and self.current_token.type == 'COMMA':
-                        self.advance()
+                property_name = self.expect('IDENTIFIER').value
+                if self.current_token and self.current_token.type == 'LPAREN':
+                    # 方法调用: obj.method(args)
+                    self.advance()
+                    args = []
+                    if self.current_token and self.current_token.type != 'RPAREN':
                         args.append(self.parse_expression())
-                self.expect('RPAREN')
-                return MethodCall(Variable(name), method_name, args)
+                        while self.current_token and self.current_token.type == 'COMMA':
+                            self.advance()
+                            args.append(self.parse_expression())
+                    self.expect('RPAREN')
+                    return MethodCall(Variable(name), property_name, args)
+                else:
+                    # 属性访问: obj.property
+                    return PropertyAccess(Variable(name), property_name)
+
             elif self.current_token and self.current_token.type == 'INCREMENT':
                 # 后缀递增
                 self.advance()

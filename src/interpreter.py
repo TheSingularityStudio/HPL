@@ -54,10 +54,11 @@ def main():
 
     try:
         parser = HPLParser(hpl_file)
-        classes, objects, main_func = parser.parse()
+        classes, objects, main_func, call = parser.parse()
 
-        evaluator = HPLEvaluator(classes, objects, main_func)
+        evaluator = HPLEvaluator(classes, objects, main_func, call)
         evaluator.run()
+
     except FileNotFoundError as e:
         print(f"Error: File not found - {e}")
         sys.exit(1)
