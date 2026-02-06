@@ -1,5 +1,6 @@
 import yaml
 import os
+import re
 from src.models import HPLClass, HPLObject, HPLFunction
 from src.lexer import HPLLexer
 from src.ast_parser import HPLASTParser
@@ -10,20 +11,88 @@ class HPLParser:
         self.classes = {}
         self.objects = {}
         self.main_func = None
-        self.data = self.load_data()
+        self.call_target = None
+        self.data = self.load_and_parse()
 
-    def load_data(self):
+    def load_and_parse(self):
+        """加载并解析 HPL 文件"""
         with open(self.hpl_file, 'r', encoding='utf-8') as f:
-            yaml_content = f.read()
-        data = yaml.safe_load(yaml_content)
+            content = f.read()
+        
+        # 预处理：将函数定义转换为 YAML 字面量块格式
+        content = self.preprocess_functions(content)
+        
+        # 使用自定义 YAML 解析器
+        data = yaml.safe_load(content)
+        
+        # 处理 includes
         if 'includes' in data:
             for include_file in data['includes']:
                 include_path = os.path.join(os.path.dirname(self.hpl_file), include_file)
-                with open(include_path, 'r', encoding='utf-8') as f:
-                    include_content = f.read()
-                include_data = yaml.safe_load(include_content)
-                self.merge_data(data, include_data)
+                if os.path.exists(include_path):
+                    with open(include_path, 'r', encoding='utf-8') as f:
+                        include_content = f.read()
+                    include_content = self.preprocess_functions(include_content)
+                    include_data = yaml.safe_load(include_content)
+                    self.merge_data(data, include_data)
+        
         return data
+
+    def preprocess_functions(self, content):
+        """
+        预处理函数定义，将其转换为 YAML 字面量块格式
+        这样 YAML 就不会解析函数体内部的语法
+        """
+        lines = content.split('\n')
+        result = []
+        i = 0
+        
+        while i < len(lines):
+            line = lines[i]
+            
+            # 检测函数定义行（包含 =>）
+            # 匹配模式：methodName: (params) => {
+            func_pattern = r'^(\s*)(\w+):\s*\(.*\)\s*=>.*\{'
+
+
+            match = re.match(func_pattern, line)
+            
+            if match:
+                indent = match.group(1)
+                key = match.group(2)
+                
+                # 收集完整的函数体
+                func_lines = [line]
+                brace_count = line.count('{') - line.count('}')
+                j = i + 1
+                
+                while brace_count > 0 and j < len(lines):
+                    next_line = lines[j]
+                    func_lines.append(next_line)
+                    brace_count += next_line.count('{') - next_line.count('}')
+                    j += 1
+                
+                # 合并函数定义
+                full_func = '\n'.join(func_lines)
+                
+                # 提取 key 和 value
+                colon_pos = full_func.find(':')
+                key_part = full_func[:colon_pos].rstrip()
+                value_part = full_func[colon_pos+1:].strip()
+                
+                # 转换为 YAML 字面量块格式
+                # 使用 | 表示保留换行符的字面量块
+                # 注意：| 后面要直接跟内容，不能有空行
+                result.append(f'{key_part}: |')
+                for func_line in value_part.split('\n'):
+                    result.append(f'{indent}  {func_line}')
+                
+                i = j
+            else:
+                result.append(line)
+                i += 1
+        
+        return '\n'.join(result)
 
     def merge_data(self, main_data, include_data):
         for key in ['classes', 'objects']:
@@ -39,7 +108,12 @@ class HPLParser:
             self.parse_objects()
         if 'main' in self.data:
             self.main_func = self.parse_function(self.data['main'])
-        return self.classes, self.objects, self.main_func
+        # 处理 call 键
+        if 'call' in self.data:
+            call_str = self.data['call']
+            self.call_target = call_str.rstrip('()').strip()
+        
+        return self.classes, self.objects, self.main_func, self.call_target
 
     def parse_classes(self):
         for class_name, class_def in self.data['classes'].items():
@@ -47,32 +121,39 @@ class HPLParser:
                 methods = {}
                 parent = None
                 for key, value in class_def.items():
-                    if key == 'parent':  # 假设继承标记不同，但在示例中它是DerivedClass: BaseClass
+                    if key == 'parent':
                         parent = value
                     else:
                         methods[key] = self.parse_function(value)
                 self.classes[class_name] = HPLClass(class_name, methods, parent)
-            elif isinstance(class_def, str):
-                # 继承：DerivedClass: BaseClass
-                parent = class_def
-                self.classes[class_name] = HPLClass(class_name, {}, parent)
 
     def parse_objects(self):
         for obj_name, obj_def in self.data['objects'].items():
-            # obj_def 类似 "ClassName()"
             class_name = obj_def.rstrip('()')
             if class_name in self.classes:
                 self.objects[obj_name] = HPLObject(obj_name, self.classes[class_name])
 
     def parse_function(self, func_str):
-        # 解析函数：func(params){ body; }
+        func_str = func_str.strip()
+        
+        # 新语法: (params) => { body }
         start = func_str.find('(')
         end = func_str.find(')')
         params_str = func_str[start+1:end]
         params = [p.strip() for p in params_str.split(',')] if params_str else []
-        body_start = func_str.find('{')
+        
+        # 找到箭头 =>
+        arrow_pos = func_str.find('=>', end)
+        if arrow_pos == -1:
+            raise ValueError("Arrow function syntax error: => not found")
+        
+        # 找到函数体
+        body_start = func_str.find('{', arrow_pos)
         body_end = func_str.rfind('}')
+        if body_start == -1 or body_end == -1:
+            raise ValueError("Arrow function syntax error: braces not found")
         body_str = func_str[body_start+1:body_end].strip()
+        
         # 标记化和解析AST
         lexer = HPLLexer(body_str)
         tokens = lexer.tokenize()

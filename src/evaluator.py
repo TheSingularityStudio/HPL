@@ -1,15 +1,22 @@
 from src.models import *
 
 class HPLEvaluator:
-    def __init__(self, classes, objects, main_func):
+    def __init__(self, classes, objects, main_func, call_target=None):
         self.classes = classes
         self.objects = objects
         self.main_func = main_func
+        self.call_target = call_target
         self.global_scope = self.objects  # 全局变量，包括预定义对象
         self.current_obj = None  # 用于方法中的'this'
 
     def run(self):
-        if self.main_func:
+        # 如果指定了 call_target，执行对应的函数
+        if self.call_target:
+            if self.call_target == 'main' and self.main_func:
+                self.execute_function(self.main_func, {})
+            else:
+                raise ValueError(f"Unknown call target: {self.call_target}")
+        elif self.main_func:
             self.execute_function(self.main_func, {})
 
     def execute_function(self, func, local_scope):
@@ -138,3 +145,4 @@ class HPLEvaluator:
     # 内置函数
     def echo(self, message):
         print(message)
+

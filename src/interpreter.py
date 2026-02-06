@@ -9,10 +9,11 @@ def main():
 
     hpl_file = sys.argv[1]
     parser = HPLParser(hpl_file)
-    classes, objects, main_func = parser.parse()
+    classes, objects, main_func, call_target = parser.parse()
 
-    evaluator = HPLEvaluator(classes, objects, main_func)
+    evaluator = HPLEvaluator(classes, objects, main_func, call_target)
     evaluator.run()
 
 if __name__ == "__main__":
     main()
+

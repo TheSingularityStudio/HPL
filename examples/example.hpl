@@ -1,0 +1,29 @@
+includes:
+  - base.hpl
+
+classes:
+  MessagePrinter:
+    parent: BasePrinter
+    showmessage: () => {
+        this.print("Hello World")
+      }
+    showmessages: (count) => {
+        for (i = 0; i < count; i++) :
+          if (i % 2 == 0) :
+            this.print("Even: Hello World " + i)
+          else :
+            this.print("Odd: Hello World " + i)
+      }
+
+objects:
+  printer: MessagePrinter()
+
+main: () => {
+    try :
+      printer.showmessage()
+      printer.showmessages(5)
+    catch (error) :
+      echo "Error: " + error
+  }
+
+call: main()

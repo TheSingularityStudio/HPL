@@ -1,6 +1,5 @@
 classes:
   BasePrinter:
-    print: |
-      func(message){
-        echo message;
+    print: (message) => {
+        echo message
       }

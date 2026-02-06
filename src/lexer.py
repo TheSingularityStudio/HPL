@@ -62,11 +62,12 @@ class HPLLexer:
                 continue
             if self.current_char.isalpha() or self.current_char == '_':
                 ident = self.identifier()
-                if ident in ['if', 'else', 'for', 'try', 'catch', 'func']:
+                if ident in ['if', 'else', 'for', 'try', 'catch']:
                     tokens.append(Token('KEYWORD', ident))
                 else:
                     tokens.append(Token('IDENTIFIER', ident))
                 continue
+
             if self.current_char == '+':
                 self.advance()
                 if self.current_char == '+':
@@ -86,14 +87,8 @@ class HPLLexer:
             elif self.current_char == '%':
                 tokens.append(Token('MOD', '%'))
                 self.advance()
-            elif self.current_char == '=':
-                self.advance()
-                if self.current_char == '=':
-                    tokens.append(Token('EQ', '=='))
-                    self.advance()
-                else:
-                    tokens.append(Token('ASSIGN', '='))
             elif self.current_char == '!':
+
                 self.advance()
                 if self.current_char == '=':
                     tokens.append(Token('NE', '!='))
@@ -135,7 +130,21 @@ class HPLLexer:
             elif self.current_char == '.':
                 tokens.append(Token('DOT', '.'))
                 self.advance()
+            elif self.current_char == ':':
+                tokens.append(Token('COLON', ':'))
+                self.advance()
+            elif self.current_char == '=':
+                self.advance()
+                if self.current_char == '=':
+                    tokens.append(Token('EQ', '=='))
+                    self.advance()
+                elif self.current_char == '>':
+                    tokens.append(Token('ARROW', '=>'))
+                    self.advance()
+                else:
+                    tokens.append(Token('ASSIGN', '='))
             else:
                 raise ValueError(f"Invalid character: {self.current_char}")
+
         tokens.append(Token('EOF', None))
         return tokens

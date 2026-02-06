@@ -5,6 +5,7 @@ class HPLASTParser:
         self.tokens = tokens
         self.pos = 0
         self.current_token = self.tokens[0] if tokens else None
+        self.indent_level = 0
 
     def advance(self):
         self.pos += 1
@@ -13,42 +14,69 @@ class HPLASTParser:
         else:
             self.current_token = None
 
+    def peek(self, offset=1):
+        peek_pos = self.pos + offset
+        if peek_pos < len(self.tokens):
+            return self.tokens[peek_pos]
+        return None
+
     def parse_block(self):
+        statements = []
+        
+        # 检查是否有花括号开始
         if self.current_token and self.current_token.type == 'LBRACE':
             self.expect('LBRACE')
-        statements = []
-        while self.current_token and self.current_token.type not in ['RBRACE', 'EOF']:
-            statements.append(self.parse_statement())
-        if self.current_token and self.current_token.type == 'RBRACE':
-            self.expect('RBRACE')
+            while self.current_token and self.current_token.type not in ['RBRACE', 'EOF']:
+                statements.append(self.parse_statement())
+            if self.current_token and self.current_token.type == 'RBRACE':
+                self.expect('RBRACE')
+        # 检查是否有冒号
+        elif self.current_token and self.current_token.type == 'COLON':
+            self.expect('COLON')
+            # 冒号后的语句是缩进的，我们按顺序解析直到遇到结束标记
+            while self.current_token and self.current_token.type not in ['RBRACE', 'EOF', 'KEYWORD']:
+                # 检查是否是 else 或 catch 等结束当前块的关键字
+                if self.current_token.type == 'KEYWORD' and self.current_token.value in ['else', 'catch']:
+                    break
+                statements.append(self.parse_statement())
+
+        else:
+            # 没有花括号也没有冒号，直接解析单个语句或语句序列
+            while self.current_token and self.current_token.type not in ['RBRACE', 'EOF']:
+                # 检查是否是结束当前块的关键字
+                if self.current_token.type == 'KEYWORD' and self.current_token.value in ['else', 'catch']:
+                    break
+                statements.append(self.parse_statement())
+        
         return BlockStatement(statements)
 
     def parse_statement(self):
+
+        if not self.current_token:
+            return None
+            
         if self.current_token.type == 'IDENTIFIER':
             if self.current_token.value == 'echo':
-                self.advance()  # 回显
+                self.advance()  # echo
                 expr = self.parse_expression()
-                self.expect('SEMICOLON')
                 return EchoStatement(expr)
-            # 检查下一个标记是否为赋值或调用
+            # 检查下一个标记是否为赋值
             elif self.pos + 1 < len(self.tokens) and self.tokens[self.pos + 1].type == 'ASSIGN':
                 var_name = self.current_token.value
                 self.advance()  # 标识符
                 self.advance()  # 赋值
                 expr = self.parse_expression()
-                self.expect('SEMICOLON')
                 return AssignmentStatement(var_name, expr)
             elif self.pos + 1 < len(self.tokens) and self.tokens[self.pos + 1].type == 'INCREMENT':
                 var_name = self.current_token.value
                 self.advance()  # 标识符
                 self.advance()  # 自增
-                self.expect('SEMICOLON')
                 return IncrementStatement(var_name)
             else:
                 # 表达式语句（例如，调用）
                 expr = self.parse_expression()
-                self.expect('SEMICOLON')
                 return expr  # 调用是表达式但可以是语句
+
         elif self.current_token.type == 'KEYWORD':
             if self.current_token.value == 'if':
                 return self.parse_if()
@@ -64,48 +92,80 @@ class HPLASTParser:
             raise ValueError(f"Unexpected token {self.current_token}")
 
     def parse_if(self):
-        self.advance()  # 如果
+        self.advance()  # if
         self.expect('LPAREN')
         condition = self.parse_expression()
         self.expect('RPAREN')
+        
         then_block = self.parse_block()
+        
         else_block = None
+
         if self.current_token and self.current_token.type == 'KEYWORD' and self.current_token.value == 'else':
             self.advance()
             else_block = self.parse_block()
         return IfStatement(condition, then_block, else_block)
 
     def parse_for(self):
-        self.advance()  # 循环
+        self.advance()  # for
         self.expect('LPAREN')
-        init = self.parse_statement()  # 例如，i = 0;
+        
+        # 解析初始化
+        init = None
+        if self.current_token and self.current_token.type == 'IDENTIFIER':
+            var_name = self.current_token.value
+            self.advance()
+            self.expect('ASSIGN')
+            expr = self.parse_expression()
+            init = AssignmentStatement(var_name, expr)
+        
+        self.expect('SEMICOLON')
         condition = self.parse_expression()
         self.expect('SEMICOLON')
-        increment_expr = self.parse_expression()  # 例如，i++
+        
+        # 解析增量表达式
+        increment_expr = None
+        if self.current_token and self.current_token.type == 'IDENTIFIER':
+            var_name = self.current_token.value
+            self.advance()
+            if self.current_token and self.current_token.type == 'INCREMENT':
+                self.advance()
+                increment_expr = PostfixIncrement(Variable(var_name))
+            else:
+                # 可能是赋值增量，如 i = i + 1
+                increment_expr = self.parse_expression()
+        else:
+            increment_expr = self.parse_expression()
+        
         self.expect('RPAREN')
         body = self.parse_block()
         return ForStatement(init, condition, increment_expr, body)
 
     def parse_try(self):
-        self.advance()  # 尝试
+        self.advance()  # try
         try_block = self.parse_block()
-        self.expect_keyword('catch')
-        self.expect('LPAREN')
-        catch_var = self.expect('IDENTIFIER').value
-        self.expect('RPAREN')
-        catch_block = self.parse_block()
-        return TryCatchStatement(try_block, catch_var, catch_block)
+        
+        # 检查 catch
+        if self.current_token and self.current_token.type == 'KEYWORD' and self.current_token.value == 'catch':
+            self.advance()  # catch
+            self.expect('LPAREN')
+            catch_var = self.expect('IDENTIFIER').value
+            self.expect('RPAREN')
+            catch_block = self.parse_block()
+            return TryCatchStatement(try_block, catch_var, catch_block)
+        else:
+            raise ValueError("Expected catch after try")
 
     def parse_return(self):
-        self.advance()  # 返回
+        self.advance()  # return
         expr = None
-        if self.current_token and self.current_token.type != 'SEMICOLON':
+        if self.current_token and self.current_token.type != 'SEMICOLON' and self.current_token.type != 'RBRACE' and self.current_token.type != 'EOF':
             expr = self.parse_expression()
-        self.expect('SEMICOLON')
         return ReturnStatement(expr)
 
     def parse_expression(self):
         return self.parse_binary_op()
+
 
     def parse_binary_op(self):
         left = self.parse_primary()

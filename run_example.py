@@ -13,5 +13,5 @@ from interpreter import main as interpreter_main
 
 if __name__ == "__main__":
     # Run on the example file
-    sys.argv = ['interpreter.py', 'examples/exampl.hpl']
+    sys.argv = ['interpreter.py', 'examples/example.hpl']
     interpreter_main()
