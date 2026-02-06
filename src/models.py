@@ -42,10 +42,12 @@ class HPLClass:
         self.parents = parents or []  # 列表：父类名列表
 
 class HPLObject:
-    def __init__(self, name, hpl_class):
+    def __init__(self, name, hpl_class, constructor_args=None):
         self.name = name
         self.hpl_class = hpl_class
+        self.constructor_args = constructor_args or []  # 构造函数参数
         self.attributes = {}  # 用于实例变量
+
 
 class HPLFunction:
     def __init__(self, params, body):
@@ -99,7 +101,13 @@ class PostfixIncrement(Expression):
     def __init__(self, var):
         self.var = var
 
+class PropertyAccess(Expression):
+    def __init__(self, obj_name, property_name):
+        self.obj_name = obj_name  # 可以是 Variable 或 Expression
+        self.property_name = property_name
+
 # 语句
+
 class AssignmentStatement(Statement):
     def __init__(self, var_name, expr):
         self.var_name = var_name

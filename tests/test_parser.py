@@ -35,7 +35,7 @@ classes:
 """
         file_path = self.create_temp_file('test.hpl', content)
         parser = HPLParser(file_path)
-        classes, objects, main_func = parser.parse()
+        classes, objects, main_func, call = parser.parse()
 
         self.assertIn('SimpleClass', classes)
         self.assertIsInstance(classes['SimpleClass'], HPLClass)
@@ -59,7 +59,7 @@ classes:
 """
         file_path = self.create_temp_file('test.hpl', content)
         parser = HPLParser(file_path)
-        classes, objects, main_func = parser.parse()
+        classes, objects, main_func, call = parser.parse()
 
         self.assertIn('Child', classes)
         self.assertEqual(classes['Child'].parents, ['Parent'])
@@ -77,7 +77,7 @@ objects:
 """
         file_path = self.create_temp_file('test.hpl', content)
         parser = HPLParser(file_path)
-        classes, objects, main_func = parser.parse()
+        classes, objects, main_func, call = parser.parse()
 
         self.assertIn('test_obj', objects)
         self.assertIsInstance(objects['test_obj'], HPLObject)
@@ -92,7 +92,7 @@ main: |
 """
         file_path = self.create_temp_file('test.hpl', content)
         parser = HPLParser(file_path)
-        classes, objects, main_func = parser.parse()
+        classes, objects, main_func, call = parser.parse()
 
         self.assertIsInstance(main_func, HPLFunction)
 
@@ -119,7 +119,7 @@ classes:
 """
         main_path = self.create_temp_file('main.hpl', main_content)
         parser = HPLParser(main_path)
-        classes, objects, main_func = parser.parse()
+        classes, objects, main_func, call = parser.parse()
 
         self.assertIn('IncludedClass', classes)
         self.assertIn('MainClass', classes)
@@ -133,6 +133,22 @@ classes:
         parser = HPLParser(file_path)
         with self.assertRaises(ValueError):
             parser.parse()
+
+    def test_parse_call(self):
+        content = """
+main: |
+  func(){
+    echo "main";
+  }
+call: main();
+"""
+        file_path = self.create_temp_file('test.hpl', content)
+        parser = HPLParser(file_path)
+        classes, objects, main_func, call = parser.parse()
+
+        self.assertIsNotNone(call)
+        self.assertEqual(call['func_name'], 'main')
+        self.assertEqual(call['args'], [])
 
 if __name__ == '__main__':
     unittest.main()
