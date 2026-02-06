@@ -242,8 +242,15 @@ class HPLEvaluator:
                 message = self.evaluate_expression(expr.args[0], local_scope)
                 self.echo(message)
                 return None
+            elif expr.func_name == 'input':
+                # 支持可选的提示信息参数
+                prompt = None
+                if expr.args:
+                    prompt = self.evaluate_expression(expr.args[0], local_scope)
+                return self.input(prompt)
             else:
                 raise ValueError(f"Unknown function {expr.func_name}")
+
         elif isinstance(expr, MethodCall):
             obj = self.evaluate_expression(expr.obj_name, local_scope)
             if isinstance(obj, HPLObject):
@@ -324,3 +331,9 @@ class HPLEvaluator:
     # 内置函数
     def echo(self, message):
         print(message)
+
+    def input(self, prompt=None):
+        """获取用户输入，可选提示信息"""
+        if prompt is not None:
+            return input(prompt)
+        return input()

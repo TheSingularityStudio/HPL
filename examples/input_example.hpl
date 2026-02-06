@@ -1,0 +1,11 @@
+main: |
+  func(){
+    echo "欢迎使用HPL输入功能测试";
+    name = input("请输入您的姓名: ");
+    echo "您好, " + name + "!";
+    age = input("请输入您的年龄: ");
+    echo "您的年龄是: " + age;
+    echo "测试完成!";
+  }
+
+call: main();
