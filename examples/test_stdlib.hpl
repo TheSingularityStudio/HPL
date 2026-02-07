@@ -1,0 +1,61 @@
+# HPL 标准库导入测试示例
+
+imports:
+  - math
+  - io
+  - json
+  - os
+  - time
+
+main: () => {
+  # 测试 math 模块
+  echo("=== Math Module Test ===")
+  echo("PI = " + math.PI)
+  echo("sqrt(16) = " + math.sqrt(16))
+  echo("sin(0) = " + math.sin(0))
+  echo("pow(2, 10) = " + math.pow(2, 10))
+  echo("floor(3.7) = " + math.floor(3.7))
+  echo("ceil(3.2) = " + math.ceil(3.2))
+  
+  # 测试 time 模块
+  echo("")
+  echo("=== Time Module Test ===")
+  echo("Current timestamp: " + time.now())
+  echo("Current year: " + time.get_year())
+  echo("ISO date: " + time.get_iso_date())
+  
+  # 测试 os 模块
+  echo("")
+  echo("=== OS Module Test ===")
+  echo("Platform: " + os.get_platform())
+  echo("Python version: " + os.get_python_version())
+  echo("HPL version: " + os.get_hpl_version())
+  echo("Current directory: " + os.get_cwd())
+  echo("CPU count: " + os.cpu_count())
+  
+  # 测试 io 模块
+  echo("")
+  echo("=== IO Module Test ===")
+  test_file = "test_output.txt"
+  io.write_file(test_file, "Hello from HPL!")
+  content = io.read_file(test_file)
+  echo("File content: " + content)
+  echo("File exists: " + io.file_exists(test_file))
+  echo("File size: " + io.get_file_size(test_file))
+  io.delete_file(test_file)
+  echo("File deleted: " + !io.file_exists(test_file))
+  
+  # 测试 json 模块
+  echo("")
+  echo("=== JSON Module Test ===")
+  data = [[1, "one"], [2, "two"], [3, "three"]]
+  json_str = json.stringify(data)
+  echo("JSON string: " + json_str)
+  
+  # 验证 JSON 是否有效
+  is_valid = json.is_valid(json_str)
+  echo("Is valid JSON: " + is_valid)
+  
+  echo("")
+  echo("=== All Tests Completed ===")
+}

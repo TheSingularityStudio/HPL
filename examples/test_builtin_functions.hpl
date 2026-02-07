@@ -1,0 +1,43 @@
+main: () => {
+    # 测试 len() 函数
+    arr = [1, 2, 3, 4, 5]
+    echo "Array length: " + len(arr)
+    
+    str = "Hello World"
+    echo "String length: " + len(str)
+    
+    # 测试 type() 函数
+    echo "Type of 42: " + type(42)
+    echo "Type of 3.14: " + type(3.14)
+    echo "Type of 'hello': " + type("hello")
+    echo "Type of true: " + type(true)
+    echo "Type of [1,2,3]: " + type([1, 2, 3])
+    
+    # 测试 int() 函数
+    num_str = "123"
+    num = int(num_str)
+    echo "Converted int: " + num
+    
+    # 测试 str() 函数
+    num_val = 456
+    str_val = str(num_val)
+    echo "Converted string: " + str_val
+    
+    # 测试 abs() 函数
+    neg = -42
+    pos = abs(neg)
+    echo "Absolute value: " + pos
+    
+    # 测试 max() 和 min() 函数
+    a = 10
+    b = 20
+    c = 5
+    max_val = max(a, b, c)
+    min_val = min(a, b, c)
+    echo "Max value: " + max_val
+    echo "Min value: " + min_val
+    
+    echo "All built-in function tests passed!"
+  }
+
+call: main()

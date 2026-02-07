@@ -37,7 +37,9 @@ class HPLParser:
         self.objects = {}
         self.main_func = None
         self.call_target = None
+        self.imports = []  # 存储导入语句
         self.data = self.load_and_parse()
+
 
     def load_and_parse(self):
         """加载并解析 HPL 文件"""
@@ -125,6 +127,10 @@ class HPLParser:
                 main_data[key].update(include_data[key])
 
     def parse(self):
+        # 处理顶层 import 语句
+        if 'imports' in self.data:
+            self.parse_imports()
+        
         if 'classes' in self.data:
             self.parse_classes()
         if 'objects' in self.data:
@@ -136,7 +142,21 @@ class HPLParser:
             call_str = self.data['call']
             self.call_target = call_str.rstrip('()').strip()
         
-        return self.classes, self.objects, self.main_func, self.call_target
+        return self.classes, self.objects, self.main_func, self.call_target, self.imports
+
+    def parse_imports(self):
+        """解析顶层 import 语句"""
+        imports_data = self.data['imports']
+        if isinstance(imports_data, list):
+            for imp in imports_data:
+                if isinstance(imp, str):
+                    # 简单格式: module_name
+                    self.imports.append({'module': imp, 'alias': None})
+                elif isinstance(imp, dict):
+                    # 复杂格式: {module: alias} 或 {module: name, as: alias}
+                    for module, alias in imp.items():
+                        self.imports.append({'module': module, 'alias': alias})
+
 
     def parse_classes(self):
         for class_name, class_def in self.data['classes'].items():
@@ -152,9 +172,19 @@ class HPLParser:
 
     def parse_objects(self):
         for obj_name, obj_def in self.data['objects'].items():
-            class_name = obj_def.rstrip('()')
+            # 解析构造函数参数
+            if '(' in obj_def and ')' in obj_def:
+                class_name = obj_def[:obj_def.find('(')].strip()
+                args_str = obj_def[obj_def.find('(')+1:obj_def.find(')')].strip()
+                args = [arg.strip() for arg in args_str.split(',')] if args_str else []
+            else:
+                class_name = obj_def.rstrip('()')
+                args = []
+            
             if class_name in self.classes:
-                self.objects[obj_name] = HPLObject(obj_name, self.classes[class_name])
+                hpl_class = self.classes[class_name]
+                # 创建对象，稍后由 evaluator 调用构造函数
+                self.objects[obj_name] = HPLObject(obj_name, hpl_class, {'__init_args__': args})
 
     def parse_function(self, func_str):
         func_str = func_str.strip()
@@ -183,4 +213,3 @@ class HPLParser:
         ast_parser = HPLASTParser(tokens)
         body_ast = ast_parser.parse_block()
         return HPLFunction(params, body_ast)
-

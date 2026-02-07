@@ -12,12 +12,15 @@ HPL 词法分析器模块
 
 
 class Token:
-    def __init__(self, type, value):
+    def __init__(self, type, value, line=0, column=0):
         self.type = type
         self.value = value
+        self.line = line
+        self.column = column
 
     def __repr__(self):
-        return f'Token({self.type}, {self.value})'
+        return f'Token({self.type}, {self.value}, line={self.line}, col={self.column})'
+
 
 
 class HPLLexer:
@@ -25,16 +28,27 @@ class HPLLexer:
         self.text = text
         self.pos = 0
         self.current_char = self.text[0] if self.text else None
+        # 行号和列号跟踪
+        self.line = 1
+        self.column = 0
         # 缩进跟踪
         self.indent_stack = [0]  # 缩进级别栈，初始为0
         self.at_line_start = True  # 标记是否在行首
 
+
     def advance(self):
+        if self.current_char == '\n':
+            self.line += 1
+            self.column = 0
+        else:
+            self.column += 1
+        
         self.pos += 1
         if self.pos > len(self.text) - 1:
             self.current_char = None
         else:
             self.current_char = self.text[self.pos]
+
 
     def peek(self):
         """查看下一个字符但不移动位置"""
@@ -111,12 +125,12 @@ class HPLLexer:
                 if indent > current_indent:
                     # 缩进增加
                     self.indent_stack.append(indent)
-                    tokens.append(Token('INDENT', indent))
+                    tokens.append(Token('INDENT', indent, self.line, self.column))
                 elif indent < current_indent:
                     # 缩进减少，可能弹出多个级别
                     while indent < self.indent_stack[-1]:
                         self.indent_stack.pop()
-                        tokens.append(Token('DEDENT', self.indent_stack[-1]))
+                        tokens.append(Token('DEDENT', self.indent_stack[-1], self.line, self.column))
                 
                 self.at_line_start = False
                 continue
@@ -138,115 +152,133 @@ class HPLLexer:
                 self.skip_whitespace()
                 continue
             
+            # 记录当前 token 的位置
+            token_line = self.line
+            token_column = self.column
+            
             # 其他字符，标记不在行首
             self.at_line_start = False
 
             if self.current_char.isdigit():
-                tokens.append(Token('NUMBER', self.number()))
+                tokens.append(Token('NUMBER', self.number(), token_line, token_column))
                 continue
 
             if self.current_char == '"':
-                tokens.append(Token('STRING', self.string()))
+                tokens.append(Token('STRING', self.string(), token_line, token_column))
                 continue
 
             if self.current_char.isalpha() or self.current_char == '_':
                 ident = self.identifier()
-                if ident in ['if', 'else', 'for', 'try', 'catch', 'return']:
-                    tokens.append(Token('KEYWORD', ident))
+                if ident in ['if', 'else', 'for', 'while', 'try', 'catch', 'return', 'break', 'continue', 'import']:
+
+                    tokens.append(Token('KEYWORD', ident, token_line, token_column))
                 elif ident in ['true', 'false']:
-                    tokens.append(Token('BOOLEAN', ident == 'true'))
+                    tokens.append(Token('BOOLEAN', ident == 'true', token_line, token_column))
                 else:
-                    tokens.append(Token('IDENTIFIER', ident))
+                    tokens.append(Token('IDENTIFIER', ident, token_line, token_column))
                 continue
 
             if self.current_char == '+':
                 self.advance()
                 if self.current_char == '+':
-                    tokens.append(Token('INCREMENT', '++'))
+                    tokens.append(Token('INCREMENT', '++', token_line, token_column))
                     self.advance()
                 else:
-                    tokens.append(Token('PLUS', '+'))
+                    tokens.append(Token('PLUS', '+', token_line, token_column))
             elif self.current_char == '-':
-                tokens.append(Token('MINUS', '-'))
                 self.advance()
+                tokens.append(Token('MINUS', '-', token_line, token_column))
             elif self.current_char == '*':
-                tokens.append(Token('MUL', '*'))
                 self.advance()
+                tokens.append(Token('MUL', '*', token_line, token_column))
             elif self.current_char == '/':
-                tokens.append(Token('DIV', '/'))
                 self.advance()
+                tokens.append(Token('DIV', '/', token_line, token_column))
             elif self.current_char == '%':
-                tokens.append(Token('MOD', '%'))
                 self.advance()
+                tokens.append(Token('MOD', '%', token_line, token_column))
             elif self.current_char == '!':
                 self.advance()
                 if self.current_char == '=':
-                    tokens.append(Token('NE', '!='))
+                    tokens.append(Token('NE', '!=', token_line, token_column))
                     self.advance()
                 else:
-                    tokens.append(Token('NOT', '!'))
+                    tokens.append(Token('NOT', '!', token_line, token_column))
             elif self.current_char == '<':
                 self.advance()
                 if self.current_char == '=':
-                    tokens.append(Token('LE', '<='))
+                    tokens.append(Token('LE', '<=', token_line, token_column))
                     self.advance()
                 else:
-                    tokens.append(Token('LT', '<'))
+                    tokens.append(Token('LT', '<', token_line, token_column))
             elif self.current_char == '>':
                 self.advance()
                 if self.current_char == '=':
-                    tokens.append(Token('GE', '>='))
+                    tokens.append(Token('GE', '>=', token_line, token_column))
                     self.advance()
                 else:
-                    tokens.append(Token('GT', '>'))
+                    tokens.append(Token('GT', '>', token_line, token_column))
             elif self.current_char == '(':
-                tokens.append(Token('LPAREN', '('))
                 self.advance()
+                tokens.append(Token('LPAREN', '(', token_line, token_column))
             elif self.current_char == ')':
-                tokens.append(Token('RPAREN', ')'))
                 self.advance()
+                tokens.append(Token('RPAREN', ')', token_line, token_column))
             elif self.current_char == '{':
-                tokens.append(Token('LBRACE', '{'))
                 self.advance()
+                tokens.append(Token('LBRACE', '{', token_line, token_column))
             elif self.current_char == '}':
-                tokens.append(Token('RBRACE', '}'))
                 self.advance()
+                tokens.append(Token('RBRACE', '}', token_line, token_column))
             elif self.current_char == '[':
-                tokens.append(Token('LBRACKET', '['))
                 self.advance()
+                tokens.append(Token('LBRACKET', '[', token_line, token_column))
             elif self.current_char == ']':
-                tokens.append(Token('RBRACKET', ']'))
                 self.advance()
+                tokens.append(Token('RBRACKET', ']', token_line, token_column))
             elif self.current_char == ';':
-                tokens.append(Token('SEMICOLON', ';'))
                 self.advance()
+                tokens.append(Token('SEMICOLON', ';', token_line, token_column))
             elif self.current_char == ',':
-                tokens.append(Token('COMMA', ','))
                 self.advance()
+                tokens.append(Token('COMMA', ',', token_line, token_column))
             elif self.current_char == '.':
-                tokens.append(Token('DOT', '.'))
                 self.advance()
+                tokens.append(Token('DOT', '.', token_line, token_column))
             elif self.current_char == ':':
-                tokens.append(Token('COLON', ':'))
                 self.advance()
+                tokens.append(Token('COLON', ':', token_line, token_column))
             elif self.current_char == '=':
                 self.advance()
                 if self.current_char == '=':
-                    tokens.append(Token('EQ', '=='))
+                    tokens.append(Token('EQ', '==', token_line, token_column))
                     self.advance()
                 elif self.current_char == '>':
-                    tokens.append(Token('ARROW', '=>'))
+                    tokens.append(Token('ARROW', '=>', token_line, token_column))
                     self.advance()
                 else:
-                    tokens.append(Token('ASSIGN', '='))
+                    tokens.append(Token('ASSIGN', '=', token_line, token_column))
+            elif self.current_char == '&':
+                self.advance()
+                if self.current_char == '&':
+                    tokens.append(Token('AND', '&&', token_line, token_column))
+                    self.advance()
+                else:
+                    raise ValueError(f"Invalid character '&' at line {self.line}, column {self.column}")
+            elif self.current_char == '|':
+                self.advance()
+                if self.current_char == '|':
+                    tokens.append(Token('OR', '||', token_line, token_column))
+                    self.advance()
+                else:
+                    raise ValueError(f"Invalid character '|' at line {self.line}, column {self.column}")
             else:
-                raise ValueError(f"Invalid character: {self.current_char}")
+                raise ValueError(f"Invalid character '{self.current_char}' at line {self.line}, column {self.column}")
 
         # 文件结束时，弹出所有缩进级别
         while len(self.indent_stack) > 1:
             self.indent_stack.pop()
-            tokens.append(Token('DEDENT', 0))
+            tokens.append(Token('DEDENT', 0, self.line, self.column))
         
-        tokens.append(Token('EOF', None))
+        tokens.append(Token('EOF', None, self.line, self.column))
         return tokens
-

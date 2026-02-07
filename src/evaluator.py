@@ -17,14 +17,29 @@ HPL 代码执行器模块
 
 try:
     from src.models import *
+    from src.ast_parser import BreakStatement, ContinueStatement
+    from src.module_loader import load_module, HPLModule
 except ImportError:
     from models import *
+    from ast_parser import BreakStatement, ContinueStatement
+    from module_loader import load_module, HPLModule
+
 
 
 class ReturnValue:
     """包装返回值，用于区分正常执行结果和return语句"""
     def __init__(self, value):
         self.value = value
+
+
+class BreakException(Exception):
+    """用于跳出循环"""
+    pass
+
+
+class ContinueException(Exception):
+    """用于继续下一次循环"""
+    pass
 
 
 class HPLEvaluator:
@@ -35,6 +50,9 @@ class HPLEvaluator:
         self.call_target = call_target
         self.global_scope = self.objects  # 全局变量，包括预定义对象
         self.current_obj = None  # 用于方法中的'this'
+        self.call_stack = []  # 调用栈，用于错误跟踪
+        self.imported_modules = {}  # 导入的模块 {alias/name: module}
+
 
     def run(self):
         # 如果指定了 call_target，执行对应的函数
@@ -60,6 +78,11 @@ class HPLEvaluator:
             # 如果语句返回了ReturnValue，立即向上传播（终止执行）
             if isinstance(result, ReturnValue):
                 return result
+            # 处理 break 和 continue
+            if isinstance(result, BreakException):
+                raise result
+            if isinstance(result, ContinueException):
+                raise result
         return None
 
     def execute_statement(self, stmt, local_scope):
@@ -86,11 +109,31 @@ class HPLEvaluator:
             # 初始化
             self.execute_statement(stmt.init, local_scope)
             while self.evaluate_expression(stmt.condition, local_scope):
-                result = self.execute_block(stmt.body, local_scope)
-                # 如果是ReturnValue，立即终止循环并向上传播
-                if isinstance(result, ReturnValue):
-                    return result
+                try:
+                    result = self.execute_block(stmt.body, local_scope)
+                    # 如果是ReturnValue，立即终止循环并向上传播
+                    if isinstance(result, ReturnValue):
+                        return result
+                except BreakException:
+                    break
+                except ContinueException:
+                    pass
                 self.evaluate_expression(stmt.increment_expr, local_scope)
+        elif isinstance(stmt, WhileStatement):
+            while self.evaluate_expression(stmt.condition, local_scope):
+                try:
+                    result = self.execute_block(stmt.body, local_scope)
+                    # 如果是ReturnValue，立即终止循环并向上传播
+                    if isinstance(result, ReturnValue):
+                        return result
+                except BreakException:
+                    break
+                except ContinueException:
+                    pass
+        elif isinstance(stmt, BreakStatement):
+            raise BreakException()
+        elif isinstance(stmt, ContinueStatement):
+            raise ContinueException()
         elif isinstance(stmt, TryCatchStatement):
             try:
                 result = self.execute_block(stmt.try_block, local_scope)
@@ -106,7 +149,10 @@ class HPLEvaluator:
         elif isinstance(stmt, EchoStatement):
             message = self.evaluate_expression(stmt.expr, local_scope)
             self.echo(message)
+        elif isinstance(stmt, ImportStatement):
+            self.execute_import(stmt, local_scope)
         elif isinstance(stmt, IncrementStatement):
+
             # 前缀自增
             value = self._lookup_variable(stmt.var_name, local_scope)
             if not isinstance(value, (int, float)):
@@ -144,10 +190,57 @@ class HPLEvaluator:
             else:
                 raise ValueError(f"Unknown unary operator {expr.op}")
         elif isinstance(expr, FunctionCall):
+            # 内置函数处理
             if expr.func_name == 'echo':
                 message = self.evaluate_expression(expr.args[0], local_scope)
                 self.echo(message)
                 return None
+            elif expr.func_name == 'len':
+                arg = self.evaluate_expression(expr.args[0], local_scope)
+                if isinstance(arg, (list, str)):
+                    return len(arg)
+                else:
+                    raise TypeError(f"len() requires list or string, got {type(arg).__name__}")
+            elif expr.func_name == 'int':
+                arg = self.evaluate_expression(expr.args[0], local_scope)
+                try:
+                    return int(arg)
+                except (ValueError, TypeError):
+                    raise ValueError(f"Cannot convert {arg} to int")
+            elif expr.func_name == 'str':
+                arg = self.evaluate_expression(expr.args[0], local_scope)
+                return str(arg)
+            elif expr.func_name == 'type':
+                arg = self.evaluate_expression(expr.args[0], local_scope)
+                if isinstance(arg, bool):
+                    return 'boolean'
+                elif isinstance(arg, int):
+                    return 'int'
+                elif isinstance(arg, float):
+                    return 'float'
+                elif isinstance(arg, str):
+                    return 'string'
+                elif isinstance(arg, list):
+                    return 'array'
+                elif isinstance(arg, HPLObject):
+                    return arg.hpl_class.name
+                else:
+                    return type(arg).__name__
+            elif expr.func_name == 'abs':
+                arg = self.evaluate_expression(expr.args[0], local_scope)
+                if not isinstance(arg, (int, float)):
+                    raise TypeError(f"abs() requires number, got {type(arg).__name__}")
+                return abs(arg)
+            elif expr.func_name == 'max':
+                if len(expr.args) < 1:
+                    raise ValueError("max() requires at least one argument")
+                args = [self.evaluate_expression(arg, local_scope) for arg in expr.args]
+                return max(args)
+            elif expr.func_name == 'min':
+                if len(expr.args) < 1:
+                    raise ValueError("min() requires at least one argument")
+                args = [self.evaluate_expression(arg, local_scope) for arg in expr.args]
+                return min(args)
             else:
                 raise ValueError(f"Unknown function {expr.func_name}")
         elif isinstance(expr, MethodCall):
@@ -155,8 +248,23 @@ class HPLEvaluator:
             if isinstance(obj, HPLObject):
                 args = [self.evaluate_expression(arg, local_scope) for arg in expr.args]
                 return self._call_method(obj, expr.method_name, args)
+            elif isinstance(obj, HPLModule):
+                # 模块函数调用或常量访问
+                if len(expr.args) == 0:
+                    # 可能是模块常量访问，如 math.PI
+                    try:
+                        return self.get_module_constant(obj, expr.method_name)
+                    except ValueError:
+                        # 不是常量，可能是无参函数调用
+                        return self.call_module_function(obj, expr.method_name, [])
+                else:
+                    # 模块函数调用，如 math.sqrt(16)
+                    args = [self.evaluate_expression(arg, local_scope) for arg in expr.args]
+                    return self.call_module_function(obj, expr.method_name, args)
             else:
                 raise ValueError(f"Cannot call method on {obj}")
+
+
         elif isinstance(expr, PostfixIncrement):
             var_name = expr.var.name
             value = self._lookup_variable(var_name, local_scope)
@@ -181,6 +289,12 @@ class HPLEvaluator:
             raise ValueError(f"Unknown expression type {type(expr)}")
 
     def _eval_binary_op(self, left, op, right):
+        # 逻辑运算符
+        if op == '&&':
+            return left and right
+        if op == '||':
+            return left or right
+        
         # 加法需要特殊处理（字符串拼接 vs 数值相加）
         if op == '+':
             if isinstance(left, (int, float)) and isinstance(right, (int, float)):
@@ -252,12 +366,58 @@ class HPLEvaluator:
         self.current_obj = obj
         
         # 创建方法调用的局部作用域
-        method_scope = {param: args[i] for i, param in enumerate(method.params)}
+        method_scope = {param: args[i] for i, param in enumerate(method.params) if i < len(args)}
         method_scope['this'] = obj
         
-        result = self.execute_function(method, method_scope)
-        self.current_obj = prev_obj
+        # 添加到调用栈
+        self.call_stack.append(f"{obj.name}.{method_name}()")
+        
+        try:
+            result = self.execute_function(method, method_scope)
+        finally:
+            # 从调用栈移除
+            self.call_stack.pop()
+            self.current_obj = prev_obj
+        
         return result
+
+    def _call_constructor(self, obj, args):
+        """调用对象的构造函数（如果存在）"""
+        hpl_class = obj.hpl_class
+        if '__init__' in hpl_class.methods:
+            self._call_method(obj, '__init__', args)
+        elif hpl_class.parent and '__init__' in self.classes[hpl_class.parent].methods:
+            # 调用父类的构造函数
+            parent_class = self.classes[hpl_class.parent]
+            if '__init__' in parent_class.methods:
+                method = parent_class.methods['__init__']
+                prev_obj = self.current_obj
+                self.current_obj = obj
+                
+                method_scope = {param: args[i] for i, param in enumerate(method.params) if i < len(args)}
+                method_scope['this'] = obj
+                
+                self.call_stack.append(f"{obj.name}.__init__()")
+                try:
+                    self.execute_function(method, method_scope)
+                finally:
+                    self.call_stack.pop()
+                    self.current_obj = prev_obj
+
+    def instantiate_object(self, class_name, obj_name, init_args=None):
+        """实例化对象并调用构造函数"""
+        if class_name not in self.classes:
+            raise ValueError(f"Class '{class_name}' not found")
+        
+        hpl_class = self.classes[class_name]
+        obj = HPLObject(obj_name, hpl_class)
+        
+        # 调用构造函数（如果存在）
+        if init_args is None:
+            init_args = []
+        self._call_constructor(obj, init_args)
+        
+        return obj
 
     def _check_numeric_operands(self, left, right, op):
         """检查操作数是否为数值类型"""
@@ -266,7 +426,36 @@ class HPLEvaluator:
         if not isinstance(right, (int, float)):
             raise TypeError(f"Unsupported operand type for {op}: '{type(right).__name__}' (expected number)")
 
+    def execute_import(self, stmt, local_scope):
+        """执行 import 语句"""
+        module_name = stmt.module_name
+        alias = stmt.alias or module_name
+        
+        try:
+            # 加载模块
+            module = load_module(module_name)
+            if module:
+                # 存储模块引用
+                self.imported_modules[alias] = module
+                local_scope[alias] = module
+                return None
+        except ImportError as e:
+            raise ImportError(f"Cannot import module '{module_name}': {e}")
+        
+        raise ImportError(f"Module '{module_name}' not found")
+
+    def call_module_function(self, module, func_name, args):
+        """调用模块函数"""
+        if isinstance(module, HPLModule):
+            return module.call_function(func_name, args)
+        raise ValueError(f"Cannot call function on non-module object")
+
+    def get_module_constant(self, module, const_name):
+        """获取模块常量"""
+        if isinstance(module, HPLModule):
+            return module.get_constant(const_name)
+        raise ValueError(f"Cannot get constant from non-module object")
+
     # 内置函数
     def echo(self, message):
         print(message)
-

@@ -21,10 +21,11 @@ class HPLClass:
 
 
 class HPLObject:
-    def __init__(self, name, hpl_class):
+    def __init__(self, name, hpl_class, attributes=None):
         self.name = name
         self.hpl_class = hpl_class
-        self.attributes = {}  # 用于实例变量
+        self.attributes = attributes if attributes is not None else {}  # 用于实例变量
+
 
 
 class HPLFunction:
@@ -143,6 +144,13 @@ class ForStatement(Statement):
         self.body = body
 
 
+class WhileStatement(Statement):
+    def __init__(self, condition, body):
+        self.condition = condition
+        self.body = body
+
+
+
 class TryCatchStatement(Statement):
     def __init__(self, try_block, catch_var, catch_block):
         self.try_block = try_block
@@ -159,3 +167,8 @@ class IncrementStatement(Statement):
     def __init__(self, var_name):
         self.var_name = var_name
 
+
+class ImportStatement(Statement):
+    def __init__(self, module_name, alias=None):
+        self.module_name = module_name  # 模块名
+        self.alias = alias  # 别名（可选）

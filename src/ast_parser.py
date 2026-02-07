@@ -2,16 +2,16 @@
 HPL AST 解析器模块
 
 该模块负责将词法分析器生成的 Token 序列解析为抽象语法树（AST），
-是解释器的第二阶段。支持解析各种语句（if、for、try-catch、赋值等）
+是解释器的第二阶段。支持解析各种语句（if、for、while、try-catch、赋值等）
 和表达式（二元运算、函数调用、方法调用等）。
 
 关键类：
 - HPLASTParser: AST 解析器，将 Token 列表转换为语句块和表达式树
 
 支持的语法结构：
-- 控制流：if-else、for 循环、try-catch
-- 语句：赋值、自增、返回、echo 输出
-- 表达式：二元运算、函数调用、方法调用、变量、字面量
+- 控制流：if-else、for 循环、while 循环、try-catch
+- 语句：赋值、自增、返回、echo 输出、break、continue
+- 表达式：二元运算、函数调用、方法调用、变量、字面量、逻辑运算
 """
 
 try:
@@ -39,6 +39,12 @@ class HPLASTParser:
         if peek_pos < len(self.tokens):
             return self.tokens[peek_pos]
         return None
+
+    def _get_position(self):
+        """获取当前 token 的位置信息"""
+        if self.current_token:
+            return f"line {self.current_token.line}, column {self.current_token.column}"
+        return "unknown position"
 
     def _is_block_terminator(self):
         """检查当前 token 是否是块结束标记"""
@@ -117,13 +123,32 @@ class HPLASTParser:
                 expr = self.parse_expression()
             return ReturnStatement(expr)
         
+        # 处理 break 语句
+        if self.current_token.type == 'KEYWORD' and self.current_token.value == 'break':
+            self.advance()
+            return BreakStatement()
+        
+        # 处理 continue 语句
+        if self.current_token.type == 'KEYWORD' and self.current_token.value == 'continue':
+            self.advance()
+            return ContinueStatement()
+        
+        # 处理 import 语句
+        if self.current_token.type == 'KEYWORD' and self.current_token.value == 'import':
+            return self.parse_import_statement()
+        
         # 处理 if 语句
+
         if self.current_token.type == 'KEYWORD' and self.current_token.value == 'if':
             return self.parse_if_statement()
         
         # 处理 for 语句
         if self.current_token.type == 'KEYWORD' and self.current_token.value == 'for':
             return self.parse_for_statement()
+        
+        # 处理 while 语句
+        if self.current_token.type == 'KEYWORD' and self.current_token.value == 'while':
+            return self.parse_while_statement()
         
         # 处理 try-catch 语句
         if self.current_token.type == 'KEYWORD' and self.current_token.value == 'try':
@@ -196,6 +221,16 @@ class HPLASTParser:
         
         return ForStatement(init, condition, increment_expr, body)
 
+    def parse_while_statement(self):
+        self.expect_keyword('while')
+        self.expect('LPAREN')
+        condition = self.parse_expression()
+        self.expect('RPAREN')
+        
+        body = self.parse_block()
+        
+        return WhileStatement(condition, body)
+
     def parse_try_catch_statement(self):
         self.expect_keyword('try')
         try_block = self.parse_block()
@@ -210,7 +245,29 @@ class HPLASTParser:
         return TryCatchStatement(try_block, catch_var, catch_block)
 
     def parse_expression(self):
-        return self.parse_equality()
+        return self.parse_or()
+
+    def parse_or(self):
+        """解析逻辑或 (||)"""
+        left = self.parse_and()
+        
+        while self.current_token and self.current_token.type == 'OR':
+            self.advance()
+            right = self.parse_and()
+            left = BinaryOp(left, '||', right)
+        
+        return left
+
+    def parse_and(self):
+        """解析逻辑与 (&&)"""
+        left = self.parse_equality()
+        
+        while self.current_token and self.current_token.type == 'AND':
+            self.advance()
+            right = self.parse_equality()
+            left = BinaryOp(left, '&&', right)
+        
+        return left
 
     def parse_equality(self):
         left = self.parse_comparison()
@@ -284,7 +341,7 @@ class HPLASTParser:
 
     def parse_primary(self):
         if not self.current_token:
-            raise ValueError("Unexpected end of input")
+            raise ValueError(f"Unexpected end of input at {self._get_position()}")
         
         # 处理布尔值
         if self.current_token.type == 'BOOLEAN':
@@ -325,18 +382,26 @@ class HPLASTParser:
                 return FunctionCall(name, args)
             
             elif self.current_token and self.current_token.type == 'DOT':
-                # 方法调用
+                # 方法调用或模块函数调用
                 self.advance()
-                method_name = self.expect('IDENTIFIER').value
-                self.expect('LPAREN')
-                args = []
-                if self.current_token and self.current_token.type != 'RPAREN':
-                    args.append(self.parse_expression())
-                    while self.current_token and self.current_token.type == 'COMMA':
-                        self.advance()
+                member_name = self.expect('IDENTIFIER').value
+                
+                # 检查是否是函数调用（带括号）
+                if self.current_token and self.current_token.type == 'LPAREN':
+                    self.advance()
+                    args = []
+                    if self.current_token and self.current_token.type != 'RPAREN':
                         args.append(self.parse_expression())
-                self.expect('RPAREN')
-                return MethodCall(Variable(name), method_name, args)
+                        while self.current_token and self.current_token.type == 'COMMA':
+                            self.advance()
+                            args.append(self.parse_expression())
+                    self.expect('RPAREN')
+                    return MethodCall(Variable(name), member_name, args)
+                else:
+                    # 模块常量访问，如 math.PI
+                    # 暂时作为变量处理，在运行时解析
+                    return MethodCall(Variable(name), member_name, [])
+
             
             elif self.current_token and self.current_token.type == 'INCREMENT':
                 # 后缀递增
@@ -372,17 +437,47 @@ class HPLASTParser:
             self.expect('RBRACKET')
             return ArrayLiteral(elements)
         
-        raise ValueError(f"Unexpected token {self.current_token}")
+        raise ValueError(f"Unexpected token {self.current_token} at {self._get_position()}")
 
     def expect(self, type):
         if not self.current_token or self.current_token.type != type:
-            raise ValueError(f"Expected {type}, got {self.current_token}")
+            raise ValueError(f"Expected {type}, got {self.current_token} at {self._get_position()}")
         token = self.current_token
         self.advance()
         return token
 
     def expect_keyword(self, value):
         if not self.current_token or self.current_token.type != 'KEYWORD' or self.current_token.value != value:
-            raise ValueError(f"Expected keyword {value}, got {self.current_token}")
+            raise ValueError(f"Expected keyword {value}, got {self.current_token} at {self._get_position()}")
         self.advance()
 
+    def parse_import_statement(self):
+        """解析 import 语句: import module_name [as alias]"""
+        self.expect_keyword('import')
+        
+        # 获取模块名
+        if not self.current_token or self.current_token.type != 'IDENTIFIER':
+            raise ValueError(f"Expected module name after 'import', got {self.current_token} at {self._get_position()}")
+        
+        module_name = self.current_token.value
+        self.advance()
+        
+        # 检查是否有别名
+        alias = None
+        if self.current_token and self.current_token.type == 'KEYWORD' and self.current_token.value == 'as':
+            self.advance()
+            if not self.current_token or self.current_token.type != 'IDENTIFIER':
+                raise ValueError(f"Expected alias name after 'as', got {self.current_token} at {self._get_position()}")
+            alias = self.current_token.value
+            self.advance()
+        
+        return ImportStatement(module_name, alias)
+
+
+# 添加 BreakStatement 和 ContinueStatement 类
+class BreakStatement(Statement):
+    pass
+
+
+class ContinueStatement(Statement):
+    pass

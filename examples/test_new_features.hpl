@@ -1,0 +1,71 @@
+# 测试新特性：while 循环、逻辑运算符、break/continue
+
+classes:
+  TestRunner:
+    test_while: () => {
+        i = 0
+        sum = 0
+        while (i < 5) :
+          sum = sum + i
+          i++
+        echo "While sum: " + sum
+      }
+    
+    test_logical_operators: () => {
+        a = true
+        b = false
+        c = true
+        
+        # 测试 && 运算符
+        if (a && c) :
+          echo "a && c is true"
+        
+        # 测试 || 运算符
+        if (b || c) :
+          echo "b || c is true"
+        
+        # 测试组合
+        if (a && !b) :
+          echo "a && !b is true"
+      }
+    
+    test_break_continue: () => {
+        # 测试 continue
+        echo "Testing continue:"
+        i = 0
+        while (i < 5) :
+          i++
+          if (i == 2) :
+            continue
+          echo "i = " + i
+        
+        # 测试 break
+        echo "Testing break:"
+        i = 0
+        while (i < 10) :
+          i++
+          if (i == 3) :
+            break
+          echo "i = " + i
+      }
+
+objects:
+  runner: TestRunner()
+
+main: () => {
+    echo "=== Testing While Loop ==="
+    runner.test_while()
+    
+    echo ""
+    echo "=== Testing Logical Operators ==="
+    runner.test_logical_operators()
+    
+    echo ""
+    echo "=== Testing Break/Continue ==="
+    runner.test_break_continue()
+    
+    echo ""
+    echo "All tests passed!"
+  }
+
+call: main()
