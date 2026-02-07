@@ -112,6 +112,46 @@ for (initialization; condition; increment) :
 - 示例：`for (i = 0; i < count; i++) :`
 - 循环体使用缩进表示。
 
+### while 循环
+
+```yaml
+while (condition) :
+  code
+```
+
+- 当条件为 `true` 时重复执行循环体
+- 示例：
+```yaml
+i = 0
+while (i < 5) :
+  echo "i = " + i
+  i++
+```
+
+### break 和 continue
+
+用于控制循环执行流程：
+
+- `break`：立即退出当前循环
+- `continue`：跳过当前迭代，继续下一次循环
+
+```yaml
+# break 示例
+i = 0
+while (true) :
+  if (i >= 5) :
+    break
+  echo i
+  i++
+
+# continue 示例
+for (i = 0; i < 5; i++) :
+  if (i == 2) :
+    continue  # 跳过 i == 2 的情况
+  echo "i = " + i
+```
+
+
 ## 6. 异常处理（try-catch）
 
 使用 try-catch 块处理异常。
@@ -129,7 +169,32 @@ catch (error) :
 ## 7. 内置函数和操作符
 
 ### 内置函数
-- `echo`：输出字符串，如 `echo "message"` 或 `echo variable`。
+
+- `echo(value)`：输出值到控制台
+  - 示例：`echo "Hello"` 或 `echo variable`
+
+- `len(array_or_string)`：获取数组长度或字符串长度
+  - 示例：`len([1, 2, 3])` → `3`，`len("hello")` → `5`
+
+- `int(value)`：将值转换为整数
+  - 示例：`int("123")` → `123`，`int(3.14)` → `3`
+
+- `str(value)`：将值转换为字符串
+  - 示例：`str(42)` → `"42"`
+
+- `type(value)`：获取值的类型名称
+  - 返回类型：`"int"`, `"float"`, `"string"`, `"boolean"`, `"array"` 或类名
+  - 示例：`type(42)` → `"int"`，`type([1,2,3])` → `"array"`
+
+- `abs(number)`：获取数值的绝对值
+  - 示例：`abs(-42)` → `42`，`abs(-3.14)` → `3.14`
+
+- `max(a, b, ...)`：获取多个值中的最大值
+  - 示例：`max(10, 20, 5)` → `20`
+
+- `min(a, b, ...)`：获取多个值中的最小值
+  - 示例：`min(10, 20, 5)` → `5`
+
 
 ### 算术操作符
 - `+`：加法（支持数值加法和字符串拼接）
@@ -152,14 +217,52 @@ catch (error) :
 - `!`：逻辑非（仅支持布尔值）
   - 示例：`if (!flag) :`
 
+- `&&`：逻辑与（两个条件都为真时结果为真）
+  - 示例：`if (a && b) :`
+
+- `||`：逻辑或（至少一个条件为真时结果为真）
+  - 示例：`if (a || b) :`
+
 ### 自增操作符
-- `++`：后缀自增
+- `++`：后缀自增（先返回原值，再增加1）
   - 示例：`counter++`
 
-## 8. 数据类型
+### 一元操作符
+- `-`：一元负号（取相反数）
+  - 示例：`-x`，`-(a + b)`
+
+
+## 8. 注释
+
+HPL 支持使用 `#` 开头的单行注释。
+
+```yaml
+# 这是注释
+x = 10  # 行尾注释
+
+classes:
+  # 类前的注释
+  MyClass:
+    method: () => {
+        # 方法内的注释
+        a = 10
+        return a
+      }
+```
+
+- 注释从 `#` 开始，到行尾结束
+- 注释可以出现在代码的任何位置
+- 注释内容会被解释器忽略
+
+## 9. 数据类型
 
 ### 整数（Integer）
+
 - 示例：`42`, `0`, `-10`
+
+### 浮点数（Float）
+- 支持小数表示
+- 示例：`3.14`, `-0.5`, `2.0`
 
 ### 字符串（String）
 - 使用双引号包围
@@ -169,7 +272,28 @@ catch (error) :
 - `true` 或 `false`
 - 示例：`flag = true`, `if (false) :`
 
-## 9. 返回值
+### 数组（Array）
+- 使用方括号 `[]` 定义数组字面量
+- 支持存储任意类型的元素
+- 使用 `arr[index]` 语法访问数组元素，索引从0开始
+
+```yaml
+# 数组定义
+arr = [1, 2, 3, 4, 5]
+
+# 数组访问
+first = arr[0]  # 获取第一个元素
+second = arr[1]  # 获取第二个元素
+```
+
+- 数组可以包含不同类型的元素：
+```yaml
+mixed = [1, "hello", true, 3.14]
+```
+
+
+## 10. 返回值
+
 
 方法可以使用 `return` 语句返回值。
 
@@ -191,12 +315,14 @@ main: () => {
   }
 ```
 
-## 10. 主函数和调用
+## 11. 主函数和调用
+
 
 - `main`：定义主函数，包含程序逻辑。
 - `call: main()`：执行主函数。
 
-## 11. 完整示例程序分析
+## 12. 完整示例程序分析
+
 
 基于 `example.hpl`：
 
@@ -247,7 +373,111 @@ call: main()
 6. **对象实例化**：`printer: MessagePrinter()` 创建对象。
 7. **程序执行**：`main` 函数中调用对象方法，`call: main()` 启动程序。
 
-## 12. 类型检查和错误处理
+## 13. 新特性综合示例
+
+以下示例展示了 HPL 的新特性，包括 while 循环、逻辑运算符、break/continue、数组和内置函数：
+
+```yaml
+classes:
+  FeatureDemo:
+    # 演示 while 循环和 break/continue
+    demo_loop: () => {
+        echo "=== While Loop Demo ==="
+        i = 0
+        sum = 0
+        while (i < 10) :
+          i++
+          if (i == 3) :
+            continue  # 跳过 3
+          if (i == 7) :
+            break     # 在 7 时退出
+          sum = sum + i
+        echo "Sum (1+2+4+5+6): " + sum
+      }
+    
+    # 演示逻辑运算符
+    demo_logic: () => {
+        echo ""
+        echo "=== Logical Operators Demo ==="
+        a = true
+        b = false
+        
+        # && 运算符
+        if (a && !b) :
+          echo "a && !b is true"
+        
+        # || 运算符
+        if (b || a) :
+          echo "b || a is true"
+      }
+    
+    # 演示数组和内置函数
+    demo_array: () => {
+        echo ""
+        echo "=== Array and Built-in Functions Demo ==="
+        
+        # 数组定义
+        numbers = [10, 20, 30, 40, 50]
+        echo "Array: " + numbers
+        echo "Length: " + len(numbers)
+        
+        # 数组访问
+        first = numbers[0]
+        echo "First element: " + first
+        
+        # 类型检查
+        echo "Type of numbers: " + type(numbers)
+        echo "Type of first: " + type(first)
+        
+        # 数值计算
+        max_val = max(100, 50, 200, 25)
+        min_val = min(100, 50, 200, 25)
+        echo "Max: " + max_val
+        echo "Min: " + min_val
+        
+        # 绝对值
+        neg = -42
+        echo "Absolute of -42: " + abs(neg)
+        
+        # 类型转换
+        num_str = "123"
+        converted = int(num_str)
+        echo "Converted int: " + converted
+      }
+
+objects:
+  demo: FeatureDemo()
+
+main: () => {
+    demo.demo_loop()
+    demo.demo_logic()
+    demo.demo_array()
+    
+    echo ""
+    echo "All feature demos completed!"
+  }
+
+call: main()
+```
+
+### 新特性说明：
+
+1. **while 循环**：`while (i < 10)` 当条件满足时重复执行
+2. **break**：立即退出当前循环
+3. **continue**：跳过当前迭代，继续下一次循环
+4. **逻辑运算符**：`&&`（与）、`||`（或）、`!`（非）
+5. **数组**：使用 `[]` 定义，`arr[index]` 访问元素
+6. **内置函数**：
+   - `len()`：获取数组或字符串长度
+   - `type()`：获取值类型
+   - `max()`/`min()`：获取最大/最小值
+   - `abs()`：获取绝对值
+   - `int()`/`str()`：类型转换
+
+
+## 14. 类型检查和错误处理
+
+
 
 HPL 解释器现在包含类型检查，提供清晰的错误信息：
 
@@ -263,14 +493,18 @@ HPL 解释器现在包含类型检查，提供清晰的错误信息：
 - **方法未找到**：调用不存在的方法时会报错
   - 示例：`obj.nonexistent()` → `ValueError: Method 'nonexistent' not found in class 'ClassName'`
 
-## 注意事项
+## 15. 注意事项
 
 - HPL 基于 YAML，因此缩进至关重要（建议使用 2 个空格）。
 - 字符串应使用双引号包围。
 - 代码块使用大括号 `{}` 包围，内部使用缩进组织。
-- 控制流语句（if、for、try-catch）使用冒号 `:` 表示代码块开始。
+- 控制流语句（if、for、while、try-catch）使用冒号 `:` 表示代码块开始。
 - 变量作用域：方法内局部，全局对象在 `objects` 下定义。
 - 方法调用使用 `this.methodName()` 或 `object.methodName()`。
 - 返回值：方法可以返回任意类型的值，使用 `return` 语句。
+- 注释使用 `#` 开头，可以出现在代码的任何位置。
+- 数组索引从 0 开始，访问越界会报错。
+- 逻辑运算符 `&&` 和 `||` 具有短路求值特性。
+- 后缀自增 `i++` 先返回原值，再增加 1。
 
-此手册基于 `example.hpl` 示例，涵盖了 HPL 的核心语法特性。
+此手册涵盖了 HPL 的所有核心语法特性，包括基础特性和新增强特性。
