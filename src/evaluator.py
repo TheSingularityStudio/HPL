@@ -291,13 +291,14 @@ class HPLEvaluator:
         elif isinstance(expr, ArrayAccess):
             array = self.evaluate_expression(expr.array, local_scope)
             index = self.evaluate_expression(expr.index, local_scope)
-            if not isinstance(array, list):
-                raise TypeError(f"Cannot index non-array value: {type(array).__name__}")
+            if not isinstance(array, (list, str)):
+                raise TypeError(f"Cannot index non-array and non-string value: {type(array).__name__}")
             if not isinstance(index, int):
                 raise TypeError(f"Array index must be integer, got {type(index).__name__}")
             if index < 0 or index >= len(array):
                 raise IndexError(f"Array index {index} out of bounds (length: {len(array)})")
             return array[index]
+
         else:
             raise ValueError(f"Unknown expression type {type(expr)}")
 
@@ -472,4 +473,3 @@ class HPLEvaluator:
     # 内置函数
     def echo(self, message):
         print(message)
-
