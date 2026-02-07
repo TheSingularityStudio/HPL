@@ -131,7 +131,8 @@ class TestToken(unittest.TestCase):
     def test_token_repr(self):
         """测试 Token 字符串表示"""
         token = Token('NUMBER', 42)
-        self.assertEqual(repr(token), 'Token(NUMBER, 42)')
+        self.assertEqual(repr(token), 'Token(NUMBER, 42, line=0, col=0)')
+
 
 
 if __name__ == '__main__':

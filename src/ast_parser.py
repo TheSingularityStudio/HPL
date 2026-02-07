@@ -40,6 +40,12 @@ class HPLASTParser:
             return self.tokens[peek_pos]
         return None
 
+    def _get_position(self):
+        """获取当前 token 的位置信息"""
+        if self.current_token:
+            return f"line {self.current_token.line}, column {self.current_token.column}"
+        return "unknown position"
+
     def _is_block_terminator(self):
         """检查当前 token 是否是块结束标记"""
         if not self.current_token:
@@ -284,7 +290,7 @@ class HPLASTParser:
 
     def parse_primary(self):
         if not self.current_token:
-            raise ValueError("Unexpected end of input")
+            raise ValueError(f"Unexpected end of input at {self._get_position()}")
         
         # 处理布尔值
         if self.current_token.type == 'BOOLEAN':
@@ -372,17 +378,16 @@ class HPLASTParser:
             self.expect('RBRACKET')
             return ArrayLiteral(elements)
         
-        raise ValueError(f"Unexpected token {self.current_token}")
+        raise ValueError(f"Unexpected token {self.current_token} at {self._get_position()}")
 
     def expect(self, type):
         if not self.current_token or self.current_token.type != type:
-            raise ValueError(f"Expected {type}, got {self.current_token}")
+            raise ValueError(f"Expected {type}, got {self.current_token} at {self._get_position()}")
         token = self.current_token
         self.advance()
         return token
 
     def expect_keyword(self, value):
         if not self.current_token or self.current_token.type != 'KEYWORD' or self.current_token.value != value:
-            raise ValueError(f"Expected keyword {value}, got {self.current_token}")
+            raise ValueError(f"Expected keyword {value}, got {self.current_token} at {self._get_position()}")
         self.advance()
-

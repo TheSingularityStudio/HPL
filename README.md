@@ -14,6 +14,6 @@ HPL 解释器采用模块化设计，使用 Python 实现。架构包括以下�
 - PyYAML: 用于解析 YAML 文件。
 
 ### 使用
-运行解释器：`python interpreter.py <hpl_file>`
+运行解释器：`python src/interpreter.py <hpl_file>`
 
-例如：`python interpreter.py example.hpl`
+例如：`python src/interpreter.py examples/example.hpl`

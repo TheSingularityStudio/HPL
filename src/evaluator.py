@@ -35,6 +35,7 @@ class HPLEvaluator:
         self.call_target = call_target
         self.global_scope = self.objects  # 全局变量，包括预定义对象
         self.current_obj = None  # 用于方法中的'this'
+        self.call_stack = []  # 调用栈，用于错误跟踪
 
     def run(self):
         # 如果指定了 call_target，执行对应的函数
@@ -144,10 +145,57 @@ class HPLEvaluator:
             else:
                 raise ValueError(f"Unknown unary operator {expr.op}")
         elif isinstance(expr, FunctionCall):
+            # 内置函数处理
             if expr.func_name == 'echo':
                 message = self.evaluate_expression(expr.args[0], local_scope)
                 self.echo(message)
                 return None
+            elif expr.func_name == 'len':
+                arg = self.evaluate_expression(expr.args[0], local_scope)
+                if isinstance(arg, (list, str)):
+                    return len(arg)
+                else:
+                    raise TypeError(f"len() requires list or string, got {type(arg).__name__}")
+            elif expr.func_name == 'int':
+                arg = self.evaluate_expression(expr.args[0], local_scope)
+                try:
+                    return int(arg)
+                except (ValueError, TypeError):
+                    raise ValueError(f"Cannot convert {arg} to int")
+            elif expr.func_name == 'str':
+                arg = self.evaluate_expression(expr.args[0], local_scope)
+                return str(arg)
+            elif expr.func_name == 'type':
+                arg = self.evaluate_expression(expr.args[0], local_scope)
+                if isinstance(arg, bool):
+                    return 'boolean'
+                elif isinstance(arg, int):
+                    return 'int'
+                elif isinstance(arg, float):
+                    return 'float'
+                elif isinstance(arg, str):
+                    return 'string'
+                elif isinstance(arg, list):
+                    return 'array'
+                elif isinstance(arg, HPLObject):
+                    return arg.hpl_class.name
+                else:
+                    return type(arg).__name__
+            elif expr.func_name == 'abs':
+                arg = self.evaluate_expression(expr.args[0], local_scope)
+                if not isinstance(arg, (int, float)):
+                    raise TypeError(f"abs() requires number, got {type(arg).__name__}")
+                return abs(arg)
+            elif expr.func_name == 'max':
+                if len(expr.args) < 1:
+                    raise ValueError("max() requires at least one argument")
+                args = [self.evaluate_expression(arg, local_scope) for arg in expr.args]
+                return max(args)
+            elif expr.func_name == 'min':
+                if len(expr.args) < 1:
+                    raise ValueError("min() requires at least one argument")
+                args = [self.evaluate_expression(arg, local_scope) for arg in expr.args]
+                return min(args)
             else:
                 raise ValueError(f"Unknown function {expr.func_name}")
         elif isinstance(expr, MethodCall):
@@ -255,8 +303,16 @@ class HPLEvaluator:
         method_scope = {param: args[i] for i, param in enumerate(method.params)}
         method_scope['this'] = obj
         
-        result = self.execute_function(method, method_scope)
-        self.current_obj = prev_obj
+        # 添加到调用栈
+        self.call_stack.append(f"{obj.name}.{method_name}()")
+        
+        try:
+            result = self.execute_function(method, method_scope)
+        finally:
+            # 从调用栈移除
+            self.call_stack.pop()
+            self.current_obj = prev_obj
+        
         return result
 
     def _check_numeric_operands(self, left, right, op):
@@ -269,4 +325,3 @@ class HPLEvaluator:
     # 内置函数
     def echo(self, message):
         print(message)
-
