@@ -474,10 +474,4 @@ class HPLASTParser:
         return ImportStatement(module_name, alias)
 
 
-# 添加 BreakStatement 和 ContinueStatement 类
-class BreakStatement(Statement):
-    pass
-
-
-class ContinueStatement(Statement):
-    pass
+# BreakStatement 和 ContinueStatement 类已在 models.py 中定义
