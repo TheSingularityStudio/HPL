@@ -41,114 +41,82 @@ class HPLEvaluator:
         # 执行语句块并返回结果
         return self.execute_block(func.body, local_scope)
 
-
     def execute_block(self, block, local_scope):
         for stmt in block.statements:
             result = self.execute_statement(stmt, local_scope)
-            # 如果语句返回了值（如return语句），则传播该值
+            # 如果语句返回了值（如 ReturnStatement），向上传播
             if result is not None:
                 return result
         return None
-
 
     def execute_statement(self, stmt, local_scope):
         if isinstance(stmt, AssignmentStatement):
             value = self.evaluate_expression(stmt.expr, local_scope)
             local_scope[stmt.var_name] = value
         elif isinstance(stmt, ReturnStatement):
-            # 评估表达式并返回结果
+            # 为简单起见，仅评估并暂时忽略
             if stmt.expr:
                 return self.evaluate_expression(stmt.expr, local_scope)
-            return None
-
         elif isinstance(stmt, IfStatement):
             cond = self.evaluate_expression(stmt.condition, local_scope)
             if cond:
-                self.execute_block(stmt.then_block, local_scope)
+                return self.execute_block(stmt.then_block, local_scope)
             elif stmt.else_block:
-                self.execute_block(stmt.else_block, local_scope)
+                return self.execute_block(stmt.else_block, local_scope)
         elif isinstance(stmt, ForStatement):
             # 初始化
             self.execute_statement(stmt.init, local_scope)
             while self.evaluate_expression(stmt.condition, local_scope):
-                self.execute_block(stmt.body, local_scope)
+                result = self.execute_block(stmt.body, local_scope)
+                if result is not None:
+                    return result
                 self.evaluate_expression(stmt.increment_expr, local_scope)
         elif isinstance(stmt, TryCatchStatement):
             try:
-                self.execute_block(stmt.try_block, local_scope)
+                return self.execute_block(stmt.try_block, local_scope)
             except Exception as e:
-                catch_scope = local_scope.copy()
-                catch_scope[stmt.catch_var] = str(e)
-                self.execute_block(stmt.catch_block, catch_scope)
-        elif isinstance(stmt, FunctionCall):
-            self.evaluate_expression(stmt, local_scope)
-        elif isinstance(stmt, MethodCall):
-            return self.evaluate_expression(stmt, local_scope)
-        elif isinstance(stmt, IncrementStatement):
-            # 处理自增语句（如 i++）
-            var_name = stmt.var_name
-            if var_name in local_scope:
-                value = local_scope[var_name]
-                local_scope[var_name] = value + 1
-            elif var_name in self.global_scope:
-                value = self.global_scope[var_name]
-                self.global_scope[var_name] = value + 1
-            else:
-                raise ValueError(f"Undefined variable {var_name}")
+                local_scope[stmt.catch_var] = str(e)
+                return self.execute_block(stmt.catch_block, local_scope)
         elif isinstance(stmt, EchoStatement):
-
             message = self.evaluate_expression(stmt.expr, local_scope)
             self.echo(message)
-        # 暂时忽略其他类型
+        elif isinstance(stmt, IncrementStatement):
+            # 前缀自增
+            value = self._lookup_variable(stmt.var_name, local_scope)
+            if not isinstance(value, (int, float)):
+                raise TypeError(f"Cannot increment non-numeric value: {type(value).__name__}")
+            new_value = value + 1
+            self._update_variable(stmt.var_name, new_value, local_scope)
+        elif isinstance(stmt, BlockStatement):
+            return self.execute_block(stmt, local_scope)
+        elif isinstance(stmt, Expression):
+            # 表达式作为语句
+            return self.evaluate_expression(stmt, local_scope)
+        return None
 
     def evaluate_expression(self, expr, local_scope):
         if isinstance(expr, IntegerLiteral):
             return expr.value
-        elif isinstance(expr, BooleanLiteral):
+        elif isinstance(expr, FloatLiteral):
             return expr.value
         elif isinstance(expr, StringLiteral):
             return expr.value
-
+        elif isinstance(expr, BooleanLiteral):
+            return expr.value
         elif isinstance(expr, Variable):
-            if expr.name in local_scope:
-                return local_scope[expr.name]
-            elif expr.name in self.global_scope:
-                return self.global_scope[expr.name]
-            elif expr.name == 'this':
-                return self.current_obj
-            else:
-                raise ValueError(f"Undefined variable {expr.name}")
+            return self._lookup_variable(expr.name, local_scope)
         elif isinstance(expr, BinaryOp):
             left = self.evaluate_expression(expr.left, local_scope)
             right = self.evaluate_expression(expr.right, local_scope)
-            if expr.op == '+':
-                # 如果两边都是数字，执行数值加法；否则执行字符串拼接
-                if isinstance(left, (int, float)) and isinstance(right, (int, float)):
-                    return left + right
-                return str(left) + str(right)
-
-            elif expr.op == '-':
-                return left - right
-            elif expr.op == '*':
-                return left * right
-            elif expr.op == '/':
-                return left / right
-            elif expr.op == '%':
-                return left % right
-            elif expr.op == '==':
-                return left == right
-            elif expr.op == '!=':
-                return left != right
-            elif expr.op == '<':
-                return left < right
-            elif expr.op == '<=':
-                return left <= right
-            elif expr.op == '>':
-                return left > right
-            elif expr.op == '>=':
-                return left >= right
+            return self._eval_binary_op(left, expr.op, right)
+        elif isinstance(expr, UnaryOp):
+            operand = self.evaluate_expression(expr.operand, local_scope)
+            if expr.op == '!':
+                if not isinstance(operand, bool):
+                    raise TypeError(f"Logical NOT requires boolean operand, got {type(operand).__name__}")
+                return not operand
             else:
-                raise ValueError(f"Unknown operator {expr.op}")
+                raise ValueError(f"Unknown unary operator {expr.op}")
         elif isinstance(expr, FunctionCall):
             if expr.func_name == 'echo':
                 message = self.evaluate_expression(expr.args[0], local_scope)
@@ -159,47 +127,118 @@ class HPLEvaluator:
         elif isinstance(expr, MethodCall):
             obj = self.evaluate_expression(expr.obj_name, local_scope)
             if isinstance(obj, HPLObject):
-                return self.call_method_on_obj(obj, expr.method_name, [self.evaluate_expression(arg, local_scope) for arg in expr.args])
+                args = [self.evaluate_expression(arg, local_scope) for arg in expr.args]
+                return self._call_method(obj, expr.method_name, args)
             else:
                 raise ValueError(f"Cannot call method on {obj}")
-
         elif isinstance(expr, PostfixIncrement):
             var_name = expr.var.name
-            if var_name in local_scope:
-                value = local_scope[var_name]
-                local_scope[var_name] = value + 1
-                return value
-            elif var_name in self.global_scope:
-                value = self.global_scope[var_name]
-                self.global_scope[var_name] = value + 1
-                return value
-            else:
-                raise ValueError(f"Undefined variable {var_name}")
-        elif isinstance(expr, UnaryOp):
-            operand = self.evaluate_expression(expr.operand, local_scope)
-            if expr.op == '!':
-                return not operand
-            else:
-                raise ValueError(f"Unknown unary operator {expr.op}")
+            value = self._lookup_variable(var_name, local_scope)
+            if not isinstance(value, (int, float)):
+                raise TypeError(f"Cannot increment non-numeric value: {type(value).__name__}")
+            new_value = value + 1
+            self._update_variable(var_name, new_value, local_scope)
+            return value
+        elif isinstance(expr, ArrayLiteral):
+            return [self.evaluate_expression(elem, local_scope) for elem in expr.elements]
+        elif isinstance(expr, ArrayAccess):
+            array = self.evaluate_expression(expr.array, local_scope)
+            index = self.evaluate_expression(expr.index, local_scope)
+            if not isinstance(array, list):
+                raise TypeError(f"Cannot index non-array value: {type(array).__name__}")
+            if not isinstance(index, int):
+                raise TypeError(f"Array index must be integer, got {type(index).__name__}")
+            if index < 0 or index >= len(array):
+                raise IndexError(f"Array index {index} out of bounds (length: {len(array)})")
+            return array[index]
         else:
             raise ValueError(f"Unknown expression type {type(expr)}")
 
+    def _eval_binary_op(self, left, op, right):
+        # 加法需要特殊处理（字符串拼接 vs 数值相加）
+        if op == '+':
+            if isinstance(left, (int, float)) and isinstance(right, (int, float)):
+                return left + right
+            # 字符串拼接
+            return str(left) + str(right)
+        
+        # 其他算术运算符需要数值操作数
+        self._check_numeric_operands(left, right, op)
+        
+        if op == '-':
+            return left - right
+        elif op == '*':
+            return left * right
+        elif op == '/':
+            if right == 0:
+                raise ZeroDivisionError("Division by zero")
+            return left / right
+        elif op == '%':
+            if right == 0:
+                raise ZeroDivisionError("Modulo by zero")
+            return left % right
+        elif op == '==':
+            return left == right
+        elif op == '!=':
+            return left != right
+        elif op == '<':
+            return left < right
+        elif op == '<=':
+            return left <= right
+        elif op == '>':
+            return left > right
+        elif op == '>=':
+            return left >= right
+        else:
+            raise ValueError(f"Unknown operator {op}")
 
-    def call_method_on_obj(self, obj, method_name, args):
+    def _lookup_variable(self, name, local_scope):
+        """统一变量查找逻辑"""
+        if name in local_scope:
+            return local_scope[name]
+        elif name in self.global_scope:
+            return self.global_scope[name]
+        else:
+            raise ValueError(f"Undefined variable: '{name}'")
+
+    def _update_variable(self, name, value, local_scope):
+        """统一变量更新逻辑"""
+        if name in local_scope:
+            local_scope[name] = value
+        elif name in self.global_scope:
+            self.global_scope[name] = value
+        else:
+            # 默认创建局部变量
+            local_scope[name] = value
+
+    def _call_method(self, obj, method_name, args):
+        """统一方法调用逻辑"""
         hpl_class = obj.hpl_class
         if method_name in hpl_class.methods:
             method = hpl_class.methods[method_name]
         elif hpl_class.parent and method_name in self.classes[hpl_class.parent].methods:
             method = self.classes[hpl_class.parent].methods[method_name]
         else:
-            raise ValueError(f"Method {method_name} not found")
+            raise ValueError(f"Method '{method_name}' not found in class '{hpl_class.name}'")
+        
         # 为'this'设置current_obj
         prev_obj = self.current_obj
         self.current_obj = obj
-        result = self.execute_function(method, {param: args[i] for i, param in enumerate(method.params)})
+        
+        # 创建方法调用的局部作用域
+        method_scope = {param: args[i] for i, param in enumerate(method.params)}
+        method_scope['this'] = obj
+        
+        result = self.execute_function(method, method_scope)
         self.current_obj = prev_obj
         return result
 
+    def _check_numeric_operands(self, left, right, op):
+        """检查操作数是否为数值类型"""
+        if not isinstance(left, (int, float)):
+            raise TypeError(f"Unsupported operand type for {op}: '{type(left).__name__}' (expected number)")
+        if not isinstance(right, (int, float)):
+            raise TypeError(f"Unsupported operand type for {op}: '{type(right).__name__}' (expected number)")
 
     # 内置函数
     def echo(self, message):

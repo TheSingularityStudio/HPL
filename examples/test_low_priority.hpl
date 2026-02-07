@@ -1,0 +1,28 @@
+main: () => {
+    pi = 3.14
+    radius = 2.5
+    area = pi * radius * radius
+    echo "Circle area: " + area
+    
+    negative = -42
+    echo "Negative number: " + negative
+    
+    numbers = [1, 2, 3, 4, 5]
+    echo "First element: " + numbers[0]
+    echo "Third element: " + numbers[2]
+    
+    prices = [10.5, 20.25, 30.75]
+    total = prices[0] + prices[1] + prices[2]
+    echo "Total price: " + total
+    
+    index = 1
+    echo "Dynamic index: " + numbers[index]
+    
+    if (3.14 < 3.15) :
+      echo "Pi is less than 3.15"
+    
+    result = 10.5 / 2.5
+    echo "Division result: " + result
+  }
+
+call: main()

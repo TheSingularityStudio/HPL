@@ -42,7 +42,12 @@ class IntegerLiteral(Expression):
     def __init__(self, value):
         self.value = value
 
+class FloatLiteral(Expression):
+    def __init__(self, value):
+        self.value = value
+
 class StringLiteral(Expression):
+
     def __init__(self, value):
         self.value = value
 
@@ -82,7 +87,17 @@ class UnaryOp(Expression):
         self.op = op
         self.operand = operand
 
+class ArrayLiteral(Expression):
+    def __init__(self, elements):
+        self.elements = elements
+
+class ArrayAccess(Expression):
+    def __init__(self, array, index):
+        self.array = array
+        self.index = index
+
 # 语句
+
 
 class AssignmentStatement(Statement):
     def __init__(self, var_name, expr):

@@ -128,17 +128,75 @@ catch (error) :
 
 ## 7. 内置函数和操作符
 
+### 内置函数
 - `echo`：输出字符串，如 `echo "message"` 或 `echo variable`。
-- 字符串连接：使用 `+` 操作符，如 `"Hello " + i`。
-- 算术操作符：`+`, `-`, `*`, `/`, `%`。
-- 比较操作符：`==`, `!=`, `<`, `>`, `<=`, `>=`。
 
-## 8. 主函数和调用
+### 算术操作符
+- `+`：加法（支持数值加法和字符串拼接）
+  - 如果两边都是数字，执行数值加法：`10 + 20` → `30`
+  - 否则执行字符串拼接：`"Hello" + "World"` → `"HelloWorld"`
+- `-`：减法（仅支持数值）
+- `*`：乘法（仅支持数值）
+- `/`：除法（仅支持数值）
+- `%`：取模（仅支持数值）
+
+### 比较操作符
+- `==`：等于
+- `!=`：不等于
+- `<`：小于
+- `>`：大于
+- `<=`：小于等于
+- `>=`：大于等于
+
+### 逻辑操作符
+- `!`：逻辑非（仅支持布尔值）
+  - 示例：`if (!flag) :`
+
+### 自增操作符
+- `++`：后缀自增
+  - 示例：`counter++`
+
+## 8. 数据类型
+
+### 整数（Integer）
+- 示例：`42`, `0`, `-10`
+
+### 字符串（String）
+- 使用双引号包围
+- 示例：`"Hello World"`
+
+### 布尔值（Boolean）
+- `true` 或 `false`
+- 示例：`flag = true`, `if (false) :`
+
+## 9. 返回值
+
+方法可以使用 `return` 语句返回值。
+
+```yaml
+classes:
+  Calculator:
+    add: (a, b) => {
+        return a + b
+      }
+```
+
+调用方法并获取返回值：
+
+```yaml
+main: () => {
+    calc = Calculator()
+    result = calc.add(10, 20)
+    echo "Result: " + result
+  }
+```
+
+## 10. 主函数和调用
 
 - `main`：定义主函数，包含程序逻辑。
 - `call: main()`：执行主函数。
 
-## 9. 完整示例程序分析
+## 11. 完整示例程序分析
 
 基于 `example.hpl`：
 
@@ -189,6 +247,22 @@ call: main()
 6. **对象实例化**：`printer: MessagePrinter()` 创建对象。
 7. **程序执行**：`main` 函数中调用对象方法，`call: main()` 启动程序。
 
+## 12. 类型检查和错误处理
+
+HPL 解释器现在包含类型检查，提供清晰的错误信息：
+
+- **类型错误**：尝试对非数值使用算术操作符时会报错
+  - 示例：`"hello" - "world"` → `TypeError: Unsupported operand type for -: 'str' (expected number)`
+  
+- **未定义变量**：访问未定义的变量时会报错
+  - 示例：使用未定义的 `x` → `ValueError: Undefined variable: 'x'`
+
+- **除零错误**：除法或取模运算中除数为0时会报错
+  - 示例：`10 / 0` → `ZeroDivisionError: Division by zero`
+
+- **方法未找到**：调用不存在的方法时会报错
+  - 示例：`obj.nonexistent()` → `ValueError: Method 'nonexistent' not found in class 'ClassName'`
+
 ## 注意事项
 
 - HPL 基于 YAML，因此缩进至关重要（建议使用 2 个空格）。
@@ -197,5 +271,6 @@ call: main()
 - 控制流语句（if、for、try-catch）使用冒号 `:` 表示代码块开始。
 - 变量作用域：方法内局部，全局对象在 `objects` 下定义。
 - 方法调用使用 `this.methodName()` 或 `object.methodName()`。
+- 返回值：方法可以返回任意类型的值，使用 `return` 语句。
 
 此手册基于 `example.hpl` 示例，涵盖了 HPL 的核心语法特性。

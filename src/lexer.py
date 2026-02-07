@@ -34,16 +34,34 @@ class HPLLexer:
         else:
             self.current_char = self.text[self.pos]
 
+    def peek(self):
+        """查看下一个字符但不移动位置"""
+        peek_pos = self.pos + 1
+        if peek_pos > len(self.text) - 1:
+            return None
+        else:
+            return self.text[peek_pos]
+
     def skip_whitespace(self):
+
         while self.current_char is not None and self.current_char.isspace():
             self.advance()
 
-    def integer(self):
+    def number(self):
         result = ''
         while self.current_char is not None and self.current_char.isdigit():
             result += self.current_char
             self.advance()
+        # 检查小数点
+        if self.current_char == '.' and self.peek() is not None and self.peek().isdigit():
+            result += self.current_char
+            self.advance()
+            while self.current_char is not None and self.current_char.isdigit():
+                result += self.current_char
+                self.advance()
+            return float(result)
         return int(result)
+
 
     def string(self):
         result = ''
@@ -68,8 +86,9 @@ class HPLLexer:
                 self.skip_whitespace()
                 continue
             if self.current_char.isdigit():
-                tokens.append(Token('INTEGER', self.integer()))
+                tokens.append(Token('NUMBER', self.number()))
                 continue
+
             if self.current_char == '"':
                 tokens.append(Token('STRING', self.string()))
                 continue
@@ -138,6 +157,13 @@ class HPLLexer:
             elif self.current_char == '}':
                 tokens.append(Token('RBRACE', '}'))
                 self.advance()
+            elif self.current_char == '[':
+                tokens.append(Token('LBRACKET', '['))
+                self.advance()
+            elif self.current_char == ']':
+                tokens.append(Token('RBRACKET', ']'))
+                self.advance()
+
             elif self.current_char == ';':
                 tokens.append(Token('SEMICOLON', ';'))
                 self.advance()
