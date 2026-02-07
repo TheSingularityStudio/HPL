@@ -1,0 +1,44 @@
+classes:
+  TestClass:
+    # 类方法前的注释
+    test_method: () => {
+        # 方法内的注释
+        a = 10  # 行尾注释
+        # 另一行注释
+        b = 20
+        return a + b  # 返回语句的注释
+      }
+
+objects:
+  # 对象定义前的注释
+  test_obj: TestClass()
+
+main: () => {
+    # main函数开始注释
+    result = test_obj.test_method()  # 调用方法
+    echo "Result: " + result
+    
+    # if语句前的注释
+    if (result > 0) :  # 条件注释
+      # if块内的注释
+      echo "Positive result"
+    
+    # for循环前的注释
+    for (i = 0; i < 3; i++) :  # 循环注释
+      # 循环体内的注释
+      echo "Iteration: " + i
+    
+    # try-catch前的注释
+    try :
+      # try块内的注释
+      x = 100
+      echo "Try block: " + x
+    catch (error) :
+      # catch块内的注释
+      echo "Error caught"
+    
+    # 最后的注释
+    echo "All tests passed!"
+  }
+
+call: main()

@@ -1,10 +1,3 @@
-import yaml
-import os
-import re
-from src.models import HPLClass, HPLObject, HPLFunction
-from src.lexer import HPLLexer
-from src.ast_parser import HPLASTParser
-
 """
 HPL 顶层解析器模块
 
@@ -23,8 +16,21 @@ HPL 顶层解析器模块
 - 协调 lexer 和 ast_parser 生成最终 AST
 """
 
-class HPLParser:
+import yaml
+import os
+import re
 
+try:
+    from src.models import HPLClass, HPLObject, HPLFunction
+    from src.lexer import HPLLexer
+    from src.ast_parser import HPLASTParser
+except ImportError:
+    from models import HPLClass, HPLObject, HPLFunction
+    from lexer import HPLLexer
+    from ast_parser import HPLASTParser
+
+
+class HPLParser:
     def __init__(self, hpl_file):
         self.hpl_file = hpl_file
         self.classes = {}
@@ -72,8 +78,6 @@ class HPLParser:
             # 检测函数定义行（包含 =>）
             # 匹配模式：methodName: (params) => {
             func_pattern = r'^(\s*)(\w+):\s*\(.*\)\s*=>.*\{'
-
-
             match = re.match(func_pattern, line)
             
             if match:
@@ -179,3 +183,4 @@ class HPLParser:
         ast_parser = HPLASTParser(tokens)
         body_ast = ast_parser.parse_block()
         return HPLFunction(params, body_ast)
+

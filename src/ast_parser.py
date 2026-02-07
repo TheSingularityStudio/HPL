@@ -1,5 +1,3 @@
-from src.models import *
-
 """
 HPL AST 解析器模块
 
@@ -16,8 +14,13 @@ HPL AST 解析器模块
 - 表达式：二元运算、函数调用、方法调用、变量、字面量
 """
 
-class HPLASTParser:
+try:
+    from src.models import *
+except ImportError:
+    from models import *
 
+
+class HPLASTParser:
     def __init__(self, tokens):
         self.tokens = tokens
         self.pos = 0
@@ -37,40 +40,75 @@ class HPLASTParser:
             return self.tokens[peek_pos]
         return None
 
+    def _is_block_terminator(self):
+        """检查当前 token 是否是块结束标记"""
+        if not self.current_token:
+            return True
+        if self.current_token.type in ['DEDENT', 'RBRACE', 'EOF']:
+            return True
+        if self.current_token.type == 'KEYWORD' and self.current_token.value in ['else', 'catch']:
+            return True
+        return False
+
+    def _consume_indent(self):
+        """消费 INDENT token（如果存在）"""
+        if self.current_token and self.current_token.type == 'INDENT':
+            self.expect('INDENT')
+
+    def _parse_statements_until_end(self):
+        """解析语句直到遇到块结束标记"""
+        statements = []
+        while not self._is_block_terminator():
+            self._consume_indent()
+            if self._is_block_terminator():
+                break
+            statements.append(self.parse_statement())
+        return statements
+
     def parse_block(self):
+        """解析语句块，支持多种语法格式"""
         statements = []
         
-        # 检查是否有花括号开始
-        if self.current_token and self.current_token.type == 'LBRACE':
+        # 情况1: 以 INDENT 开始（函数体等情况）
+        if self.current_token and self.current_token.type == 'INDENT':
+            self.expect('INDENT')
+            statements = self._parse_statements_until_end()
+            if self.current_token and self.current_token.type == 'DEDENT':
+                self.expect('DEDENT')
+        
+        # 情况2: 以花括号开始
+        elif self.current_token and self.current_token.type == 'LBRACE':
             self.expect('LBRACE')
             while self.current_token and self.current_token.type not in ['RBRACE', 'EOF']:
                 statements.append(self.parse_statement())
             if self.current_token and self.current_token.type == 'RBRACE':
                 self.expect('RBRACE')
-        # 检查是否有冒号
+        
+        # 情况3: 以冒号开始（缩进敏感语法）
         elif self.current_token and self.current_token.type == 'COLON':
             self.expect('COLON')
-            # 冒号后的语句是缩进的，我们按顺序解析直到遇到结束标记
-            while self.current_token and self.current_token.type not in ['RBRACE', 'EOF', 'KEYWORD']:
-                # 检查是否是 else 或 catch 等结束当前块的关键字
-                if self.current_token.type == 'KEYWORD' and self.current_token.value in ['else', 'catch']:
-                    break
-                statements.append(self.parse_statement())
-
+            if self.current_token and self.current_token.type == 'INDENT':
+                self.expect('INDENT')
+                statements = self._parse_statements_until_end()
+                if self.current_token and self.current_token.type == 'DEDENT':
+                    self.expect('DEDENT')
+            else:
+                # 单行语句
+                while self.current_token and self.current_token.type not in ['RBRACE', 'EOF', 'KEYWORD']:
+                    if self.current_token.type == 'KEYWORD' and self.current_token.value in ['else', 'catch']:
+                        break
+                    statements.append(self.parse_statement())
+        
+        # 情况4: 没有花括号也没有冒号，直接解析单个语句或语句序列
         else:
-            # 没有花括号也没有冒号，直接解析单个语句或语句序列
-            while self.current_token and self.current_token.type not in ['RBRACE', 'EOF']:
-                # 检查是否是结束当前块的关键字
-                if self.current_token.type == 'KEYWORD' and self.current_token.value in ['else', 'catch']:
-                    break
-                statements.append(self.parse_statement())
+            statements = self._parse_statements_until_end()
         
         return BlockStatement(statements)
 
     def parse_statement(self):
         if not self.current_token:
             return None
-            
+        
         # 处理 return 语句
         if self.current_token.type == 'KEYWORD' and self.current_token.value == 'return':
             self.advance()
@@ -314,7 +352,6 @@ class HPLASTParser:
             
             else:
                 return Variable(name)
-
         
         # 处理括号表达式
         if self.current_token.type == 'LPAREN':
@@ -337,7 +374,6 @@ class HPLASTParser:
         
         raise ValueError(f"Unexpected token {self.current_token}")
 
-
     def expect(self, type):
         if not self.current_token or self.current_token.type != type:
             raise ValueError(f"Expected {type}, got {self.current_token}")
@@ -349,3 +385,4 @@ class HPLASTParser:
         if not self.current_token or self.current_token.type != 'KEYWORD' or self.current_token.value != value:
             raise ValueError(f"Expected keyword {value}, got {self.current_token}")
         self.advance()
+

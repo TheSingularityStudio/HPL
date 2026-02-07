@@ -1,0 +1,9 @@
+main: () => {
+    # 测试基本的 for 循环
+    for (i = 0; i < 5; i++) :
+      echo "Iteration: " + i
+    
+    echo "Loop finished"
+  }
+
+call: main()

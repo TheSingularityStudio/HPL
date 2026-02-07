@@ -1,7 +1,3 @@
-import sys
-from src.parser import HPLParser
-from src.evaluator import HPLEvaluator
-
 """
 HPL 解释器主入口模块
 
@@ -17,6 +13,16 @@ HPL 解释器主入口模块
 使用方法：
     python interpreter.py <hpl_file>
 """
+
+import sys
+
+try:
+    from src.parser import HPLParser
+    from src.evaluator import HPLEvaluator
+except ImportError:
+    from parser import HPLParser
+    from evaluator import HPLEvaluator
+
 
 def main():
     if len(sys.argv) != 2:
@@ -44,3 +50,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
