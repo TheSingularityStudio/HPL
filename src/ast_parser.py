@@ -44,8 +44,21 @@ class HPLASTParser:
     def parse_block(self):
         statements = []
         
+        # 检查是否以 INDENT 开始（函数体等情况）
+        if self.current_token and self.current_token.type == 'INDENT':
+            self.expect('INDENT')
+            # 解析缩进块内的所有语句
+            while self.current_token and self.current_token.type not in ['DEDENT', 'RBRACE', 'EOF']:
+                # 检查是否是 else 或 catch 等结束当前块的关键字
+                if self.current_token.type == 'KEYWORD' and self.current_token.value in ['else', 'catch']:
+                    break
+                statements.append(self.parse_statement())
+            # 消费 DEDENT
+            if self.current_token and self.current_token.type == 'DEDENT':
+                self.expect('DEDENT')
         # 检查是否有花括号开始
-        if self.current_token and self.current_token.type == 'LBRACE':
+        elif self.current_token and self.current_token.type == 'LBRACE':
+
             self.expect('LBRACE')
             while self.current_token and self.current_token.type not in ['RBRACE', 'EOF']:
                 statements.append(self.parse_statement())
@@ -79,7 +92,15 @@ class HPLASTParser:
                 # 检查是否是结束当前块的关键字
                 if self.current_token.type == 'KEYWORD' and self.current_token.value in ['else', 'catch']:
                     break
+                # 如果遇到 DEDENT，说明块结束了
+                if self.current_token.type == 'DEDENT':
+                    break
+                # 跳过语句之间的 INDENT 标记（当语句跨多行时）
+                if self.current_token and self.current_token.type == 'INDENT':
+                    self.expect('INDENT')
                 statements.append(self.parse_statement())
+
+
         
         return BlockStatement(statements)
 
