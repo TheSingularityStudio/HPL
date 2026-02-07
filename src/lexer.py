@@ -23,6 +23,18 @@ HPL 词法分析器模块 (HPL Lexer Module)
 
 import re
 
+"""
+HPL 词法分析器模块
+
+该模块负责将 HPL 源代码转换为 Token 序列，是解释器的第一阶段。
+包含 Token 类和 HPLLexer 类，支持识别关键字、标识符、运算符、
+字符串和数字等各种词法单元。
+
+关键类：
+- Token: 表示单个词法单元，包含类型和值
+- HPLLexer: 词法分析器，将源代码字符串转换为 Token 列表
+"""
+
 class Token:
 
     def __init__(self, type, value):
@@ -45,18 +57,36 @@ class HPLLexer:
         else:
             self.current_char = self.text[self.pos]
 
+    def peek(self):
+        """查看下一个字符但不移动位置"""
+        peek_pos = self.pos + 1
+        if peek_pos > len(self.text) - 1:
+            return None
+        else:
+            return self.text[peek_pos]
+
     def skip_whitespace(self):
+
         while self.current_char is not None and self.current_char.isspace():
             self.advance()
 
-    def integer(self):
+    def number(self):
         result = ''
         while self.current_char is not None and self.current_char.isdigit():
             result += self.current_char
             self.advance()
+        # 检查小数点
+        if self.current_char == '.' and self.peek() is not None and self.peek().isdigit():
+            result += self.current_char
+            self.advance()
+            while self.current_char is not None and self.current_char.isdigit():
+                result += self.current_char
+                self.advance()
+            return float(result)
         return int(result)
 
-    def string(self, quote_char):
+
+    def string(self):
         result = ''
         self.advance()  # 跳过开始引号
         while self.current_char is not None and self.current_char != quote_char:
@@ -114,8 +144,9 @@ class HPLLexer:
                 self.skip_comment()
                 continue
             if self.current_char.isdigit():
-                tokens.append(Token('INTEGER', self.integer()))
+                tokens.append(Token('NUMBER', self.number()))
                 continue
+
             if self.current_char == '"':
                 tokens.append(Token('STRING', self.string('"')))
                 continue
@@ -125,11 +156,16 @@ class HPLLexer:
 
             if self.current_char.isalpha() or self.current_char == '_':
                 ident = self.identifier()
-                if ident in ['if', 'else', 'for', 'try', 'catch', 'func']:
+                if ident in ['if', 'else', 'for', 'try', 'catch', 'return']:
                     tokens.append(Token('KEYWORD', ident))
+
+                elif ident in ['true', 'false']:
+                    tokens.append(Token('BOOLEAN', ident == 'true'))
                 else:
                     tokens.append(Token('IDENTIFIER', ident))
                 continue
+
+
             if self.current_char == '+':
                 self.advance()
                 if self.current_char == '+':
@@ -149,20 +185,14 @@ class HPLLexer:
             elif self.current_char == '%':
                 tokens.append(Token('MOD', '%'))
                 self.advance()
-            elif self.current_char == '=':
-                self.advance()
-                if self.current_char == '=':
-                    tokens.append(Token('EQ', '=='))
-                    self.advance()
-                else:
-                    tokens.append(Token('ASSIGN', '='))
             elif self.current_char == '!':
                 self.advance()
                 if self.current_char == '=':
                     tokens.append(Token('NE', '!='))
                     self.advance()
                 else:
-                    raise ValueError("Invalid token !")
+                    tokens.append(Token('NOT', '!'))
+
             elif self.current_char == '<':
                 self.advance()
                 if self.current_char == '=':
@@ -189,6 +219,13 @@ class HPLLexer:
             elif self.current_char == '}':
                 tokens.append(Token('RBRACE', '}'))
                 self.advance()
+            elif self.current_char == '[':
+                tokens.append(Token('LBRACKET', '['))
+                self.advance()
+            elif self.current_char == ']':
+                tokens.append(Token('RBRACKET', ']'))
+                self.advance()
+
             elif self.current_char == ';':
                 tokens.append(Token('SEMICOLON', ';'))
                 self.advance()
@@ -198,14 +235,21 @@ class HPLLexer:
             elif self.current_char == '.':
                 tokens.append(Token('DOT', '.'))
                 self.advance()
+            elif self.current_char == ':':
+                tokens.append(Token('COLON', ':'))
+                self.advance()
+            elif self.current_char == '=':
+                self.advance()
+                if self.current_char == '=':
+                    tokens.append(Token('EQ', '=='))
+                    self.advance()
+                elif self.current_char == '>':
+                    tokens.append(Token('ARROW', '=>'))
+                    self.advance()
+                else:
+                    tokens.append(Token('ASSIGN', '='))
             else:
-                # 提供关于错误的更多上下文信息
-
-                context_start = max(0, self.pos - 10)
-                context_end = min(len(self.text), self.pos + 10)
-                context = self.text[context_start:context_end]
-                pointer = " " * (self.pos - context_start) + "^"
-                raise ValueError(f"Invalid character '{self.current_char}' at position {self.pos}\nContext: ...{context}...\n          {pointer}")
+                raise ValueError(f"Invalid character: {self.current_char}")
 
         tokens.append(Token('EOF', None))
         return tokens

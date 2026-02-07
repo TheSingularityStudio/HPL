@@ -1,0 +1,32 @@
+classes:
+  TestClass:
+    test_return: () => {
+        return 42
+      }
+
+objects:
+  test_obj: TestClass()
+
+main: () => {
+    result = test_obj.test_return()
+    echo "Return test: " + result
+    
+    sum = 10 + 20
+    echo "Sum: " + sum
+    
+    msg = "Hello" + " " + "World"
+    echo "Concat: " + msg
+    
+    flag = false
+    if (!flag) :
+      echo "NOT operator works!"
+    
+    if (true) :
+      echo "Boolean true works!"
+    
+    counter = 0
+    counter++
+    echo "Counter after increment: " + counter
+  }
+
+call: main()

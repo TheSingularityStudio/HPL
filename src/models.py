@@ -1,42 +1,20 @@
 """
-HPL 数据模型模块 (HPL Models Module)
+HPL 数据模型模块
 
-该模块定义了 HPL 语言解释器中使用的所有数据模型和 AST 节点类。
-这些类构成了 HPL 语言的抽象语法树和运行时对象表示。
+该模块定义了 HPL 解释器使用的所有数据结构和 AST 节点类型。
+包含类、对象、函数的表示，以及各种表达式和语句的节点类。
 
-主要类别：
-
-1. 运行时对象模型：
-    - HPLClass: 表示 HPL 类定义，包含类名、方法和父类
-    - HPLObject: 表示 HPL 对象实例，包含对象名、所属类和属性
-    - HPLFunction: 表示 HPL 函数，包含参数列表和函数体
-
-2. 表达式节点（AST）：
-    - Expression: 表达式基类
-    - IntegerLiteral: 整数字面量
-    - StringLiteral: 字符串字面量
-    - BinaryOp: 二元运算表达式
-    - Variable: 变量引用
-    - FunctionCall: 函数调用
-    - MethodCall: 方法调用
-    - SuperCall: 父类方法调用
-    - PostfixIncrement: 后缀自增表达式
-
-3. 语句节点（AST）：
-    - Statement: 语句基类
-    - AssignmentStatement: 赋值语句
-    - ReturnStatement: 返回语句
-    - BlockStatement: 语句块
-    - IfStatement: 条件语句
-    - ForStatement: 循环语句
-    - TryCatchStatement: 异常处理语句
-    - EchoStatement: 输出语句
-    - IncrementStatement: 自增语句
+关键组件：
+- HPLClass: 表示 HPL 类定义，包含类名、方法和父类
+- HPLObject: 表示 HPL 对象实例，包含对象名、所属类和属性
+- HPLFunction: 表示 HPL 函数，包含参数列表和函数体 AST
+- 表达式类：IntegerLiteral, StringLiteral, BinaryOp, Variable, FunctionCall, MethodCall, PostfixIncrement
+- 语句类：AssignmentStatement, ReturnStatement, BlockStatement, IfStatement, ForStatement, TryCatchStatement, EchoStatement, IncrementStatement
 """
 
 class HPLClass:
 
-    def __init__(self, name, methods, parents=None):
+    def __init__(self, name, methods, parent=None):
         self.name = name
         self.methods = methods  # 字典：方法名 -> HPLFunction
         self.parents = parents or []  # 列表：父类名列表
@@ -66,11 +44,21 @@ class IntegerLiteral(Expression):
     def __init__(self, value):
         self.value = value
 
+class FloatLiteral(Expression):
+    def __init__(self, value):
+        self.value = value
+
 class StringLiteral(Expression):
+
+    def __init__(self, value):
+        self.value = value
+
+class BooleanLiteral(Expression):
     def __init__(self, value):
         self.value = value
 
 # 表达式
+
 class BinaryOp(Expression):
     def __init__(self, left, op, right):
         self.left = left
@@ -101,12 +89,22 @@ class PostfixIncrement(Expression):
     def __init__(self, var):
         self.var = var
 
-class PropertyAccess(Expression):
-    def __init__(self, obj_name, property_name):
-        self.obj_name = obj_name  # 可以是 Variable 或 Expression
-        self.property_name = property_name
+class UnaryOp(Expression):
+    def __init__(self, op, operand):
+        self.op = op
+        self.operand = operand
+
+class ArrayLiteral(Expression):
+    def __init__(self, elements):
+        self.elements = elements
+
+class ArrayAccess(Expression):
+    def __init__(self, array, index):
+        self.array = array
+        self.index = index
 
 # 语句
+
 
 class AssignmentStatement(Statement):
     def __init__(self, var_name, expr):
