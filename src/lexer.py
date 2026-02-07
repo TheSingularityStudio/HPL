@@ -1,5 +1,3 @@
-import re
-
 """
 HPL 词法分析器模块
 
@@ -12,14 +10,15 @@ HPL 词法分析器模块
 - HPLLexer: 词法分析器，将源代码字符串转换为 Token 列表
 """
 
-class Token:
 
+class Token:
     def __init__(self, type, value):
         self.type = type
         self.value = value
 
     def __repr__(self):
         return f'Token({self.type}, {self.value})'
+
 
 class HPLLexer:
     def __init__(self, text):
@@ -29,7 +28,6 @@ class HPLLexer:
         # 缩进跟踪
         self.indent_stack = [0]  # 缩进级别栈，初始为0
         self.at_line_start = True  # 标记是否在行首
-
 
     def advance(self):
         self.pos += 1
@@ -51,7 +49,6 @@ class HPLLexer:
         while self.current_char is not None and self.current_char.isspace() and self.current_char != '\n':
             self.advance()
 
-
     def number(self):
         result = ''
         while self.current_char is not None and self.current_char.isdigit():
@@ -66,7 +63,6 @@ class HPLLexer:
                 self.advance()
             return float(result)
         return int(result)
-
 
     def string(self):
         result = ''
@@ -146,25 +142,22 @@ class HPLLexer:
             self.at_line_start = False
 
             if self.current_char.isdigit():
-
-
                 tokens.append(Token('NUMBER', self.number()))
                 continue
 
             if self.current_char == '"':
                 tokens.append(Token('STRING', self.string()))
                 continue
+
             if self.current_char.isalpha() or self.current_char == '_':
                 ident = self.identifier()
                 if ident in ['if', 'else', 'for', 'try', 'catch', 'return']:
                     tokens.append(Token('KEYWORD', ident))
-
                 elif ident in ['true', 'false']:
                     tokens.append(Token('BOOLEAN', ident == 'true'))
                 else:
                     tokens.append(Token('IDENTIFIER', ident))
                 continue
-
 
             if self.current_char == '+':
                 self.advance()
@@ -192,7 +185,6 @@ class HPLLexer:
                     self.advance()
                 else:
                     tokens.append(Token('NOT', '!'))
-
             elif self.current_char == '<':
                 self.advance()
                 if self.current_char == '=':
@@ -225,7 +217,6 @@ class HPLLexer:
             elif self.current_char == ']':
                 tokens.append(Token('RBRACKET', ']'))
                 self.advance()
-
             elif self.current_char == ';':
                 tokens.append(Token('SEMICOLON', ';'))
                 self.advance()
@@ -258,3 +249,4 @@ class HPLLexer:
         
         tokens.append(Token('EOF', None))
         return tokens
+
