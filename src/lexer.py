@@ -79,13 +79,22 @@ class HPLLexer:
             self.advance()
         return result
 
+    def skip_comment(self):
+        """跳过从当前位置到行尾的注释"""
+        while self.current_char is not None and self.current_char != '\n':
+            self.advance()
+
     def tokenize(self):
         tokens = []
         while self.current_char is not None:
             if self.current_char.isspace():
                 self.skip_whitespace()
                 continue
+            if self.current_char == '#':
+                self.skip_comment()
+                continue
             if self.current_char.isdigit():
+
                 tokens.append(Token('NUMBER', self.number()))
                 continue
 
