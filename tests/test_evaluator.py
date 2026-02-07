@@ -9,7 +9,12 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
 import unittest
 from evaluator import HPLEvaluator, ReturnValue
-from models import *
+
+try:
+    from src.models import *
+except ImportError:
+    from models import *
+
 
 
 class TestHPLEvaluator(unittest.TestCase):
@@ -229,4 +234,3 @@ class TestReturnValue(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
-
