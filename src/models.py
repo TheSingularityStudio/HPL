@@ -119,6 +119,14 @@ class AssignmentStatement(Statement):
         self.expr = expr
 
 
+class ArrayAssignmentStatement(Statement):
+    def __init__(self, array_name, index_expr, value_expr):
+        self.array_name = array_name
+        self.index_expr = index_expr
+        self.value_expr = value_expr
+
+
+
 class ReturnStatement(Statement):
     def __init__(self, expr=None):
         self.expr = expr
@@ -181,4 +189,3 @@ class BreakStatement(Statement):
 
 class ContinueStatement(Statement):
     pass
-
