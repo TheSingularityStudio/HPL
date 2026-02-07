@@ -5,7 +5,26 @@ from src.models import HPLClass, HPLObject, HPLFunction
 from src.lexer import HPLLexer
 from src.ast_parser import HPLASTParser
 
+"""
+HPL 顶层解析器模块
+
+该模块负责处理 HPL 源文件的顶层解析，包括 YAML 结构解析、
+文件包含处理、函数定义的预处理，以及协调词法分析器和 AST 解析器。
+是连接 HPL 配置文件与解释器执行引擎的桥梁。
+
+关键类：
+- HPLParser: 顶层解析器，处理 HPL 文件的完整解析流程
+
+主要功能：
+- 加载和解析 HPL 文件（YAML 格式）
+- 预处理函数定义（箭头函数语法转换）
+- 处理文件包含（includes）
+- 解析类、对象、函数定义
+- 协调 lexer 和 ast_parser 生成最终 AST
+"""
+
 class HPLParser:
+
     def __init__(self, hpl_file):
         self.hpl_file = hpl_file
         self.classes = {}

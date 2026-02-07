@@ -1,4 +1,19 @@
+"""
+HPL 数据模型模块
+
+该模块定义了 HPL 解释器使用的所有数据结构和 AST 节点类型。
+包含类、对象、函数的表示，以及各种表达式和语句的节点类。
+
+关键组件：
+- HPLClass: 表示 HPL 类定义，包含类名、方法和父类
+- HPLObject: 表示 HPL 对象实例，包含对象名、所属类和属性
+- HPLFunction: 表示 HPL 函数，包含参数列表和函数体 AST
+- 表达式类：IntegerLiteral, StringLiteral, BinaryOp, Variable, FunctionCall, MethodCall, PostfixIncrement
+- 语句类：AssignmentStatement, ReturnStatement, BlockStatement, IfStatement, ForStatement, TryCatchStatement, EchoStatement, IncrementStatement
+"""
+
 class HPLClass:
+
     def __init__(self, name, methods, parent=None):
         self.name = name
         self.methods = methods  # 字典：方法名 -> HPLFunction
@@ -57,7 +72,13 @@ class PostfixIncrement(Expression):
     def __init__(self, var):
         self.var = var
 
+class UnaryOp(Expression):
+    def __init__(self, op, operand):
+        self.op = op
+        self.operand = operand
+
 # 语句
+
 class AssignmentStatement(Statement):
     def __init__(self, var_name, expr):
         self.var_name = var_name

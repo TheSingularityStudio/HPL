@@ -1,6 +1,23 @@
 from src.models import *
 
+"""
+HPL AST 解析器模块
+
+该模块负责将词法分析器生成的 Token 序列解析为抽象语法树（AST），
+是解释器的第二阶段。支持解析各种语句（if、for、try-catch、赋值等）
+和表达式（二元运算、函数调用、方法调用等）。
+
+关键类：
+- HPLASTParser: AST 解析器，将 Token 列表转换为语句块和表达式树
+
+支持的语法结构：
+- 控制流：if-else、for 循环、try-catch
+- 语句：赋值、自增、返回、echo 输出
+- 表达式：二元运算、函数调用、方法调用、变量、字面量
+"""
+
 class HPLASTParser:
+
     def __init__(self, tokens):
         self.tokens = tokens
         self.pos = 0
@@ -177,7 +194,14 @@ class HPLASTParser:
         return left
 
     def parse_primary(self):
+        # 处理一元运算符（逻辑非）
+        if self.current_token.type == 'NOT':
+            self.advance()
+            operand = self.parse_primary()
+            return UnaryOp('!', operand)
+        
         if self.current_token.type == 'INTEGER':
+
             value = self.current_token.value
             self.advance()
             return IntegerLiteral(value)

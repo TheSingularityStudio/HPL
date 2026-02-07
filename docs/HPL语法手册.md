@@ -1,6 +1,7 @@
 # HPL 语法手册
 
-HPL（HPL Programming Language）是一种基于 YAML 格式的面向对象编程语言。本手册基于示例文件 `newexample.hpl` 进行说明，介绍 HPL 的基本语法和结构。
+HPL（H Programming Language）是一种基于 YAML 格式的面向对象编程语言，**使用动态类型**。本手册基于示例文件 `example.hpl` 进行说明，介绍 HPL 的基本语法和结构。
+
 
 ## 1. 文件结构
 
@@ -139,7 +140,7 @@ catch (error) :
 
 ## 9. 完整示例程序分析
 
-基于 `newexample.hpl`：
+基于 `example.hpl`：
 
 ```yaml
 includes:
@@ -198,4 +199,3 @@ call: main()
 - 方法调用使用 `this.methodName()` 或 `object.methodName()`。
 
 此手册基于 `example.hpl` 示例，涵盖了 HPL 的核心语法特性。
-
