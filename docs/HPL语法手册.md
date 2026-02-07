@@ -506,5 +506,265 @@ HPL 解释器现在包含类型检查，提供清晰的错误信息：
 - 数组索引从 0 开始，访问越界会报错。
 - 逻辑运算符 `&&` 和 `||` 具有短路求值特性。
 - 后缀自增 `i++` 先返回原值，再增加 1。
+- 模块导入后，使用 `module.function()` 调用模块函数，使用 `module.CONSTANT` 访问模块常量。
 
-此手册涵盖了 HPL 的所有核心语法特性，包括基础特性和新增强特性。
+
+## 16. 模块导入系统 (Module Import System)
+
+HPL 支持通过 `imports` 关键字导入标准库模块，扩展语言功能。
+
+### 基本语法
+
+```yaml
+imports:
+  - module_name
+```
+
+- 使用 YAML 列表格式，每个模块名前加 `-`。
+- 模块导入后，可以在代码中通过模块名访问其函数和常量。
+
+### 导入示例
+
+```yaml
+imports:
+  - math
+  - io
+  - json
+  - os
+  - time
+
+main: () => {
+    # 访问模块常量
+    echo "PI = " + math.PI
+    
+    # 调用模块函数
+    result = math.sqrt(16)
+    echo "sqrt(16) = " + result
+  }
+```
+
+### 可用标准库模块
+
+| 模块名 | 描述 |
+|--------|------|
+| `math` | 数学函数和常量 |
+| `io` | 文件输入输出操作 |
+| `json` | JSON 解析和生成 |
+| `os` | 操作系统接口 |
+| `time` | 日期时间处理 |
+
+
+## 17. 标准库参考 (Standard Library Reference)
+
+### 17.1 math 模块 - 数学函数
+
+#### 常量
+
+| 常量 | 值 | 说明 |
+|------|-----|------|
+| `math.PI` | 3.14159... | 圆周率 |
+| `math.E` | 2.71828... | 自然常数 e |
+| `math.TAU` | 6.28318... | 2*PI |
+| `math.INF` | ∞ | 正无穷大 |
+| `math.NAN` | NaN | 非数字 |
+
+#### 函数
+
+**基本运算**
+- `math.sqrt(x)` - 平方根
+- `math.pow(base, exp)` - 幂运算
+- `math.abs(x)` - 绝对值（也可作为内置函数使用）
+- `math.max(a, b, ...)` - 最大值（也可作为内置函数使用）
+- `math.min(a, b, ...)` - 最小值（也可作为内置函数使用）
+
+**三角函数**
+- `math.sin(x)` - 正弦（弧度）
+- `math.cos(x)` - 余弦（弧度）
+- `math.tan(x)` - 正切（弧度）
+- `math.asin(x)` - 反正弦
+- `math.acos(x)` - 反余弦
+- `math.atan(x)` - 反正切
+- `math.atan2(y, x)` - 带象限的反正切
+
+**对数和指数**
+- `math.log(x, base)` - 对数（base 可选，默认自然对数）
+- `math.log10(x)` - 常用对数（以10为底）
+- `math.exp(x)` - e^x
+
+**数值处理**
+- `math.floor(x)` - 向下取整
+- `math.ceil(x)` - 向上取整
+- `math.round(x, ndigits)` - 四舍五入（ndigits 可选）
+- `math.trunc(x)` - 截断小数部分
+- `math.factorial(n)` - 阶乘
+- `math.gcd(a, b)` - 最大公约数
+
+**角度转换**
+- `math.degrees(x)` - 弧度转角度
+- `math.radians(x)` - 角度转弧度
+
+**特殊函数**
+- `math.is_nan(x)` - 检查是否为 NaN
+- `math.is_inf(x)` - 检查是否为无穷大
+
+
+### 17.2 io 模块 - 文件操作
+
+**文件读写**
+- `io.read_file(path)` - 读取文件内容为字符串
+- `io.write_file(path, content)` - 写入字符串到文件
+- `io.append_file(path, content)` - 追加字符串到文件
+
+**文件信息**
+- `io.file_exists(path)` - 检查文件是否存在
+- `io.get_file_size(path)` - 获取文件大小（字节）
+- `io.is_file(path)` - 检查路径是否为文件
+- `io.is_dir(path)` - 检查路径是否为目录
+
+**文件操作**
+- `io.delete_file(path)` - 删除文件
+
+**目录操作**
+- `io.create_dir(path)` - 创建目录
+- `io.list_dir(path)` - 列出目录内容（返回数组）
+
+
+### 17.3 json 模块 - JSON 处理
+
+- `json.parse(json_str)` - 解析 JSON 字符串为 HPL 值
+- `json.stringify(value, indent)` - 将 HPL 值转为 JSON 字符串（indent 可选）
+- `json.read(path)` - 从文件读取并解析 JSON
+- `json.write(path, value, indent)` - 将值写入 JSON 文件（indent 可选）
+- `json.is_valid(json_str)` - 检查字符串是否为有效 JSON
+
+**注意**：HPL 使用数组表示对象（键值对数组），如 `[[\"key\", \"value\"], [\"key2\", \"value2\"]]`。
+
+
+### 17.4 os 模块 - 操作系统接口
+
+**环境变量**
+- `os.get_env(name, default)` - 获取环境变量（default 可选）
+- `os.set_env(name, value)` - 设置环境变量
+
+**目录操作**
+- `os.get_cwd()` - 获取当前工作目录
+- `os.change_dir(path)` - 改变当前目录
+
+**系统信息**
+- `os.get_platform()` - 获取操作系统平台（Windows/Linux/Darwin）
+- `os.get_python_version()` - 获取 Python 版本
+- `os.get_hpl_version()` - 获取 HPL 版本
+- `os.cpu_count()` - 获取 CPU 核心数
+
+**路径操作**
+- `os.get_path_sep()` - 获取路径分隔符
+- `os.get_line_sep()` - 获取行分隔符
+- `os.path_join(path1, path2, ...)` - 连接路径
+- `os.path_abs(path)` - 获取绝对路径
+- `os.path_dir(path)` - 获取目录名
+- `os.path_base(path)` - 获取文件名
+- `os.path_ext(path)` - 获取文件扩展名
+- `os.path_norm(path)` - 规范化路径
+
+**命令执行**
+- `os.execute(command)` - 执行系统命令，返回 `{returncode, stdout, stderr}`
+- `os.get_args()` - 获取命令行参数（返回数组）
+
+**程序控制**
+- `os.exit(code)` - 退出程序（code 可选，默认 0）
+
+
+### 17.5 time 模块 - 日期时间处理
+
+**时间戳**
+- `time.now()` - 获取当前时间戳（秒）
+- `time.now_ms()` - 获取当前时间戳（毫秒）
+- `time.utc_now()` - 获取 UTC 时间戳
+
+**休眠**
+- `time.sleep(seconds)` - 休眠指定秒数
+- `time.sleep_ms(milliseconds)` - 休眠指定毫秒数
+
+**时间格式化**
+- `time.format(timestamp, format)` - 格式化时间（参数可选，默认当前时间，格式 \"%Y-%m-%d %H:%M:%S\"）
+- `time.parse(time_str, format)` - 解析时间字符串为时间戳
+
+**时间组件提取**
+- `time.get_year(timestamp)` - 获取年份
+- `time.get_month(timestamp)` - 获取月份 (1-12)
+- `time.get_day(timestamp)` - 获取日期 (1-31)
+- `time.get_hour(timestamp)` - 获取小时 (0-23)
+- `time.get_minute(timestamp)` - 获取分钟 (0-59)
+- `time.get_second(timestamp)` - 获取秒 (0-59)
+- `time.get_weekday(timestamp)` - 获取星期几 (0=周一, 6=周日)
+
+**ISO 格式**
+- `time.get_iso_date(timestamp)` - 获取 ISO 格式日期
+- `time.get_iso_time(timestamp)` - 获取 ISO 格式时间
+
+**时间计算**
+- `time.add_days(timestamp, days)` - 添加天数
+- `time.diff_days(timestamp1, timestamp2)` - 计算天数差
+
+**时区**
+- `time.local_timezone()` - 获取本地时区偏移（小时）
+
+
+## 18. 标准库使用示例
+
+以下示例展示了如何使用标准库模块：
+
+```yaml
+imports:
+  - math
+  - io
+  - json
+  - os
+  - time
+
+main: () => {
+    # === Math 模块 ===
+    echo "=== Math Module ==="
+    echo "PI = " + math.PI
+    echo "sqrt(16) = " + math.sqrt(16)
+    echo "pow(2, 10) = " + math.pow(2, 10)
+    echo "sin(PI/2) = " + math.sin(math.PI / 2)
+    
+    # === Time 模块 ===
+    echo ""
+    echo "=== Time Module ==="
+    echo "Current timestamp: " + time.now()
+    echo "Current year: " + time.get_year()
+    echo "ISO date: " + time.get_iso_date()
+    time.sleep(0.1)  # 休眠 0.1 秒
+    
+    # === OS 模块 ===
+    echo ""
+    echo "=== OS Module ==="
+    echo "Platform: " + os.get_platform()
+    echo "Current directory: " + os.get_cwd()
+    echo "CPU count: " + os.cpu_count()
+    
+    # === IO 模块 ===
+    echo ""
+    echo "=== IO Module ==="
+    test_file = "test_output.txt"
+    io.write_file(test_file, "Hello from HPL!")
+    content = io.read_file(test_file)
+    echo "File content: " + content
+    echo "File size: " + io.get_file_size(test_file)
+    io.delete_file(test_file)
+    
+    # === JSON 模块 ===
+    echo ""
+    echo "=== JSON Module ==="
+    # HPL 使用键值对数组表示对象
+    data = [[\"name\", \"HPL\"], [\"version\", 1.0]]
+    json_str = json.stringify(data)
+    echo "JSON: " + json_str
+  }
+
+call: main()
+```
+
+此手册涵盖了 HPL 的所有核心语法特性，包括基础特性、新增强特性和标准库模块系统。
