@@ -1,6 +1,11 @@
 import sys
-from src.parser import HPLParser
-from src.evaluator import HPLEvaluator
+try:
+    from src.parser import HPLParser
+    from src.evaluator import HPLEvaluator
+except ImportError:
+    from parser import HPLParser
+    from evaluator import HPLEvaluator
+
 
 """
 HPL 解释器主入口模块

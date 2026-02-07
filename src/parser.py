@@ -1,9 +1,15 @@
 import yaml
 import os
 import re
-from src.models import HPLClass, HPLObject, HPLFunction
-from src.lexer import HPLLexer
-from src.ast_parser import HPLASTParser
+try:
+    from src.models import HPLClass, HPLObject, HPLFunction
+    from src.lexer import HPLLexer
+    from src.ast_parser import HPLASTParser
+except ImportError:
+    from models import HPLClass, HPLObject, HPLFunction
+    from lexer import HPLLexer
+    from ast_parser import HPLASTParser
+
 
 """
 HPL 顶层解析器模块

@@ -26,6 +26,10 @@ class HPLLexer:
         self.text = text
         self.pos = 0
         self.current_char = self.text[0] if self.text else None
+        # 缩进跟踪
+        self.indent_stack = [0]  # 缩进级别栈，初始为0
+        self.at_line_start = True  # 标记是否在行首
+
 
     def advance(self):
         self.pos += 1
@@ -43,9 +47,10 @@ class HPLLexer:
             return self.text[peek_pos]
 
     def skip_whitespace(self):
-
-        while self.current_char is not None and self.current_char.isspace():
+        """跳过非换行的空白字符"""
+        while self.current_char is not None and self.current_char.isspace() and self.current_char != '\n':
             self.advance()
+
 
     def number(self):
         result = ''
@@ -87,13 +92,61 @@ class HPLLexer:
     def tokenize(self):
         tokens = []
         while self.current_char is not None:
+            # 处理行首的缩进
+            if self.at_line_start and self.current_char.isspace():
+                # 计算前导空格数
+                indent = 0
+                while self.current_char is not None and self.current_char.isspace() and self.current_char != '\n':
+                    if self.current_char == ' ':
+                        indent += 1
+                    elif self.current_char == '\t':
+                        indent += 4  # 制表符算作4个空格
+                    self.advance()
+                
+                # 跳过空行（只有空白字符的行）
+                if self.current_char == '\n' or self.current_char is None:
+                    self.at_line_start = True
+                    if self.current_char == '\n':
+                        self.advance()
+                    continue
+                
+                # 生成 INDENT/DEDENT 标记
+                current_indent = self.indent_stack[-1]
+                if indent > current_indent:
+                    # 缩进增加
+                    self.indent_stack.append(indent)
+                    tokens.append(Token('INDENT', indent))
+                elif indent < current_indent:
+                    # 缩进减少，可能弹出多个级别
+                    while indent < self.indent_stack[-1]:
+                        self.indent_stack.pop()
+                        tokens.append(Token('DEDENT', self.indent_stack[-1]))
+                
+                self.at_line_start = False
+                continue
+            
+            # 处理换行符
+            if self.current_char == '\n':
+                self.advance()
+                self.at_line_start = True
+                continue
+            
+            # 处理注释
+            if self.current_char == '#':
+                self.skip_comment()
+                self.at_line_start = True  # 注释后视为行首
+                continue
+            
+            # 跳过非行首的空白字符
             if self.current_char.isspace():
                 self.skip_whitespace()
                 continue
-            if self.current_char == '#':
-                self.skip_comment()
-                continue
+            
+            # 其他字符，标记不在行首
+            self.at_line_start = False
+
             if self.current_char.isdigit():
+
 
                 tokens.append(Token('NUMBER', self.number()))
                 continue
@@ -198,5 +251,10 @@ class HPLLexer:
             else:
                 raise ValueError(f"Invalid character: {self.current_char}")
 
+        # 文件结束时，弹出所有缩进级别
+        while len(self.indent_stack) > 1:
+            self.indent_stack.pop()
+            tokens.append(Token('DEDENT', 0))
+        
         tokens.append(Token('EOF', None))
         return tokens

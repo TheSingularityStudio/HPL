@@ -1,4 +1,8 @@
-from src.models import *
+try:
+    from src.models import *
+except ImportError:
+    from models import *
+
 
 """
 HPL AST 解析器模块
@@ -47,15 +51,27 @@ class HPLASTParser:
                 statements.append(self.parse_statement())
             if self.current_token and self.current_token.type == 'RBRACE':
                 self.expect('RBRACE')
-        # 检查是否有冒号
+        # 检查是否有冒号（缩进敏感语法）
         elif self.current_token and self.current_token.type == 'COLON':
             self.expect('COLON')
-            # 冒号后的语句是缩进的，我们按顺序解析直到遇到结束标记
-            while self.current_token and self.current_token.type not in ['RBRACE', 'EOF', 'KEYWORD']:
-                # 检查是否是 else 或 catch 等结束当前块的关键字
-                if self.current_token.type == 'KEYWORD' and self.current_token.value in ['else', 'catch']:
-                    break
-                statements.append(self.parse_statement())
+            # 冒号后必须跟 INDENT
+            if self.current_token and self.current_token.type == 'INDENT':
+                self.expect('INDENT')
+                # 解析缩进块内的所有语句
+                while self.current_token and self.current_token.type not in ['DEDENT', 'RBRACE', 'EOF']:
+                    # 检查是否是 else 或 catch 等结束当前块的关键字
+                    if self.current_token.type == 'KEYWORD' and self.current_token.value in ['else', 'catch']:
+                        break
+                    statements.append(self.parse_statement())
+                # 消费 DEDENT
+                if self.current_token and self.current_token.type == 'DEDENT':
+                    self.expect('DEDENT')
+            else:
+                # 没有缩进，可能是单行语句
+                while self.current_token and self.current_token.type not in ['RBRACE', 'EOF', 'KEYWORD']:
+                    if self.current_token.type == 'KEYWORD' and self.current_token.value in ['else', 'catch']:
+                        break
+                    statements.append(self.parse_statement())
 
         else:
             # 没有花括号也没有冒号，直接解析单个语句或语句序列
@@ -66,6 +82,7 @@ class HPLASTParser:
                 statements.append(self.parse_statement())
         
         return BlockStatement(statements)
+
 
     def parse_statement(self):
         if not self.current_token:

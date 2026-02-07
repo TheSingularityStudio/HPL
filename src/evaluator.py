@@ -1,7 +1,12 @@
-from src.models import *
+try:
+    from src.models import *
+except ImportError:
+    from models import *
+
 
 """
 HPL 代码执行器模块
+
 
 该模块负责执行解析后的 AST（抽象语法树），是解释器的第三阶段。
 包含 HPLEvaluator 类，用于评估表达式、执行语句、管理变量作用域，
@@ -17,6 +22,11 @@ HPL 代码执行器模块
 - 内置函数：echo 输出等
 """
 
+class ReturnValue:
+    """包装返回值，用于区分正常执行结果和return语句"""
+    def __init__(self, value):
+        self.value = value
+
 class HPLEvaluator:
 
     def __init__(self, classes, objects, main_func, call_target=None):
@@ -26,6 +36,7 @@ class HPLEvaluator:
         self.call_target = call_target
         self.global_scope = self.objects  # 全局变量，包括预定义对象
         self.current_obj = None  # 用于方法中的'this'
+
 
     def run(self):
         # 如果指定了 call_target，执行对应的函数
@@ -39,44 +50,66 @@ class HPLEvaluator:
 
     def execute_function(self, func, local_scope):
         # 执行语句块并返回结果
-        return self.execute_block(func.body, local_scope)
+        result = self.execute_block(func.body, local_scope)
+        # 如果是ReturnValue包装器，解包；否则返回原始值（或无返回值）
+        if isinstance(result, ReturnValue):
+            return result.value
+        return result
 
     def execute_block(self, block, local_scope):
         for stmt in block.statements:
             result = self.execute_statement(stmt, local_scope)
-            # 如果语句返回了值（如 ReturnStatement），向上传播
-            if result is not None:
+            # 如果语句返回了ReturnValue，立即向上传播（终止执行）
+            if isinstance(result, ReturnValue):
                 return result
         return None
+
 
     def execute_statement(self, stmt, local_scope):
         if isinstance(stmt, AssignmentStatement):
             value = self.evaluate_expression(stmt.expr, local_scope)
             local_scope[stmt.var_name] = value
         elif isinstance(stmt, ReturnStatement):
-            # 为简单起见，仅评估并暂时忽略
+            # 评估返回值并用ReturnValue包装，以便上层识别
+            value = None
             if stmt.expr:
-                return self.evaluate_expression(stmt.expr, local_scope)
+                value = self.evaluate_expression(stmt.expr, local_scope)
+            return ReturnValue(value)
+
         elif isinstance(stmt, IfStatement):
             cond = self.evaluate_expression(stmt.condition, local_scope)
             if cond:
-                return self.execute_block(stmt.then_block, local_scope)
+                result = self.execute_block(stmt.then_block, local_scope)
+                if isinstance(result, ReturnValue):
+                    return result
             elif stmt.else_block:
-                return self.execute_block(stmt.else_block, local_scope)
+                result = self.execute_block(stmt.else_block, local_scope)
+                if isinstance(result, ReturnValue):
+                    return result
+
         elif isinstance(stmt, ForStatement):
             # 初始化
             self.execute_statement(stmt.init, local_scope)
             while self.evaluate_expression(stmt.condition, local_scope):
                 result = self.execute_block(stmt.body, local_scope)
-                if result is not None:
+                # 如果是ReturnValue，立即终止循环并向上传播
+                if isinstance(result, ReturnValue):
                     return result
                 self.evaluate_expression(stmt.increment_expr, local_scope)
+
         elif isinstance(stmt, TryCatchStatement):
             try:
-                return self.execute_block(stmt.try_block, local_scope)
+                result = self.execute_block(stmt.try_block, local_scope)
+                # 如果是ReturnValue，向上传播
+                if isinstance(result, ReturnValue):
+                    return result
             except Exception as e:
                 local_scope[stmt.catch_var] = str(e)
-                return self.execute_block(stmt.catch_block, local_scope)
+                result = self.execute_block(stmt.catch_block, local_scope)
+                # 如果是ReturnValue，向上传播
+                if isinstance(result, ReturnValue):
+                    return result
+
         elif isinstance(stmt, EchoStatement):
             message = self.evaluate_expression(stmt.expr, local_scope)
             self.echo(message)
