@@ -17,14 +17,26 @@ HPL 代码执行器模块
 
 try:
     from src.models import *
+    from src.ast_parser import BreakStatement, ContinueStatement
 except ImportError:
     from models import *
+    from ast_parser import BreakStatement, ContinueStatement
 
 
 class ReturnValue:
     """包装返回值，用于区分正常执行结果和return语句"""
     def __init__(self, value):
         self.value = value
+
+
+class BreakException(Exception):
+    """用于跳出循环"""
+    pass
+
+
+class ContinueException(Exception):
+    """用于继续下一次循环"""
+    pass
 
 
 class HPLEvaluator:
@@ -61,6 +73,11 @@ class HPLEvaluator:
             # 如果语句返回了ReturnValue，立即向上传播（终止执行）
             if isinstance(result, ReturnValue):
                 return result
+            # 处理 break 和 continue
+            if isinstance(result, BreakException):
+                raise result
+            if isinstance(result, ContinueException):
+                raise result
         return None
 
     def execute_statement(self, stmt, local_scope):
@@ -87,11 +104,31 @@ class HPLEvaluator:
             # 初始化
             self.execute_statement(stmt.init, local_scope)
             while self.evaluate_expression(stmt.condition, local_scope):
-                result = self.execute_block(stmt.body, local_scope)
-                # 如果是ReturnValue，立即终止循环并向上传播
-                if isinstance(result, ReturnValue):
-                    return result
+                try:
+                    result = self.execute_block(stmt.body, local_scope)
+                    # 如果是ReturnValue，立即终止循环并向上传播
+                    if isinstance(result, ReturnValue):
+                        return result
+                except BreakException:
+                    break
+                except ContinueException:
+                    pass
                 self.evaluate_expression(stmt.increment_expr, local_scope)
+        elif isinstance(stmt, WhileStatement):
+            while self.evaluate_expression(stmt.condition, local_scope):
+                try:
+                    result = self.execute_block(stmt.body, local_scope)
+                    # 如果是ReturnValue，立即终止循环并向上传播
+                    if isinstance(result, ReturnValue):
+                        return result
+                except BreakException:
+                    break
+                except ContinueException:
+                    pass
+        elif isinstance(stmt, BreakStatement):
+            raise BreakException()
+        elif isinstance(stmt, ContinueStatement):
+            raise ContinueException()
         elif isinstance(stmt, TryCatchStatement):
             try:
                 result = self.execute_block(stmt.try_block, local_scope)
@@ -229,6 +266,12 @@ class HPLEvaluator:
             raise ValueError(f"Unknown expression type {type(expr)}")
 
     def _eval_binary_op(self, left, op, right):
+        # 逻辑运算符
+        if op == '&&':
+            return left and right
+        if op == '||':
+            return left or right
+        
         # 加法需要特殊处理（字符串拼接 vs 数值相加）
         if op == '+':
             if isinstance(left, (int, float)) and isinstance(right, (int, float)):
@@ -300,7 +343,7 @@ class HPLEvaluator:
         self.current_obj = obj
         
         # 创建方法调用的局部作用域
-        method_scope = {param: args[i] for i, param in enumerate(method.params)}
+        method_scope = {param: args[i] for i, param in enumerate(method.params) if i < len(args)}
         method_scope['this'] = obj
         
         # 添加到调用栈
@@ -314,6 +357,44 @@ class HPLEvaluator:
             self.current_obj = prev_obj
         
         return result
+
+    def _call_constructor(self, obj, args):
+        """调用对象的构造函数（如果存在）"""
+        hpl_class = obj.hpl_class
+        if '__init__' in hpl_class.methods:
+            self._call_method(obj, '__init__', args)
+        elif hpl_class.parent and '__init__' in self.classes[hpl_class.parent].methods:
+            # 调用父类的构造函数
+            parent_class = self.classes[hpl_class.parent]
+            if '__init__' in parent_class.methods:
+                method = parent_class.methods['__init__']
+                prev_obj = self.current_obj
+                self.current_obj = obj
+                
+                method_scope = {param: args[i] for i, param in enumerate(method.params) if i < len(args)}
+                method_scope['this'] = obj
+                
+                self.call_stack.append(f"{obj.name}.__init__()")
+                try:
+                    self.execute_function(method, method_scope)
+                finally:
+                    self.call_stack.pop()
+                    self.current_obj = prev_obj
+
+    def instantiate_object(self, class_name, obj_name, init_args=None):
+        """实例化对象并调用构造函数"""
+        if class_name not in self.classes:
+            raise ValueError(f"Class '{class_name}' not found")
+        
+        hpl_class = self.classes[class_name]
+        obj = HPLObject(obj_name, hpl_class)
+        
+        # 调用构造函数（如果存在）
+        if init_args is None:
+            init_args = []
+        self._call_constructor(obj, init_args)
+        
+        return obj
 
     def _check_numeric_operands(self, left, right, op):
         """检查操作数是否为数值类型"""

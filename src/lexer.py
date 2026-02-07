@@ -169,7 +169,7 @@ class HPLLexer:
 
             if self.current_char.isalpha() or self.current_char == '_':
                 ident = self.identifier()
-                if ident in ['if', 'else', 'for', 'try', 'catch', 'return']:
+                if ident in ['if', 'else', 'for', 'while', 'try', 'catch', 'return', 'break', 'continue']:
                     tokens.append(Token('KEYWORD', ident, token_line, token_column))
                 elif ident in ['true', 'false']:
                     tokens.append(Token('BOOLEAN', ident == 'true', token_line, token_column))
@@ -257,6 +257,20 @@ class HPLLexer:
                     self.advance()
                 else:
                     tokens.append(Token('ASSIGN', '=', token_line, token_column))
+            elif self.current_char == '&':
+                self.advance()
+                if self.current_char == '&':
+                    tokens.append(Token('AND', '&&', token_line, token_column))
+                    self.advance()
+                else:
+                    raise ValueError(f"Invalid character '&' at line {self.line}, column {self.column}")
+            elif self.current_char == '|':
+                self.advance()
+                if self.current_char == '|':
+                    tokens.append(Token('OR', '||', token_line, token_column))
+                    self.advance()
+                else:
+                    raise ValueError(f"Invalid character '|' at line {self.line}, column {self.column}")
             else:
                 raise ValueError(f"Invalid character '{self.current_char}' at line {self.line}, column {self.column}")
 

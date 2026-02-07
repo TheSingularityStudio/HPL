@@ -2,16 +2,16 @@
 HPL AST 解析器模块
 
 该模块负责将词法分析器生成的 Token 序列解析为抽象语法树（AST），
-是解释器的第二阶段。支持解析各种语句（if、for、try-catch、赋值等）
+是解释器的第二阶段。支持解析各种语句（if、for、while、try-catch、赋值等）
 和表达式（二元运算、函数调用、方法调用等）。
 
 关键类：
 - HPLASTParser: AST 解析器，将 Token 列表转换为语句块和表达式树
 
 支持的语法结构：
-- 控制流：if-else、for 循环、try-catch
-- 语句：赋值、自增、返回、echo 输出
-- 表达式：二元运算、函数调用、方法调用、变量、字面量
+- 控制流：if-else、for 循环、while 循环、try-catch
+- 语句：赋值、自增、返回、echo 输出、break、continue
+- 表达式：二元运算、函数调用、方法调用、变量、字面量、逻辑运算
 """
 
 try:
@@ -123,6 +123,16 @@ class HPLASTParser:
                 expr = self.parse_expression()
             return ReturnStatement(expr)
         
+        # 处理 break 语句
+        if self.current_token.type == 'KEYWORD' and self.current_token.value == 'break':
+            self.advance()
+            return BreakStatement()
+        
+        # 处理 continue 语句
+        if self.current_token.type == 'KEYWORD' and self.current_token.value == 'continue':
+            self.advance()
+            return ContinueStatement()
+        
         # 处理 if 语句
         if self.current_token.type == 'KEYWORD' and self.current_token.value == 'if':
             return self.parse_if_statement()
@@ -130,6 +140,10 @@ class HPLASTParser:
         # 处理 for 语句
         if self.current_token.type == 'KEYWORD' and self.current_token.value == 'for':
             return self.parse_for_statement()
+        
+        # 处理 while 语句
+        if self.current_token.type == 'KEYWORD' and self.current_token.value == 'while':
+            return self.parse_while_statement()
         
         # 处理 try-catch 语句
         if self.current_token.type == 'KEYWORD' and self.current_token.value == 'try':
@@ -202,6 +216,16 @@ class HPLASTParser:
         
         return ForStatement(init, condition, increment_expr, body)
 
+    def parse_while_statement(self):
+        self.expect_keyword('while')
+        self.expect('LPAREN')
+        condition = self.parse_expression()
+        self.expect('RPAREN')
+        
+        body = self.parse_block()
+        
+        return WhileStatement(condition, body)
+
     def parse_try_catch_statement(self):
         self.expect_keyword('try')
         try_block = self.parse_block()
@@ -216,7 +240,29 @@ class HPLASTParser:
         return TryCatchStatement(try_block, catch_var, catch_block)
 
     def parse_expression(self):
-        return self.parse_equality()
+        return self.parse_or()
+
+    def parse_or(self):
+        """解析逻辑或 (||)"""
+        left = self.parse_and()
+        
+        while self.current_token and self.current_token.type == 'OR':
+            self.advance()
+            right = self.parse_and()
+            left = BinaryOp(left, '||', right)
+        
+        return left
+
+    def parse_and(self):
+        """解析逻辑与 (&&)"""
+        left = self.parse_equality()
+        
+        while self.current_token and self.current_token.type == 'AND':
+            self.advance()
+            right = self.parse_equality()
+            left = BinaryOp(left, '&&', right)
+        
+        return left
 
     def parse_equality(self):
         left = self.parse_comparison()
@@ -391,3 +437,12 @@ class HPLASTParser:
         if not self.current_token or self.current_token.type != 'KEYWORD' or self.current_token.value != value:
             raise ValueError(f"Expected keyword {value}, got {self.current_token} at {self._get_position()}")
         self.advance()
+
+
+# 添加 BreakStatement 和 ContinueStatement 类
+class BreakStatement(Statement):
+    pass
+
+
+class ContinueStatement(Statement):
+    pass
