@@ -172,3 +172,13 @@ class ImportStatement(Statement):
     def __init__(self, module_name, alias=None):
         self.module_name = module_name  # 模块名
         self.alias = alias  # 别名（可选）
+
+
+# BreakStatement 和 ContinueStatement 定义在这里，供 ast_parser 使用
+class BreakStatement(Statement):
+    pass
+
+
+class ContinueStatement(Statement):
+    pass
+

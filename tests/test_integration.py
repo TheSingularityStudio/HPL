@@ -29,10 +29,20 @@ class TestHPLIntegration(unittest.TestCase):
         
         # 解析
         parser = HPLParser(filepath)
-        classes, objects, main_func, call_target = parser.parse()
+        classes, objects, main_func, call_target, imports = parser.parse()
         
         # 执行并捕获输出
         evaluator = HPLEvaluator(classes, objects, main_func, call_target)
+        
+        # 处理顶层导入
+        for imp in imports:
+            module_name = imp['module']
+            alias = imp['alias'] or module_name
+            # 创建 ImportStatement 并执行
+            from src.models import ImportStatement
+            import_stmt = ImportStatement(module_name, alias)
+            evaluator.execute_import(import_stmt, evaluator.global_scope)
+
         
         output = io.StringIO()
         with contextlib.redirect_stdout(output):
@@ -112,4 +122,3 @@ class TestErrorHandling(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
-
