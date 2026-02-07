@@ -169,7 +169,8 @@ class HPLLexer:
 
             if self.current_char.isalpha() or self.current_char == '_':
                 ident = self.identifier()
-                if ident in ['if', 'else', 'for', 'while', 'try', 'catch', 'return', 'break', 'continue']:
+                if ident in ['if', 'else', 'for', 'while', 'try', 'catch', 'return', 'break', 'continue', 'import']:
+
                     tokens.append(Token('KEYWORD', ident, token_line, token_column))
                 elif ident in ['true', 'false']:
                     tokens.append(Token('BOOLEAN', ident == 'true', token_line, token_column))

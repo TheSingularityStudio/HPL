@@ -166,3 +166,9 @@ class EchoStatement(Statement):
 class IncrementStatement(Statement):
     def __init__(self, var_name):
         self.var_name = var_name
+
+
+class ImportStatement(Statement):
+    def __init__(self, module_name, alias=None):
+        self.module_name = module_name  # 模块名
+        self.alias = alias  # 别名（可选）

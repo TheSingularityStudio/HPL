@@ -133,7 +133,12 @@ class HPLASTParser:
             self.advance()
             return ContinueStatement()
         
+        # 处理 import 语句
+        if self.current_token.type == 'KEYWORD' and self.current_token.value == 'import':
+            return self.parse_import_statement()
+        
         # 处理 if 语句
+
         if self.current_token.type == 'KEYWORD' and self.current_token.value == 'if':
             return self.parse_if_statement()
         
@@ -377,18 +382,26 @@ class HPLASTParser:
                 return FunctionCall(name, args)
             
             elif self.current_token and self.current_token.type == 'DOT':
-                # 方法调用
+                # 方法调用或模块函数调用
                 self.advance()
-                method_name = self.expect('IDENTIFIER').value
-                self.expect('LPAREN')
-                args = []
-                if self.current_token and self.current_token.type != 'RPAREN':
-                    args.append(self.parse_expression())
-                    while self.current_token and self.current_token.type == 'COMMA':
-                        self.advance()
+                member_name = self.expect('IDENTIFIER').value
+                
+                # 检查是否是函数调用（带括号）
+                if self.current_token and self.current_token.type == 'LPAREN':
+                    self.advance()
+                    args = []
+                    if self.current_token and self.current_token.type != 'RPAREN':
                         args.append(self.parse_expression())
-                self.expect('RPAREN')
-                return MethodCall(Variable(name), method_name, args)
+                        while self.current_token and self.current_token.type == 'COMMA':
+                            self.advance()
+                            args.append(self.parse_expression())
+                    self.expect('RPAREN')
+                    return MethodCall(Variable(name), member_name, args)
+                else:
+                    # 模块常量访问，如 math.PI
+                    # 暂时作为变量处理，在运行时解析
+                    return MethodCall(Variable(name), member_name, [])
+
             
             elif self.current_token and self.current_token.type == 'INCREMENT':
                 # 后缀递增
@@ -437,6 +450,28 @@ class HPLASTParser:
         if not self.current_token or self.current_token.type != 'KEYWORD' or self.current_token.value != value:
             raise ValueError(f"Expected keyword {value}, got {self.current_token} at {self._get_position()}")
         self.advance()
+
+    def parse_import_statement(self):
+        """解析 import 语句: import module_name [as alias]"""
+        self.expect_keyword('import')
+        
+        # 获取模块名
+        if not self.current_token or self.current_token.type != 'IDENTIFIER':
+            raise ValueError(f"Expected module name after 'import', got {self.current_token} at {self._get_position()}")
+        
+        module_name = self.current_token.value
+        self.advance()
+        
+        # 检查是否有别名
+        alias = None
+        if self.current_token and self.current_token.type == 'KEYWORD' and self.current_token.value == 'as':
+            self.advance()
+            if not self.current_token or self.current_token.type != 'IDENTIFIER':
+                raise ValueError(f"Expected alias name after 'as', got {self.current_token} at {self._get_position()}")
+            alias = self.current_token.value
+            self.advance()
+        
+        return ImportStatement(module_name, alias)
 
 
 # 添加 BreakStatement 和 ContinueStatement 类

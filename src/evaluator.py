@@ -18,9 +18,12 @@ HPL 代码执行器模块
 try:
     from src.models import *
     from src.ast_parser import BreakStatement, ContinueStatement
+    from src.module_loader import load_module, HPLModule
 except ImportError:
     from models import *
     from ast_parser import BreakStatement, ContinueStatement
+    from module_loader import load_module, HPLModule
+
 
 
 class ReturnValue:
@@ -48,6 +51,8 @@ class HPLEvaluator:
         self.global_scope = self.objects  # 全局变量，包括预定义对象
         self.current_obj = None  # 用于方法中的'this'
         self.call_stack = []  # 调用栈，用于错误跟踪
+        self.imported_modules = {}  # 导入的模块 {alias/name: module}
+
 
     def run(self):
         # 如果指定了 call_target，执行对应的函数
@@ -144,7 +149,10 @@ class HPLEvaluator:
         elif isinstance(stmt, EchoStatement):
             message = self.evaluate_expression(stmt.expr, local_scope)
             self.echo(message)
+        elif isinstance(stmt, ImportStatement):
+            self.execute_import(stmt, local_scope)
         elif isinstance(stmt, IncrementStatement):
+
             # 前缀自增
             value = self._lookup_variable(stmt.var_name, local_scope)
             if not isinstance(value, (int, float)):
@@ -240,8 +248,23 @@ class HPLEvaluator:
             if isinstance(obj, HPLObject):
                 args = [self.evaluate_expression(arg, local_scope) for arg in expr.args]
                 return self._call_method(obj, expr.method_name, args)
+            elif isinstance(obj, HPLModule):
+                # 模块函数调用或常量访问
+                if len(expr.args) == 0:
+                    # 可能是模块常量访问，如 math.PI
+                    try:
+                        return self.get_module_constant(obj, expr.method_name)
+                    except ValueError:
+                        # 不是常量，可能是无参函数调用
+                        return self.call_module_function(obj, expr.method_name, [])
+                else:
+                    # 模块函数调用，如 math.sqrt(16)
+                    args = [self.evaluate_expression(arg, local_scope) for arg in expr.args]
+                    return self.call_module_function(obj, expr.method_name, args)
             else:
                 raise ValueError(f"Cannot call method on {obj}")
+
+
         elif isinstance(expr, PostfixIncrement):
             var_name = expr.var.name
             value = self._lookup_variable(var_name, local_scope)
@@ -402,6 +425,36 @@ class HPLEvaluator:
             raise TypeError(f"Unsupported operand type for {op}: '{type(left).__name__}' (expected number)")
         if not isinstance(right, (int, float)):
             raise TypeError(f"Unsupported operand type for {op}: '{type(right).__name__}' (expected number)")
+
+    def execute_import(self, stmt, local_scope):
+        """执行 import 语句"""
+        module_name = stmt.module_name
+        alias = stmt.alias or module_name
+        
+        try:
+            # 加载模块
+            module = load_module(module_name)
+            if module:
+                # 存储模块引用
+                self.imported_modules[alias] = module
+                local_scope[alias] = module
+                return None
+        except ImportError as e:
+            raise ImportError(f"Cannot import module '{module_name}': {e}")
+        
+        raise ImportError(f"Module '{module_name}' not found")
+
+    def call_module_function(self, module, func_name, args):
+        """调用模块函数"""
+        if isinstance(module, HPLModule):
+            return module.call_function(func_name, args)
+        raise ValueError(f"Cannot call function on non-module object")
+
+    def get_module_constant(self, module, const_name):
+        """获取模块常量"""
+        if isinstance(module, HPLModule):
+            return module.get_constant(const_name)
+        raise ValueError(f"Cannot get constant from non-module object")
 
     # 内置函数
     def echo(self, message):

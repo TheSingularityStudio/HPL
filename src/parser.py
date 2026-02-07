@@ -37,7 +37,9 @@ class HPLParser:
         self.objects = {}
         self.main_func = None
         self.call_target = None
+        self.imports = []  # 存储导入语句
         self.data = self.load_and_parse()
+
 
     def load_and_parse(self):
         """加载并解析 HPL 文件"""
@@ -125,6 +127,10 @@ class HPLParser:
                 main_data[key].update(include_data[key])
 
     def parse(self):
+        # 处理顶层 import 语句
+        if 'imports' in self.data:
+            self.parse_imports()
+        
         if 'classes' in self.data:
             self.parse_classes()
         if 'objects' in self.data:
@@ -136,7 +142,21 @@ class HPLParser:
             call_str = self.data['call']
             self.call_target = call_str.rstrip('()').strip()
         
-        return self.classes, self.objects, self.main_func, self.call_target
+        return self.classes, self.objects, self.main_func, self.call_target, self.imports
+
+    def parse_imports(self):
+        """解析顶层 import 语句"""
+        imports_data = self.data['imports']
+        if isinstance(imports_data, list):
+            for imp in imports_data:
+                if isinstance(imp, str):
+                    # 简单格式: module_name
+                    self.imports.append({'module': imp, 'alias': None})
+                elif isinstance(imp, dict):
+                    # 复杂格式: {module: alias} 或 {module: name, as: alias}
+                    for module, alias in imp.items():
+                        self.imports.append({'module': module, 'alias': alias})
+
 
     def parse_classes(self):
         for class_name, class_def in self.data['classes'].items():
