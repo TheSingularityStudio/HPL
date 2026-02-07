@@ -73,7 +73,6 @@ classes:
 
 - 使用 `parent: BaseClass` 指定继承关系。
 - 子类可以调用父类方法，使用 `this.methodName()`。
-- 子类可以重写父类方法，并使用 `super.methodName()` 调用父类方法。
 
 ## 4. 对象实例化（objects）
 

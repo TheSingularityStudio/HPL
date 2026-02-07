@@ -1,26 +1,3 @@
-"""
-HPL 解析器模块 (HPL Parser Module)
-
-该模块负责解析 HPL 语言的 YAML 格式源文件，将其转换为内部数据结构。
-它是 HPL 解释器的入口解析阶段，协调词法分析和语法分析过程。
-
-主要功能：
-    - YAML 文件加载：读取并解析 HPL 源文件（YAML 格式）
-    - 文件包含处理：支持通过 includes 关键字包含其他文件
-    - 类定义解析：解析类名、父类关系和方法定义
-    - 对象实例化：根据类定义创建对象实例
-    - 主函数解析：解析程序入口点 main 函数
-    - 函数体解析：将函数字符串解析为 AST
-
-解析流程：
-    1. 加载 YAML 文件
-    2. 处理文件包含（includes）
-    3. 解析类定义（classes）
-    4. 解析对象定义（objects）
-    5. 解析主函数（main）
-    6. 对每个函数体进行词法分析和 AST 解析
-"""
-
 import yaml
 import os
 import re
@@ -161,7 +138,7 @@ class HPLParser:
         for class_name, class_def in self.data['classes'].items():
             if isinstance(class_def, dict):
                 methods = {}
-                parents = []
+                parent = None
                 for key, value in class_def.items():
                     if key == 'parent':
                         parent = value
@@ -173,24 +150,7 @@ class HPLParser:
         for obj_name, obj_def in self.data['objects'].items():
             class_name = obj_def.rstrip('()')
             if class_name in self.classes:
-                self.objects[obj_name] = HPLObject(obj_name, self.classes[class_name], args)
-            else:
-                raise ValueError(f"Undefined class '{class_name}' for object '{obj_name}'")
-
-    def _parse_arg(self, arg_str):
-        """解析单个参数，支持字符串和数字"""
-        arg_str = arg_str.strip()
-        if (arg_str.startswith('"') and arg_str.endswith('"')) or \
-           (arg_str.startswith("'") and arg_str.endswith("'")):
-            # 字符串字面量
-            return arg_str[1:-1]
-        elif arg_str.isdigit() or (arg_str.startswith('-') and arg_str[1:].isdigit()):
-            # 整数
-            return int(arg_str)
-        else:
-            # 其他情况作为字符串返回
-            return arg_str
-
+                self.objects[obj_name] = HPLObject(obj_name, self.classes[class_name])
 
     def parse_function(self, func_str):
         func_str = func_str.strip()

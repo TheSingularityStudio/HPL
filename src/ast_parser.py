@@ -1,33 +1,4 @@
-"""
-HPL AST解析器模块 (HPL AST Parser Module)
-
-该模块负责将词法分析器生成的Token序列解析为抽象语法树(AST)。
-它是HPL语言解释器的核心组件之一，实现了递归下降解析算法。
-
-主要功能：
-    - 语句解析：支持赋值、条件、循环、异常处理、返回等语句
-    - 表达式解析：支持二元运算、函数调用、方法调用、变量引用等
-    - 代码块解析：支持花括号包裹的语句块
-    
-支持的语法结构：
-    - 赋值语句：var = expression;
-    - 自增语句：var++;
-    - 条件语句：if (condition) { ... } else { ... }
-    - 循环语句：for (init; condition; increment) { ... }
-    - 异常处理：try { ... } catch (e) { ... }
-    - 返回语句：return expression;
-    - 函数调用：funcName(args);
-    - 方法调用：obj.method(args);
-    - 父类调用：super.method(args);
-"""
-
-# 处理模块和直接执行的导入
-
-try:
-    from src.models import *
-except ImportError:
-    from models import *
-
+from src.models import *
 
 """
 HPL AST 解析器模块
@@ -306,8 +277,6 @@ class HPLASTParser:
             if self.current_token and self.current_token.type == 'LPAREN':
                 # 函数调用
                 self.advance()
-                method_name = self.expect('IDENTIFIER').value
-                self.expect('LPAREN')
                 args = []
                 if self.current_token and self.current_token.type != 'RPAREN':
                     args.append(self.parse_expression())
@@ -320,6 +289,8 @@ class HPLASTParser:
             elif self.current_token and self.current_token.type == 'DOT':
                 # 方法调用
                 self.advance()
+                method_name = self.expect('IDENTIFIER').value
+                self.expect('LPAREN')
                 args = []
                 if self.current_token and self.current_token.type != 'RPAREN':
                     args.append(self.parse_expression())

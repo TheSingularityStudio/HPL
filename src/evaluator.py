@@ -1,76 +1,4 @@
-"""
-HPL 求值器模块 (HPL Evaluator Module)
-
-该模块负责执行 HPL 语言的抽象语法树(AST)，实现语言的运行时语义。
-它是 HPL 解释器的核心执行引擎，负责管理变量作用域、执行控制流、
-处理函数调用和对象方法调用。
-
-主要功能：
-    - 表达式求值：支持算术运算、比较运算、逻辑运算
-    - 语句执行：支持赋值、条件、循环、异常处理、返回等语句
-    - 函数调用：支持函数定义、参数传递、返回值处理
-    - 面向对象：支持类方法调用、继承、super 调用
-    - 错误处理：提供类型检查、未定义变量检查、除零检查等
-    - 作用域管理：支持局部变量和全局变量
-
-异常类：
-    - HPLError: HPL 解释器错误的基类
-    - HPLTypeError: 类型错误
-    - HPLUndefinedError: 未定义变量或方法错误
-    - HPLDivisionByZeroError: 除零错误
-    - ReturnValue: 用于处理函数返回值的特殊异常
-"""
-
-# 处理模块和直接执行的导入
-
-try:
-    from src.models import *
-except ImportError:
-    from models import *
-
-
-class HPLError(Exception):
-
-    """HPL解释器错误的基类异常"""
-
-    def __init__(self, message, line=None, column=None):
-        self.message = message
-        self.line = line
-        self.column = column
-        super().__init__(self._format_message())
-    
-    def _format_message(self):
-        if self.line is not None and self.column is not None:
-            return f"HPL Error at line {self.line}, column {self.column}: {self.message}"
-        return f"HPL Error: {self.message}"
-
-
-class HPLTypeError(HPLError):
-    """HPL操作中的类型错误"""
-    pass
-
-
-
-class HPLUndefinedError(HPLError):
-    """未定义变量或方法错误"""
-    pass
-
-
-
-class HPLDivisionByZeroError(HPLError):
-    """除以零错误"""
-    pass
-
-
-
-class ReturnValue(Exception):
-    """用于处理函数调用中返回语句的异常"""
-    def __init__(self, value):
-
-        self.value = value
-        super().__init__()
-
-
+from src.models import *
 
 """
 HPL 代码执行器模块
@@ -99,7 +27,6 @@ class HPLEvaluator:
         self.global_scope = self.objects  # 全局变量，包括预定义对象
         self.current_obj = None  # 用于方法中的'this'
 
-
     def run(self):
         # 如果指定了 call_target，执行对应的函数
         if self.call_target:
@@ -109,18 +36,6 @@ class HPLEvaluator:
                 raise ValueError(f"Unknown call target: {self.call_target}")
         elif self.main_func:
             self.execute_function(self.main_func, {})
-
-    def execute_call(self):
-        """执行 call 指令"""
-        func_name = self.call['func_name']
-        args = self.call['args']
-        
-        if func_name == 'main' and self.main_func:
-            # 执行 main 函数
-            self.execute_function(self.main_func, {})
-        else:
-            raise HPLError(f"Unknown function to call: {func_name}")
-
 
     def execute_function(self, func, local_scope):
         # 执行语句块并返回结果
@@ -139,13 +54,9 @@ class HPLEvaluator:
             value = self.evaluate_expression(stmt.expr, local_scope)
             local_scope[stmt.var_name] = value
         elif isinstance(stmt, ReturnStatement):
-            # 抛出 ReturnValue 异常来传递返回值
+            # 为简单起见，仅评估并暂时忽略
             if stmt.expr:
-                value = self.evaluate_expression(stmt.expr, local_scope)
-                raise ReturnValue(value)
-            else:
-                raise ReturnValue(None)
-
+                return self.evaluate_expression(stmt.expr, local_scope)
         elif isinstance(stmt, IfStatement):
             cond = self.evaluate_expression(stmt.condition, local_scope)
             if cond:
@@ -167,7 +78,6 @@ class HPLEvaluator:
                 local_scope[stmt.catch_var] = str(e)
                 return self.execute_block(stmt.catch_block, local_scope)
         elif isinstance(stmt, EchoStatement):
-
             message = self.evaluate_expression(stmt.expr, local_scope)
             self.echo(message)
         elif isinstance(stmt, IncrementStatement):
@@ -183,27 +93,6 @@ class HPLEvaluator:
             # 表达式作为语句
             return self.evaluate_expression(stmt, local_scope)
         return None
-
-    def _check_numeric_operands(self, left, right, op):
-        """检查算术运算的操作数是否都是数值类型"""
-
-        if not isinstance(left, (int, float)):
-            raise HPLTypeError(f"Left operand of '{op}' must be numeric, got {type(left).__name__}")
-        if not isinstance(right, (int, float)):
-            raise HPLTypeError(f"Right operand of '{op}' must be numeric, got {type(right).__name__}")
-        return True
-
-    def _check_defined(self, name, local_scope):
-        """检查变量是否已定义"""
-
-        if name in local_scope:
-            return local_scope[name]
-        elif name in self.global_scope:
-            return self.global_scope[name]
-        elif name == 'this':
-            return self.current_obj
-        else:
-            raise HPLUndefinedError(f"Undefined variable '{name}'")
 
     def evaluate_expression(self, expr, local_scope):
         if isinstance(expr, IntegerLiteral):
@@ -233,36 +122,15 @@ class HPLEvaluator:
                 message = self.evaluate_expression(expr.args[0], local_scope)
                 self.echo(message)
                 return None
-            elif expr.func_name == 'input':
-                # 支持可选的提示信息参数
-                prompt = None
-                if expr.args:
-                    prompt = self.evaluate_expression(expr.args[0], local_scope)
-                return self.input(prompt)
             else:
                 raise ValueError(f"Unknown function {expr.func_name}")
-
         elif isinstance(expr, MethodCall):
             obj = self.evaluate_expression(expr.obj_name, local_scope)
             if isinstance(obj, HPLObject):
                 args = [self.evaluate_expression(arg, local_scope) for arg in expr.args]
                 return self._call_method(obj, expr.method_name, args)
             else:
-                raise HPLTypeError(f"Cannot call method on {type(obj).__name__}, expected HPLObject")
-
-        elif isinstance(expr, SuperCall):
-            if self.current_obj:
-                method = self.find_super_method(self.current_obj.hpl_class, expr.method_name)
-                if method:
-                    prev_obj = self.current_obj
-                    self.current_obj = self.current_obj  # Keep the same 'this'
-                    result = self.execute_function(method, {param: self.evaluate_expression(arg, local_scope) for param, arg in zip(method.params, expr.args)})
-                    self.current_obj = prev_obj
-                    return result
-                else:
-                    raise HPLUndefinedError(f"Super method '{expr.method_name}' not found")
-            else:
-                raise HPLError("Super call outside of method context")
+                raise ValueError(f"Cannot call method on {obj}")
         elif isinstance(expr, PostfixIncrement):
             var_name = expr.var.name
             value = self._lookup_variable(var_name, local_scope)
@@ -284,9 +152,7 @@ class HPLEvaluator:
                 raise IndexError(f"Array index {index} out of bounds (length: {len(array)})")
             return array[index]
         else:
-            raise HPLError(f"Unknown expression type {type(expr).__name__}")
-
-
+            raise ValueError(f"Unknown expression type {type(expr)}")
 
     def _eval_binary_op(self, left, op, right):
         # 加法需要特殊处理（字符串拼接 vs 数值相加）
@@ -377,9 +243,3 @@ class HPLEvaluator:
     # 内置函数
     def echo(self, message):
         print(message)
-
-    def input(self, prompt=None):
-        """获取用户输入，可选提示信息"""
-        if prompt is not None:
-            return input(prompt)
-        return input()
