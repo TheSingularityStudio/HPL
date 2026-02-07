@@ -15,13 +15,22 @@ HPL 解释器主入口模块
 """
 
 import sys
+import os
+
+# 确保 src 目录在 Python 路径中
+script_dir = os.path.dirname(os.path.abspath(__file__))
+if script_dir not in sys.path:
+    sys.path.insert(0, script_dir)
 
 try:
     from src.parser import HPLParser
     from src.evaluator import HPLEvaluator
+    from src.models import ImportStatement
 except ImportError:
     from parser import HPLParser
     from evaluator import HPLEvaluator
+    from models import ImportStatement
+
 
 
 def main():
@@ -42,9 +51,9 @@ def main():
             module_name = imp['module']
             alias = imp['alias'] or module_name
             # 创建 ImportStatement 并执行
-            from src.models import ImportStatement
             import_stmt = ImportStatement(module_name, alias)
             evaluator.execute_import(import_stmt, evaluator.global_scope)
+
 
         evaluator.run()
     except FileNotFoundError as e:
