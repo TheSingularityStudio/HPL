@@ -75,11 +75,15 @@ class HPLLexer:
                 continue
             if self.current_char.isalpha() or self.current_char == '_':
                 ident = self.identifier()
-                if ident in ['if', 'else', 'for', 'try', 'catch']:
+                if ident in ['if', 'else', 'for', 'try', 'catch', 'return']:
                     tokens.append(Token('KEYWORD', ident))
+
+                elif ident in ['true', 'false']:
+                    tokens.append(Token('BOOLEAN', ident == 'true'))
                 else:
                     tokens.append(Token('IDENTIFIER', ident))
                 continue
+
 
             if self.current_char == '+':
                 self.advance()

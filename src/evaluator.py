@@ -83,8 +83,20 @@ class HPLEvaluator:
         elif isinstance(stmt, FunctionCall):
             self.evaluate_expression(stmt, local_scope)
         elif isinstance(stmt, MethodCall):
-            self.evaluate_expression(stmt, local_scope)
+            return self.evaluate_expression(stmt, local_scope)
+        elif isinstance(stmt, IncrementStatement):
+            # 处理自增语句（如 i++）
+            var_name = stmt.var_name
+            if var_name in local_scope:
+                value = local_scope[var_name]
+                local_scope[var_name] = value + 1
+            elif var_name in self.global_scope:
+                value = self.global_scope[var_name]
+                self.global_scope[var_name] = value + 1
+            else:
+                raise ValueError(f"Undefined variable {var_name}")
         elif isinstance(stmt, EchoStatement):
+
             message = self.evaluate_expression(stmt.expr, local_scope)
             self.echo(message)
         # 暂时忽略其他类型
@@ -92,8 +104,11 @@ class HPLEvaluator:
     def evaluate_expression(self, expr, local_scope):
         if isinstance(expr, IntegerLiteral):
             return expr.value
+        elif isinstance(expr, BooleanLiteral):
+            return expr.value
         elif isinstance(expr, StringLiteral):
             return expr.value
+
         elif isinstance(expr, Variable):
             if expr.name in local_scope:
                 return local_scope[expr.name]
@@ -144,9 +159,10 @@ class HPLEvaluator:
         elif isinstance(expr, MethodCall):
             obj = self.evaluate_expression(expr.obj_name, local_scope)
             if isinstance(obj, HPLObject):
-                self.call_method_on_obj(obj, expr.method_name, [self.evaluate_expression(arg, local_scope) for arg in expr.args])
+                return self.call_method_on_obj(obj, expr.method_name, [self.evaluate_expression(arg, local_scope) for arg in expr.args])
             else:
                 raise ValueError(f"Cannot call method on {obj}")
+
         elif isinstance(expr, PostfixIncrement):
             var_name = expr.var.name
             if var_name in local_scope:
@@ -159,9 +175,15 @@ class HPLEvaluator:
                 return value
             else:
                 raise ValueError(f"Undefined variable {var_name}")
-
+        elif isinstance(expr, UnaryOp):
+            operand = self.evaluate_expression(expr.operand, local_scope)
+            if expr.op == '!':
+                return not operand
+            else:
+                raise ValueError(f"Unknown unary operator {expr.op}")
         else:
             raise ValueError(f"Unknown expression type {type(expr)}")
+
 
     def call_method_on_obj(self, obj, method_name, args):
         hpl_class = obj.hpl_class
@@ -174,8 +196,10 @@ class HPLEvaluator:
         # 为'this'设置current_obj
         prev_obj = self.current_obj
         self.current_obj = obj
-        self.execute_function(method, {param: args[i] for i, param in enumerate(method.params)})
+        result = self.execute_function(method, {param: args[i] for i, param in enumerate(method.params)})
         self.current_obj = prev_obj
+        return result
+
 
     # 内置函数
     def echo(self, message):

@@ -46,7 +46,12 @@ class StringLiteral(Expression):
     def __init__(self, value):
         self.value = value
 
+class BooleanLiteral(Expression):
+    def __init__(self, value):
+        self.value = value
+
 # 表达式
+
 class BinaryOp(Expression):
     def __init__(self, left, op, right):
         self.left = left

@@ -19,17 +19,28 @@ HPL 解释器主入口模块
 """
 
 def main():
-
     if len(sys.argv) != 2:
         print("Usage: python interpreter.py <hpl_file>")
         sys.exit(1)
 
     hpl_file = sys.argv[1]
-    parser = HPLParser(hpl_file)
-    classes, objects, main_func, call_target = parser.parse()
+    
+    try:
+        parser = HPLParser(hpl_file)
+        classes, objects, main_func, call_target = parser.parse()
 
-    evaluator = HPLEvaluator(classes, objects, main_func, call_target)
-    evaluator.run()
+        evaluator = HPLEvaluator(classes, objects, main_func, call_target)
+        evaluator.run()
+    except FileNotFoundError as e:
+        print(f"Error: File not found - {e.filename}")
+        sys.exit(1)
+    except ValueError as e:
+        print(f"Error: {e}")
+        sys.exit(1)
+    except Exception as e:
+        print(f"Runtime Error: {e}")
+        sys.exit(1)
+
 
 if __name__ == "__main__":
     main()

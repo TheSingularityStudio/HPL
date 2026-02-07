@@ -201,11 +201,15 @@ class HPLASTParser:
             return UnaryOp('!', operand)
         
         if self.current_token.type == 'INTEGER':
-
             value = self.current_token.value
             self.advance()
             return IntegerLiteral(value)
+        elif self.current_token.type == 'BOOLEAN':
+            value = self.current_token.value
+            self.advance()
+            return BooleanLiteral(value)
         elif self.current_token.type == 'STRING':
+
             value = self.current_token.value
             self.advance()
             return StringLiteral(value)
