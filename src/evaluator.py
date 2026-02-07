@@ -17,11 +17,9 @@ HPL 代码执行器模块
 
 try:
     from src.models import *
-    from src.ast_parser import BreakStatement, ContinueStatement
     from src.module_loader import load_module, HPLModule
 except ImportError:
     from models import *
-    from ast_parser import BreakStatement, ContinueStatement
     from module_loader import load_module, HPLModule
 
 
@@ -89,6 +87,21 @@ class HPLEvaluator:
         if isinstance(stmt, AssignmentStatement):
             value = self.evaluate_expression(stmt.expr, local_scope)
             local_scope[stmt.var_name] = value
+        elif isinstance(stmt, ArrayAssignmentStatement):
+            # 数组元素赋值：arr[index] = value
+            array = self._lookup_variable(stmt.array_name, local_scope)
+            if not isinstance(array, list):
+                raise TypeError(f"Cannot assign to non-array value: {type(array).__name__}")
+            
+            index = self.evaluate_expression(stmt.index_expr, local_scope)
+            if not isinstance(index, int):
+                raise TypeError(f"Array index must be integer, got {type(index).__name__}")
+            
+            if index < 0 or index >= len(array):
+                raise IndexError(f"Array index {index} out of bounds (length: {len(array)})")
+            
+            value = self.evaluate_expression(stmt.value_expr, local_scope)
+            array[index] = value
         elif isinstance(stmt, ReturnStatement):
             # 评估返回值并用ReturnValue包装，以便上层识别
             value = None
@@ -278,13 +291,14 @@ class HPLEvaluator:
         elif isinstance(expr, ArrayAccess):
             array = self.evaluate_expression(expr.array, local_scope)
             index = self.evaluate_expression(expr.index, local_scope)
-            if not isinstance(array, list):
-                raise TypeError(f"Cannot index non-array value: {type(array).__name__}")
+            if not isinstance(array, (list, str)):
+                raise TypeError(f"Cannot index non-array and non-string value: {type(array).__name__}")
             if not isinstance(index, int):
                 raise TypeError(f"Array index must be integer, got {type(index).__name__}")
             if index < 0 or index >= len(array):
                 raise IndexError(f"Array index {index} out of bounds (length: {len(array)})")
             return array[index]
+
         else:
             raise ValueError(f"Unknown expression type {type(expr)}")
 

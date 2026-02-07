@@ -20,6 +20,7 @@ except ImportError:
     from models import *
 
 
+
 class HPLASTParser:
     def __init__(self, tokens):
         self.tokens = tokens
@@ -165,6 +166,28 @@ class HPLASTParser:
             name = self.current_token.value
             self.advance()
             
+            # 检查是否是数组赋值：arr[index] = value
+            if self.current_token and self.current_token.type == 'LBRACKET':
+                # 解析数组索引
+                self.advance()  # 跳过 '['
+                index_expr = self.parse_expression()
+                self.expect('RBRACKET')  # 期望 ']'
+                
+                # 检查是否是赋值
+                if self.current_token and self.current_token.type == 'ASSIGN':
+                    self.advance()  # 跳过 '='
+                    value_expr = self.parse_expression()
+                    return ArrayAssignmentStatement(name, index_expr, value_expr)
+                else:
+                    # 不是赋值，回退并作为数组访问表达式处理
+                    self.pos -= 1
+                    self.current_token = self.tokens[self.pos]
+                    # 回退到标识符位置
+                    self.pos -= 1
+                    self.current_token = self.tokens[self.pos]
+                    expr = self.parse_expression()
+                    return expr
+            
             # 检查是否是自增
             if self.current_token and self.current_token.type == 'INCREMENT':
                 self.advance()
@@ -182,6 +205,7 @@ class HPLASTParser:
             self.current_token = self.tokens[self.pos]
             expr = self.parse_expression()
             return expr
+
         
         # 默认解析为表达式
         return self.parse_expression()

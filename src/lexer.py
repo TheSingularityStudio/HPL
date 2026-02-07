@@ -82,10 +82,29 @@ class HPLLexer:
         result = ''
         self.advance()  # 跳过开始引号
         while self.current_char is not None and self.current_char != '"':
-            result += self.current_char
-            self.advance()
+            # 处理转义序列
+            if self.current_char == '\\':
+                self.advance()  # 跳过反斜杠
+                if self.current_char is None:
+                    break
+                elif self.current_char == 'n':
+                    result += '\n'
+                elif self.current_char == 't':
+                    result += '\t'
+                elif self.current_char == '\\':
+                    result += '\\'
+                elif self.current_char == '"':
+                    result += '"'
+                else:
+                    # 未知的转义序列，保留原样
+                    result += '\\' + self.current_char
+                self.advance()
+            else:
+                result += self.current_char
+                self.advance()
         self.advance()  # 跳过结束引号
         return result
+
 
     def identifier(self):
         result = ''
