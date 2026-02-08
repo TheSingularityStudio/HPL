@@ -272,8 +272,22 @@ class HPLEvaluator:
                     raise ValueError("min() requires at least one argument")
                 args = [self.evaluate_expression(arg, local_scope) for arg in expr.args]
                 return min(args)
+            elif expr.func_name == 'input':
+                # 获取用户输入
+                if len(expr.args) == 0:
+                    # 无参数：直接读取输入
+                    return input()
+                elif len(expr.args) == 1:
+                    # 一个参数：显示提示信息后读取输入
+                    prompt = self.evaluate_expression(expr.args[0], local_scope)
+                    if not isinstance(prompt, str):
+                        raise TypeError(f"input() requires string prompt, got {type(prompt).__name__}")
+                    return input(prompt)
+                else:
+                    raise ValueError(f"input() requires 0 or 1 arguments, got {len(expr.args)}")
             else:
                 raise ValueError(f"Unknown function {expr.func_name}")
+
         elif isinstance(expr, MethodCall):
             obj = self.evaluate_expression(expr.obj_name, local_scope)
             if isinstance(obj, HPLObject):

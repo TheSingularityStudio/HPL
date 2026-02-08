@@ -278,7 +278,74 @@ methods:
     }
 ```
 
-#### 2.2.3 函数解析
+#### 2.2.3 顶层函数解析
+
+**`parse_top_level_functions()` 方法**
+
+解析 YAML 根级别的所有函数定义（包括 `main` 和其他自定义函数）：
+
+```python
+def parse_top_level_functions(self):
+    """解析所有顶层函数定义"""
+    # 预定义的保留键，不是函数
+    reserved_keys = {'includes', 'imports', 'classes', 'objects', 'call'}
+    
+    for key, value in self.data.items():
+        if key in reserved_keys:
+            continue
+        
+        # 检查值是否是函数定义（包含 =>）
+        if isinstance(value, str) and '=>' in value:
+            func = self.parse_function(value)
+            self.functions[key] = func
+            
+            # 特别处理 main 函数
+            if key == 'main':
+                self.main_func = func
+```
+
+**`_parse_call_expression()` 方法**
+
+解析 `call:` 指令中的函数调用表达式，支持带参数的调用：
+
+```python
+def _parse_call_expression(self, call_str):
+    """解析 call 表达式，提取函数名和参数"""
+    call_str = call_str.strip()
+    
+    # 查找左括号
+    if '(' in call_str:
+        func_name = call_str[:call_str.find('(')].strip()
+        args_str = call_str[call_str.find('(')+1:call_str.rfind(')')].strip()
+        
+        # 解析参数
+        args = []
+        if args_str:
+            # 按逗号分割参数
+            for arg in args_str.split(','):
+                arg = arg.strip()
+                # 尝试解析为整数
+                try:
+                    args.append(int(arg))
+                except ValueError:
+                    # 尝试解析为浮点数
+                    try:
+                        args.append(float(arg))
+                    except ValueError:
+                        # 作为字符串处理（去掉引号）
+                        if (arg.startswith('"') and arg.endswith('"')) or \
+                           (arg.startswith("'") and arg.endswith("'")):
+                            args.append(arg[1:-1])
+                        else:
+                            args.append(arg)  # 变量名或其他
+        
+        return func_name, args
+    else:
+        # 没有括号，如 call: main
+        return call_str, []
+```
+
+#### 2.2.4 函数体解析
 
 ```python
 def parse_function(self, func_str):
@@ -288,6 +355,7 @@ def parse_function(self, func_str):
     # 3. 使用 Lexer 和 ASTParser 解析函数体
     # 4. 返回 HPLFunction 对象
 ```
+
 
 ---
 
@@ -389,16 +457,52 @@ def parse_block(self):
 
 ```python
 class HPLEvaluator:
-    def __init__(self, classes, objects, main_func, call_target=None):
+    def __init__(self, classes, objects, functions=None, main_func=None, 
+                 call_target=None, call_args=None):
         self.classes = classes           # 类定义字典
         self.objects = objects             # 全局对象字典
+        self.functions = functions or {}   # 所有顶层函数
         self.main_func = main_func         # main函数
         self.call_target = call_target     # 调用目标
+        self.call_args = call_args or []   # call 调用的参数
         self.global_scope = objects        # 全局作用域
         self.current_obj = None            # 当前对象（this绑定）
         self.call_stack = []               # 调用栈（错误跟踪）
         self.imported_modules = {}         # 导入的模块
 ```
+
+**`run()` 方法 - 执行入口：**
+
+```python
+def run(self):
+    """
+    执行入口函数。
+    
+    支持两种调用方式：
+    1. 通过 call: 指令指定函数名和参数，如 call: add(5, 3)
+    2. 默认执行 main 函数（如果存在）
+    """
+    # 如果指定了 call_target，执行对应的函数
+    if self.call_target:
+        # 首先尝试从 functions 字典中查找
+        if self.call_target in self.functions:
+            target_func = self.functions[self.call_target]
+            # 构建参数作用域，将 call_args 绑定到函数参数
+            local_scope = {}
+            for i, param in enumerate(target_func.params):
+                if i < len(self.call_args):
+                    local_scope[param] = self.call_args[i]
+                else:
+                    local_scope[param] = None  # 默认值为 None
+            self.execute_function(target_func, local_scope)
+        elif self.call_target == 'main' and self.main_func:
+            self.execute_function(self.main_func, {})
+        else:
+            raise ValueError(f"Unknown call target: {self.call_target}")
+    elif self.main_func:
+        self.execute_function(self.main_func, {})
+```
+
 
 #### 2.4.2 表达式求值
 
@@ -521,6 +625,8 @@ def _call_method(self, obj, method_name, args):
 | `abs(x)` | number | number | 绝对值 |
 | `max(...)` | numbers | number | 最大值 |
 | `min(...)` | numbers | number | 最小值 |
+| `input(prompt?)` | str（可选） | str | 获取用户输入，可选提示信息 |
+
 
 ---
 
@@ -661,6 +767,8 @@ class HPLFunction:
 
 ### 5.1 完整执行流程
 
+#### 示例1: 调用 main 函数
+
 以以下 HPL 代码为例：
 
 ```yaml
@@ -684,6 +792,52 @@ main: () => {
 
 call: main
 ```
+
+#### 示例2: 调用任意顶层函数（带参数）
+
+```yaml
+# 定义顶层函数
+add: (a, b) => {
+    result = a + b
+    echo("Adding " + a + " + " + b + " = " + result)
+    return result
+  }
+
+greet: (name) => {
+    message = "Hello, " + name + "!"
+    echo message
+    return message
+  }
+
+# 调用 add 函数并传递参数
+call: add(5, 3)
+```
+
+**执行步骤（call: add(5, 3)）：**
+
+```
+1. HPLParser 解析 call 表达式
+   └── _parse_call_expression("add(5, 3)")
+       ├── 提取函数名: "add"
+       └── 解析参数: [5, 3]（整数列表）
+
+2. HPLEvaluator 初始化
+   ├── classes = {}
+   ├── objects = {}
+   ├── functions = {"add": HPLFunction, "greet": HPLFunction}
+   ├── main_func = None
+   ├── call_target = "add"
+   └── call_args = [5, 3]
+
+3. run() 方法执行
+   └── 发现 call_target="add" 在 functions 中
+       └── 构建局部作用域: {a: 5, b: 3}
+           └── execute_function(add_function, {a: 5, b: 3})
+               ├── AssignmentStatement(result = a + b) → result = 8
+               ├── EchoStatement("Adding 5 + 3 = 8") → 输出
+               └── ReturnStatement(result) → 返回 8
+```
+
 
 **执行步骤：**
 
@@ -840,14 +994,15 @@ add_module_path("/path/to/custom/modules")
 | 文件 | 行数 | 核心类/函数 | 复杂度 |
 |------|------|-------------|--------|
 | `lexer.py` | ~280 | Token, HPLLexer | 中等 |
-| `parser.py` | ~200 | HPLParser | 中等 |
+| `parser.py` | ~250 | HPLParser | 中等 |
 | `ast_parser.py` | ~450 | HPLASTParser | 高 |
-| `evaluator.py` | ~550 | HPLEvaluator | 高 |
+| `evaluator.py` | ~600 | HPLEvaluator | 高 |
 | `models.py` | ~180 | 所有数据模型 | 低 |
 | `module_base.py` | ~60 | HPLModule | 低 |
 | `module_loader.py` | ~400 | load_module, init_stdlib | 高 |
 | `interpreter.py` | ~60 | main() | 低 |
 | `package_manager.py` | ~250 | CLI命令 | 中等 |
+
 
 ---
 
