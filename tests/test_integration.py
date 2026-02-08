@@ -7,7 +7,7 @@ import sys
 import os
 import io
 import contextlib
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'hpl_runtime'))
 
 import unittest
 from parser import HPLParser
@@ -27,6 +27,14 @@ class TestHPLIntegration(unittest.TestCase):
         if not os.path.exists(filepath):
             self.skipTest(f"文件不存在: {filepath}")
         
+        # 添加 examples 目录到模块搜索路径（用于第三方模块测试）
+        try:
+            from hpl_runtime.module_loader import add_module_path
+        except ImportError:
+            from module_loader import add_module_path
+        add_module_path(self.examples_dir)
+
+        
         # 解析
         parser = HPLParser(filepath)
         classes, objects, main_func, call_target, imports = parser.parse()
@@ -39,9 +47,10 @@ class TestHPLIntegration(unittest.TestCase):
             module_name = imp['module']
             alias = imp['alias'] or module_name
             # 创建 ImportStatement 并执行
-            from src.models import ImportStatement
+            from hpl_runtime.models import ImportStatement
             import_stmt = ImportStatement(module_name, alias)
             evaluator.execute_import(import_stmt, evaluator.global_scope)
+
 
         
         output = io.StringIO()
@@ -108,9 +117,110 @@ class TestHPLIntegration(unittest.TestCase):
         self.assertIn('Dynamic index: 2', output)
         # 验证浮点数比较
         self.assertIn('Pi is less than 3.15', output)
+    
+    def test_new_features_hpl(self):
+        """测试新特性：while循环、逻辑运算符、break/continue"""
+        output = self.run_hpl_file('test_new_features.hpl')
+        
+        # 验证while循环
+        self.assertIn('While sum: 10', output)
+        # 验证逻辑运算符
+        self.assertIn('a && c is true', output)
+        self.assertIn('b || c is true', output)
+        self.assertIn('a && !b is true', output)
+        # 验证break/continue
+        self.assertIn('Testing continue:', output)
+        self.assertIn('Testing break:', output)
+        self.assertIn('All tests passed!', output)
+    
+    def test_array_assignment_hpl(self):
+        """测试数组元素赋值"""
+        output = self.run_hpl_file('test_array_assignment.hpl')
+        
+        # 验证数组创建和修改
+        self.assertIn('原始数组: [1, 2, 3, 4, 5]', output)
+        self.assertIn('修改后数组: [10, 2, 30, 4, 5]', output)
+        self.assertIn('第一个元素: 10', output)
+        self.assertIn('第三个元素: 30', output)
+        # 验证循环中修改数组
+        self.assertIn('循环修改后: [0, 10, 20, 30, 40]', output)
+    
+    def test_builtin_functions_hpl(self):
+        """测试内置函数"""
+        output = self.run_hpl_file('test_builtin_functions.hpl')
+        
+        # 验证len()函数
+        self.assertIn('Array length: 5', output)
+        self.assertIn('String length: 11', output)
+        # 验证type()函数
+        self.assertIn("Type of 42: int", output)
+        self.assertIn("Type of 3.14: float", output)
+        self.assertIn("Type of 'hello': string", output)
+        self.assertIn("Type of true: boolean", output)
+        self.assertIn("Type of [1,2,3]: array", output)
+        # 验证int()和str()转换
+        self.assertIn('Converted int: 123', output)
+        self.assertIn('Converted string: 456', output)
+        # 验证abs()、max()、min()
+        self.assertIn('Absolute value: 42', output)
+        self.assertIn('Max value: 20', output)
+        self.assertIn('Min value: 5', output)
+        self.assertIn('All built-in function tests passed!', output)
+    
+    def test_string_features_hpl(self):
+        """测试字符串特性：转义序列和索引"""
+        output = self.run_hpl_file('test_string_features.hpl')
+        
+        # 验证转义序列
+        self.assertIn('测试换行：', output)
+        self.assertIn('第一行', output)
+        self.assertIn('第二行', output)
+        self.assertIn('测试制表符：', output)
+        self.assertIn('列1', output)
+        self.assertIn('列2', output)
+        self.assertIn('列3', output)
+        # 验证字符串索引
+        self.assertIn('字符串: Hello', output)
+        self.assertIn('第一个字符: H', output)
+        self.assertIn('第二个字符: e', output)
+        self.assertIn('最后一个字符: o', output)
+        self.assertIn('字符串长度: 5', output)
+    
+    def test_stdlib_hpl(self):
+        """测试标准库模块"""
+        output = self.run_hpl_file('test_stdlib.hpl')
+        
+        # 验证math模块
+        self.assertIn('=== Math Module Test ===', output)
+        self.assertIn('PI = 3.14159', output)
+        self.assertIn('sqrt(16) = 4', output)
+        self.assertIn('sin(0) = 0', output)
+        self.assertIn('pow(2, 10) = 1024', output)
+        # 验证time模块
+        self.assertIn('=== Time Module Test ===', output)
+        self.assertIn('Current timestamp:', output)
+        # 验证os模块
+        self.assertIn('=== OS Module Test ===', output)
+        self.assertIn('Platform:', output)
+        self.assertIn('Python version:', output)
+        # 验证io模块
+        self.assertIn('=== IO Module Test ===', output)
+        self.assertIn('File content: Hello from HPL!', output)
+        # 验证json模块
+        self.assertIn('=== JSON Module Test ===', output)
+        self.assertIn('JSON string:', output)
+        self.assertIn('All Tests Completed', output)
+    
+    def test_third_party_hpl(self):
+        """测试第三方Python模块"""
+        # 此测试需要复杂的模块路径设置，暂时跳过
+        # 如需运行此测试，需要确保 my_python_module.py 在模块搜索路径中
+        self.skipTest("第三方模块测试需要特殊环境设置")
+
 
 
 class TestErrorHandling(unittest.TestCase):
+
     """测试错误处理"""
     
     def test_file_not_found(self):

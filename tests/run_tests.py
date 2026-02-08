@@ -8,8 +8,8 @@ import sys
 import os
 import unittest
 
-# 添加 src 到路径
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
+# 添加 hpl_runtime 到路径
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'hpl_runtime'))
 
 def run_tests():
     """运行所有测试"""

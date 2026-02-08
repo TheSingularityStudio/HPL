@@ -15,7 +15,7 @@ HPL AST 解析器模块
 """
 
 try:
-    from src.models import *
+    from hpl_runtime.models import *
 except ImportError:
     from models import *
 

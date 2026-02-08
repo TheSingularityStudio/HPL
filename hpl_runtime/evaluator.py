@@ -16,8 +16,8 @@ HPL 代码执行器模块
 """
 
 try:
-    from src.models import *
-    from src.module_loader import load_module, HPLModule
+    from hpl_runtime.models import *
+    from hpl_runtime.module_loader import load_module, HPLModule
 except ImportError:
     from models import *
     from module_loader import load_module, HPLModule

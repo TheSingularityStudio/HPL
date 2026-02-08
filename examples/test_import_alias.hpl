@@ -1,0 +1,37 @@
+# HPL 模块导入别名测试
+# 使用正确的 YAML 字典格式
+
+imports:
+  - math: m
+  - my_python_module: mp
+
+main: () => {
+    echo "=== HPL Import Alias Test (Fixed Format) ==="
+    echo ""
+    
+    # 使用别名访问 math 模块
+    echo "1. Testing math alias (m):"
+    echo "   m.PI = " + m.PI
+    echo "   m.sqrt(16) = " + m.sqrt(16)
+    echo "   m.floor(3.14) = " + m.floor(3.14)
+    echo ""
+    
+    # 使用别名访问自定义模块
+    echo "2. Testing my_python_module alias (mp):"
+    
+    # 调用函数
+    greeting = mp.greet("Alias Tester")
+    echo "   " + greeting
+    
+    # 访问常量
+    echo "   App: " + mp.APP_NAME
+    echo "   Version: " + mp.VERSION
+    echo ""
+    
+    # 计算测试
+    result = mp.calculate(20, 4, "divide")
+    echo "   20 / 4 = " + result
+    echo ""
+    
+    echo "=== Alias Test Complete ==="
+}

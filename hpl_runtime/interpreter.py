@@ -17,19 +17,22 @@ HPL 解释器主入口模块
 import sys
 import os
 
-# 确保 src 目录在 Python 路径中
+# 确保 hpl_runtime 目录在 Python 路径中
 script_dir = os.path.dirname(os.path.abspath(__file__))
 if script_dir not in sys.path:
     sys.path.insert(0, script_dir)
 
 try:
-    from src.parser import HPLParser
-    from src.evaluator import HPLEvaluator
-    from src.models import ImportStatement
+    from hpl_runtime.parser import HPLParser
+    from hpl_runtime.evaluator import HPLEvaluator
+    from hpl_runtime.models import ImportStatement
+    from hpl_runtime.module_loader import set_current_hpl_file
 except ImportError:
     from parser import HPLParser
     from evaluator import HPLEvaluator
     from models import ImportStatement
+    from module_loader import set_current_hpl_file
+
 
 
 
@@ -40,8 +43,12 @@ def main():
 
     hpl_file = sys.argv[1]
     
+    # 设置当前 HPL 文件路径，用于相对导入
+    set_current_hpl_file(hpl_file)
+    
     try:
         parser = HPLParser(hpl_file)
+
         classes, objects, main_func, call_target, imports = parser.parse()
 
         evaluator = HPLEvaluator(classes, objects, main_func, call_target)

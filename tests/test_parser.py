@@ -5,7 +5,7 @@ HPL 解析器单元测试
 
 import sys
 import os
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'hpl_runtime'))
 
 import unittest
 from parser import HPLParser
@@ -104,6 +104,90 @@ class TestPreprocessor(unittest.TestCase):
         
         # 验证预处理结果包含字面量块标记
         self.assertIn('|', result)
+
+
+class TestNewParsingFeatures(unittest.TestCase):
+    """测试新的解析功能"""
+    
+    def test_parse_while_statement(self):
+        """测试 while 语句解析"""
+        from lexer import HPLLexer
+        from ast_parser import HPLASTParser
+        try:
+            from hpl_runtime.models import WhileStatement, BinaryOp, Variable, IntegerLiteral
+        except ImportError:
+            from models import WhileStatement, BinaryOp, Variable, IntegerLiteral
+
+        
+        # 解析 while (i < 10) { i++ }
+        code = "while (i < 10) : i++"
+        lexer = HPLLexer(code)
+        tokens = lexer.tokenize()
+        ast_parser = HPLASTParser(tokens)
+        
+        stmt = ast_parser.parse_statement()
+        
+        # 验证是 while 语句
+        self.assertIsInstance(stmt, WhileStatement)
+        # 验证条件
+        self.assertIsInstance(stmt.condition, BinaryOp)
+        self.assertEqual(stmt.condition.op, '<')
+        # 验证循环体
+        self.assertIsNotNone(stmt.body)
+    
+    def test_parse_import_statement(self):
+        """测试 import 语句解析"""
+        from lexer import HPLLexer
+        from ast_parser import HPLASTParser
+        try:
+            from hpl_runtime.models import ImportStatement
+        except ImportError:
+            from models import ImportStatement
+
+        
+        # 测试简单导入: import math
+        code = "import math"
+        lexer = HPLLexer(code)
+        tokens = lexer.tokenize()
+        ast_parser = HPLASTParser(tokens)
+        
+        stmt = ast_parser.parse_statement()
+        
+        self.assertIsInstance(stmt, ImportStatement)
+        self.assertEqual(stmt.module_name, 'math')
+        self.assertIsNone(stmt.alias)
+        
+        # 注意: 带别名的导入 (import math as m) 需要 'as' 作为关键字
+        # 当前 lexer 未将 'as' 识别为关键字，此功能待实现
+
+    
+    def test_parse_break_continue(self):
+        """测试 break 和 continue 语句解析"""
+        from lexer import HPLLexer
+        from ast_parser import HPLASTParser
+        try:
+            from hpl_runtime.models import BreakStatement, ContinueStatement
+        except ImportError:
+            from models import BreakStatement, ContinueStatement
+
+        
+        # 测试 break
+        code_break = "break"
+        lexer_break = HPLLexer(code_break)
+        tokens_break = lexer_break.tokenize()
+        ast_parser_break = HPLASTParser(tokens_break)
+        
+        stmt_break = ast_parser_break.parse_statement()
+        self.assertIsInstance(stmt_break, BreakStatement)
+        
+        # 测试 continue
+        code_continue = "continue"
+        lexer_continue = HPLLexer(code_continue)
+        tokens_continue = lexer_continue.tokenize()
+        ast_parser_continue = HPLASTParser(tokens_continue)
+        
+        stmt_continue = ast_parser_continue.parse_statement()
+        self.assertIsInstance(stmt_continue, ContinueStatement)
 
 
 if __name__ == '__main__':
