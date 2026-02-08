@@ -54,6 +54,8 @@ def build_exe():
         "--clean",  # 清理临时文件
         "--hidden-import", "yaml",  # 显式包含yaml模块
         "--hidden-import", "platform",  # 显式包含platform模块
+        "--hidden-import", "json",  # 显式包含json模块
+
     ]
 
 
