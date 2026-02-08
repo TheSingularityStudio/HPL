@@ -63,12 +63,12 @@ def build_exe():
     if icon_path:
         cmd.extend(["--icon", icon_path])
     
-    # 添加数据文件（src目录）
-    src_path = os.path.join(current_dir, "src")
-    if os.path.exists(src_path):
+    # 添加数据文件（hpl_runtime目录）
+    hpl_runtime_path = os.path.join(current_dir, "hpl_runtime")
+    if os.path.exists(hpl_runtime_path):
         # 在Windows上使用;作为分隔符，Linux/Mac使用:
         separator = ";" if sys.platform == "win32" else ":"
-        cmd.extend(["--add-data", f"src{separator}src"])
+        cmd.extend(["--add-data", f"hpl_runtime{separator}hpl_runtime"])
     
     # 添加入口文件
     cmd.append(launcher_path)

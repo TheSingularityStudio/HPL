@@ -12,7 +12,7 @@ python build_exe.py
 1. 检查并安装PyInstaller
 2. 打包HPL启动器为exe
 3. 设置HPL.jpeg为图标
-4. 包含src目录作为依赖
+4. 包含hpl_runtime目录作为依赖
 
 ### 方法二：手动打包
 
@@ -21,7 +21,7 @@ python build_exe.py
 pip install pyinstaller
 
 # 打包命令
-python -m PyInstaller --onefile --noconsole --name HPL --icon HPL.jpeg --add-data "src;src" hpl_launcher.py
+python -m PyInstaller --onefile --noconsole --name HPL --icon HPL.jpeg --add-data "hpl_runtime;hpl_runtime" hpl_launcher.py
 ```
 
 ## 打包参数说明
@@ -32,7 +32,7 @@ python -m PyInstaller --onefile --noconsole --name HPL --icon HPL.jpeg --add-dat
 | `--noconsole` | 不显示控制台窗口 |
 | `--name HPL` | 输出文件名为HPL.exe |
 | `--icon HPL.jpeg` | 设置程序图标 |
-| `--add-data "src;src"` | 包含src目录（Windows用;分隔） |
+| `--add-data "hpl_runtime;hpl_runtime"` | 包含hpl_runtime目录（Windows用;分隔） |
 | `--clean` | 清理临时文件 |
 
 ## 输出文件
@@ -75,9 +75,9 @@ HPL.exe C:\path\to\your\file.hpl
    img.save('HPL.ico', format='ICO', sizes=[(256,256), (128,128), (64,64), (32,32), (16,16)])
    ```
 
-2. **依赖问题**：如果打包后运行报错，可能是src目录未正确包含。检查：
-   - 确保src目录与hpl_launcher.py在同一目录
-   - 打包时使用`--add-data "src;src"`参数
+2. **依赖问题**：如果打包后运行报错，可能是hpl_runtime目录未正确包含。检查：
+   - 确保hpl_runtime目录与hpl_launcher.py在同一目录
+   - 打包时使用`--add-data "hpl_runtime;hpl_runtime"`参数
 
 3. **防病毒软件**：某些防病毒软件可能误报PyInstaller打包的exe，这是正常现象。
 
@@ -86,11 +86,11 @@ HPL.exe C:\path\to\your\file.hpl
 ### 问题1：打包失败
 - 确保已安装PyInstaller：`pip install pyinstaller`
 - 检查HPL.jpeg是否存在
-- 检查src目录是否存在
+- 检查hpl_runtime目录是否存在
 
-### 问题2：运行时报"找不到src目录"
+### 问题2：运行时报"找不到hpl_runtime目录"
 - 确保打包时使用了`--add-data`参数
-- 检查dist目录中是否包含src文件夹
+- 检查dist目录中是否包含hpl_runtime文件夹
 
 ### 问题3：图标未显示
 - Windows可能需要刷新图标缓存
@@ -111,7 +111,7 @@ a = Analysis(
     ['hpl_launcher.py'],
     pathex=[],
     binaries=[],
-    datas=[('src', 'src')],
+    datas=[('hpl_runtime', 'hpl_runtime')],
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},

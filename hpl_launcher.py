@@ -57,17 +57,17 @@ def run_hpl_file(hpl_file):
         print(f"警告: 文件扩展名不是.hpl - {hpl_file}")
     
     # 获取解释器路径
-    script_dir = get_resource_path('src')
+    script_dir = get_resource_path('hpl_runtime')
     interpreter_path = os.path.join(script_dir, 'interpreter.py')
     
-    # 如果src目录不存在（打包后），使用当前目录
+    # 如果hpl_runtime目录不存在（打包后），使用当前目录
     if not os.path.exists(interpreter_path):
-        # 尝试从当前工作目录找到src
-        interpreter_path = os.path.join(os.getcwd(), 'src', 'interpreter.py')
+        # 尝试从当前工作目录找到hpl_runtime
+        interpreter_path = os.path.join(os.getcwd(), 'hpl_runtime', 'interpreter.py')
     
     # 如果还是找不到，尝试使用PYTHONPATH中的模块
     try:
-        # 将src添加到Python路径
+        # 将hpl_runtime添加到Python路径
         if script_dir not in sys.path:
             sys.path.insert(0, script_dir)
         
@@ -83,7 +83,7 @@ def run_hpl_file(hpl_file):
         
     except ImportError as e:
         print(f"错误: 无法加载HPL解释器 - {e}")
-        print("请确保src目录在正确的位置")
+        print("请确保hpl_runtime目录在正确的位置")
         return 1
     except Exception as e:
         print(f"运行时错误: {e}")
