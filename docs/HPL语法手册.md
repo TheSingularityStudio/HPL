@@ -7,15 +7,21 @@ HPL（H Programming Language）是一种基于 YAML 格式的面向对象编程�
 
 HPL 程序以 YAML 文件的形式编写，主要包含以下顶级键：
 
-- `includes`：包含其他 HPL 文件。
+- `includes`：包含其他 HPL 文件（代码复用）。
+- `imports`：导入标准库或第三方模块（功能扩展）。
 - `classes`：定义类及其方法。
 - `objects`：实例化对象。
 - `main`：主函数，程序的入口点。
 - `call`：调用主函数执行程序。
 
+**注意**：`includes` 和 `imports` 用途不同：
+- `includes` 用于包含其他 HPL 源代码文件
+- `imports` 用于导入标准库模块（如 math、io、json 等）
+
+
 ## 2. 文件包含（includes）
 
-使用 `includes` 关键字可以导入其他 HPL 文件，实现代码复用。
+使用 `includes` 关键字可以包含其他 HPL 文件，实现代码复用。
 
 ```yaml
 includes:
@@ -24,6 +30,51 @@ includes:
 
 - 使用 YAML 列表格式，每个文件路径前加 `-`。
 - 被包含的文件中的类和对象可以在当前文件中使用。
+- 被包含的文件会在预处理阶段合并到当前文件中。
+
+## 2.1 模块导入（imports）
+
+使用 `imports` 关键字可以导入标准库模块或第三方 Python 模块，扩展语言功能。
+
+```yaml
+imports:
+  - math
+  - io
+  - json
+  - my_python_module
+```
+
+- 使用 YAML 列表格式，每个模块名前加 `-`。
+- 导入后通过 `module.function()` 调用模块函数。
+- 支持使用别名，使用 YAML 字典格式 `module: alias`（注意：不是 `module as alias` 格式）。
+
+### 别名导入示例
+
+```yaml
+imports:
+  - math: m              # 使用别名 m 代替 math
+  - my_python_module: mp # 使用别名 mp 代替 my_python_module
+
+main: () => {
+    # 通过别名访问模块
+    echo "PI = " + m.PI
+    result = m.sqrt(16)
+    echo "sqrt(16) = " + result
+    
+    greeting = mp.greet("User")
+    echo "Greeting: " + greeting
+  }
+```
+
+**重要提示**：别名必须使用 YAML 字典格式 `module: alias`，以下格式**不支持**：
+```yaml
+# ❌ 错误格式
+imports:
+  - math as m
+  - my_python_module as mp
+```
+
+
 
 ## 3. 类定义（classes）
 
@@ -170,8 +221,11 @@ catch (error) :
 
 ### 内置函数
 
-- `echo(value)`：输出值到控制台
+- `echo value`：输出值到控制台
   - 示例：`echo "Hello"` 或 `echo variable`
+  - 注意：括号是可选的
+
+
 
 - `len(array_or_string)`：获取数组长度或字符串长度
   - 示例：`len([1, 2, 3])` → `3`，`len("hello")` → `5`
@@ -230,6 +284,8 @@ catch (error) :
 ### 一元操作符
 - `-`：一元负号（取相反数）
   - 示例：`-x`，`-(a + b)`
+  - 内部实现：将 `-x` 转换为 `0 - x`
+
 
 
 ## 8. 注释
@@ -267,6 +323,12 @@ classes:
 ### 字符串（String）
 - 使用双引号包围
 - 示例：`"Hello World"`
+- 支持转义序列：
+  - `\n`：换行符
+  - `\t`：制表符
+  - `\\`：反斜杠
+  - `\"`：双引号
+
 
 ### 布尔值（Boolean）
 - `true` 或 `false`
@@ -276,6 +338,7 @@ classes:
 - 使用方括号 `[]` 定义数组字面量
 - 支持存储任意类型的元素
 - 使用 `arr[index]` 语法访问数组元素，索引从0开始
+- 支持数组元素赋值：`arr[index] = value`
 
 ```yaml
 # 数组定义
@@ -284,12 +347,16 @@ arr = [1, 2, 3, 4, 5]
 # 数组访问
 first = arr[0]  # 获取第一个元素
 second = arr[1]  # 获取第二个元素
+
+# 数组元素赋值
+arr[0] = 100  # 修改第一个元素
 ```
 
 - 数组可以包含不同类型的元素：
 ```yaml
 mixed = [1, "hello", true, 3.14]
 ```
+
 
 
 ## 10. 返回值
@@ -496,7 +563,11 @@ HPL 解释器现在包含类型检查，提供清晰的错误信息：
 ## 15. 注意事项
 
 - HPL 基于 YAML，因此缩进至关重要（建议使用 2 个空格）。
-- 字符串应使用双引号包围。
+- 缩进规则：
+  - 支持空格和制表符（制表符算作 4 个空格）
+  - 同一层级的代码必须使用相同的缩进量
+  - 控制流语句后的代码块必须缩进
+- 字符串应使用双引号包围，支持转义序列（`\n`, `\t`, `\\`, `\"`）。
 - 代码块使用大括号 `{}` 包围，内部使用缩进组织。
 - 控制流语句（if、for、while、try-catch）使用冒号 `:` 表示代码块开始。
 - 变量作用域：方法内局部，全局对象在 `objects` 下定义。
@@ -506,12 +577,14 @@ HPL 解释器现在包含类型检查，提供清晰的错误信息：
 - 数组索引从 0 开始，访问越界会报错。
 - 逻辑运算符 `&&` 和 `||` 具有短路求值特性。
 - 后缀自增 `i++` 先返回原值，再增加 1。
+- 一元负号 `-x` 将 x 取相反数。
 - 模块导入后，使用 `module.function()` 调用模块函数，使用 `module.CONSTANT` 访问模块常量。
+
 
 
 ## 16. 模块导入系统 (Module Import System)
 
-HPL 支持通过 `imports` 关键字导入标准库模块，扩展语言功能。
+HPL 支持通过 `imports` 关键字导入标准库模块或第三方 Python 模块，扩展语言功能。
 
 ### 基本语法
 
@@ -522,6 +595,7 @@ imports:
 
 - 使用 YAML 列表格式，每个模块名前加 `-`。
 - 模块导入后，可以在代码中通过模块名访问其函数和常量。
+- 支持别名导入：`{module: alias}` 格式。
 
 ### 导入示例
 
@@ -532,18 +606,51 @@ imports:
   - json
   - os
   - time
+  - my_python_module
 
 main: () => {
     # 访问模块常量
-    echo "PI = " + math.PI
+    echo("PI = " + math.PI)
     
     # 调用模块函数
     result = math.sqrt(16)
-    echo "sqrt(16) = " + result
+    echo("sqrt(16) = " + result)
   }
 ```
 
+### 支持的导入格式
+
+1. **简单格式**：直接列出模块名
+   ```yaml
+   imports:
+     - math
+     - io
+   ```
+
+2. **带别名格式**：使用 YAML 字典格式 `module: alias`
+   ```yaml
+   imports:
+     - math: m
+     - io: file_io
+   ```
+   
+   导入后使用别名访问模块：
+   ```yaml
+   main: () => {
+       # 使用别名 m 访问 math 模块
+       echo "PI = " + m.PI
+       result = m.sqrt(16)
+       
+       # 使用别名 file_io 访问 io 模块
+       content = file_io.read_file("test.txt")
+     }
+   ```
+
+**⚠️ 注意**：别名格式必须使用 YAML 字典语法 `module: alias`，`module as alias` 格式不被支持。
+
+
 ### 可用标准库模块
+
 
 | 模块名 | 描述 |
 |--------|------|
@@ -637,7 +744,8 @@ main: () => {
 - `json.write(path, value, indent)` - 将值写入 JSON 文件（indent 可选）
 - `json.is_valid(json_str)` - 检查字符串是否为有效 JSON
 
-**注意**：HPL 使用数组表示对象（键值对数组），如 `[[\"key\", \"value\"], [\"key2\", \"value2\"]]`。
+**注意**：HPL 的数组可以直接序列化为 JSON 数组。
+
 
 
 ### 17.4 os 模块 - 操作系统接口
@@ -758,13 +866,14 @@ main: () => {
     # === JSON 模块 ===
     echo ""
     echo "=== JSON Module ==="
-    # HPL 使用键值对数组表示对象
-    data = [[\"name\", \"HPL\"], [\"version\", 1.0]]
+    # HPL 数组可以直接序列化为 JSON
+    data = [1, 2, 3, "hello", "world"]
     json_str = json.stringify(data)
-    echo "JSON: " + json_str
+    echo("JSON: " + json_str)
   }
 
 call: main()
 ```
+
 
 此手册涵盖了 HPL 的所有核心语法特性，包括基础特性、新增强特性和标准库模块系统。
