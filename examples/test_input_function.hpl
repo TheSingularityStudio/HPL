@@ -1,0 +1,22 @@
+main: () => {
+    # 测试 input() 函数 - 无参数形式
+    echo "=== 测试 input() 函数 ==="
+    
+    # 使用提示信息获取输入
+    name = input("请输入你的名字: ")
+    echo "你好, " + name + "!"
+    
+    # 获取数字输入并转换
+    age_str = input("请输入你的年龄: ")
+    age = int(age_str)
+    echo "明年你将 " + str(age + 1) + " 岁"
+    
+    # 测试无参数形式
+    echo "请直接输入一些文字（无提示）: "
+    text = input()
+    echo "你输入了: " + text
+    
+    echo "=== input() 函数测试完成 ==="
+  }
+
+call: main()

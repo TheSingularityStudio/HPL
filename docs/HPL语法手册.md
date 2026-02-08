@@ -249,8 +249,14 @@ catch (error) :
 - `min(a, b, ...)`：获取多个值中的最小值
   - 示例：`min(10, 20, 5)` → `5`
 
+- `input()` 或 `input(prompt)`：获取用户输入
+  - 无参数形式：直接等待用户输入，返回输入的字符串
+  - 带参数形式：先显示提示信息，然后等待用户输入，返回输入的字符串
+  - 示例：`name = input("请输入名字: ")`，`age = input()`
+
 
 ### 算术操作符
+
 - `+`：加法（支持数值加法和字符串拼接）
   - 如果两边都是数字，执行数值加法：`10 + 20` → `30`
   - 否则执行字符串拼接：`"Hello" + "World"` → `"HelloWorld"`
@@ -611,74 +617,12 @@ HPL 解释器现在包含类型检查，提供清晰的错误信息：
 
 
 
-## 16. 模块导入系统 (Module Import System)
+## 16. 可用标准库模块
 
-HPL 支持通过 `imports` 关键字导入标准库模块或第三方 Python 模块，扩展语言功能。
+关于模块导入的详细语法（包括基本语法、别名导入、错误格式等），请参考 [2.1 模块导入（imports）](#21-模块导入imports)。
 
-### 基本语法
+### 可用标准库模块列表
 
-```yaml
-imports:
-  - module_name
-```
-
-- 使用 YAML 列表格式，每个模块名前加 `-`。
-- 模块导入后，可以在代码中通过模块名访问其函数和常量。
-- 支持别名导入：`{module: alias}` 格式。
-
-### 导入示例
-
-```yaml
-imports:
-  - math
-  - io
-  - json
-  - os
-  - time
-  - my_python_module
-
-main: () => {
-    # 访问模块常量
-    echo("PI = " + math.PI)
-    
-    # 调用模块函数
-    result = math.sqrt(16)
-    echo("sqrt(16) = " + result)
-  }
-```
-
-### 支持的导入格式
-
-1. **简单格式**：直接列出模块名
-   ```yaml
-   imports:
-     - math
-     - io
-   ```
-
-2. **带别名格式**：使用 YAML 字典格式 `module: alias`
-   ```yaml
-   imports:
-     - math: m
-     - io: file_io
-   ```
-   
-   导入后使用别名访问模块：
-   ```yaml
-   main: () => {
-       # 使用别名 m 访问 math 模块
-       echo "PI = " + m.PI
-       result = m.sqrt(16)
-       
-       # 使用别名 file_io 访问 io 模块
-       content = file_io.read_file("test.txt")
-     }
-   ```
-
-**⚠️ 注意**：别名格式必须使用 YAML 字典语法 `module: alias`，`module as alias` 格式不被支持。
-
-
-### 可用标准库模块
 
 
 | 模块名 | 描述 |
