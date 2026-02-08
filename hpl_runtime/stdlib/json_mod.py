@@ -7,7 +7,7 @@ HPL 标准库 - json 模块
 import json as _json
 
 try:
-    from src.module_base import HPLModule
+    from hpl_runtime.module_base import HPLModule
 except ImportError:
     try:
         from module_base import HPLModule

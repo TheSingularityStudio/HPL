@@ -7,7 +7,7 @@ HPL 标准库 - io 模块
 import os
 
 try:
-    from src.module_base import HPLModule
+    from hpl_runtime.module_base import HPLModule
 except ImportError:
     try:
         from module_base import HPLModule

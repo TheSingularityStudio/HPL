@@ -7,7 +7,7 @@ import sys
 import os
 import io
 import contextlib
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'hpl_runtime'))
 
 import unittest
 from parser import HPLParser
@@ -39,7 +39,7 @@ class TestHPLIntegration(unittest.TestCase):
             module_name = imp['module']
             alias = imp['alias'] or module_name
             # 创建 ImportStatement 并执行
-            from src.models import ImportStatement
+            from hpl_runtime.models import ImportStatement
             import_stmt = ImportStatement(module_name, alias)
             evaluator.execute_import(import_stmt, evaluator.global_scope)
 

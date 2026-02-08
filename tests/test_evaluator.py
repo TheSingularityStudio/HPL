@@ -5,13 +5,13 @@ HPL 执行器单元测试
 
 import sys
 import os
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'hpl_runtime'))
 
 import unittest
 from evaluator import HPLEvaluator, ReturnValue
 
 try:
-    from src.models import *
+    from hpl_runtime.models import *
 except ImportError:
     from models import *
 
