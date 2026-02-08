@@ -41,26 +41,44 @@ class ContinueException(Exception):
 
 
 class HPLEvaluator:
-    def __init__(self, classes, objects, main_func, call_target=None):
+    def __init__(self, classes, objects, functions=None, main_func=None, call_target=None, call_args=None):
         self.classes = classes
         self.objects = objects
+        self.functions = functions or {}  # 所有顶层函数
         self.main_func = main_func
         self.call_target = call_target
+        self.call_args = call_args or []  # call 调用的参数
+
         self.global_scope = self.objects  # 全局变量，包括预定义对象
         self.current_obj = None  # 用于方法中的'this'
         self.call_stack = []  # 调用栈，用于错误跟踪
         self.imported_modules = {}  # 导入的模块 {alias/name: module}
 
 
+
+
     def run(self):
         # 如果指定了 call_target，执行对应的函数
         if self.call_target:
-            if self.call_target == 'main' and self.main_func:
+            # 首先尝试从 functions 字典中查找
+            if self.call_target in self.functions:
+                target_func = self.functions[self.call_target]
+                # 构建参数作用域
+                local_scope = {}
+                for i, param in enumerate(target_func.params):
+                    if i < len(self.call_args):
+                        local_scope[param] = self.call_args[i]
+                    else:
+                        local_scope[param] = None  # 默认值为 None
+                self.execute_function(target_func, local_scope)
+            elif self.call_target == 'main' and self.main_func:
                 self.execute_function(self.main_func, {})
             else:
                 raise ValueError(f"Unknown call target: {self.call_target}")
         elif self.main_func:
             self.execute_function(self.main_func, {})
+
+
 
     def execute_function(self, func, local_scope):
         # 执行语句块并返回结果

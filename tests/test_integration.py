@@ -37,10 +37,11 @@ class TestHPLIntegration(unittest.TestCase):
         
         # 解析
         parser = HPLParser(filepath)
-        classes, objects, main_func, call_target, imports = parser.parse()
+        classes, objects, functions, main_func, call_target, call_args, imports = parser.parse()
         
         # 执行并捕获输出
-        evaluator = HPLEvaluator(classes, objects, main_func, call_target)
+        evaluator = HPLEvaluator(classes, objects, functions, main_func, call_target, call_args)
+
         
         # 处理顶层导入
         for imp in imports:

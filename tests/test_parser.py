@@ -25,10 +25,11 @@ class TestHPLParser(unittest.TestCase):
         example_file = os.path.join(self.examples_dir, 'example.hpl')
         if os.path.exists(example_file):
             parser = HPLParser(example_file)
-            classes, objects, main_func, call_target, imports = parser.parse()
+            classes, objects, functions, main_func, call_target, call_args, imports = parser.parse()
 
             
             # 验证解析结果
+
             self.assertIn('MessagePrinter', classes)
             self.assertIn('printer', objects)
             self.assertIsNotNone(main_func)
@@ -39,10 +40,11 @@ class TestHPLParser(unittest.TestCase):
         base_file = os.path.join(self.examples_dir, 'base.hpl')
         if os.path.exists(base_file):
             parser = HPLParser(base_file)
-            classes, objects, main_func, call_target, imports = parser.parse()
+            classes, objects, functions, main_func, call_target, call_args, imports = parser.parse()
 
             
             # 验证 BasePrinter 类
+
             self.assertIn('BasePrinter', classes)
             base_printer = classes['BasePrinter']
             self.assertIn('print', base_printer.methods)
@@ -52,7 +54,8 @@ class TestHPLParser(unittest.TestCase):
         example_file = os.path.join(self.examples_dir, 'example.hpl')
         if os.path.exists(example_file):
             parser = HPLParser(example_file)
-            classes, _, _, _, _ = parser.parse()
+            classes, _, _, _, _, _, _ = parser.parse()
+
 
             
             if 'MessagePrinter' in classes:
@@ -64,7 +67,8 @@ class TestHPLParser(unittest.TestCase):
         example_file = os.path.join(self.examples_dir, 'example.hpl')
         if os.path.exists(example_file):
             parser = HPLParser(example_file)
-            classes, _, main_func, _, _ = parser.parse()
+            classes, _, _, main_func, _, _, _ = parser.parse()
+
 
             
             # 验证 main 函数
@@ -77,7 +81,8 @@ class TestHPLParser(unittest.TestCase):
         example_file = os.path.join(self.examples_dir, 'example.hpl')
         if os.path.exists(example_file):
             parser = HPLParser(example_file)
-            _, objects, _, _, _ = parser.parse()
+            _, objects, _, _, _, _, _ = parser.parse()
+
 
             
             # 验证 printer 对象
