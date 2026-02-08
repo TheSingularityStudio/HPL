@@ -1,0 +1,25 @@
+main: () => {
+    # 测试字符串转义序列
+    echo "测试换行："
+    echo "第一行\n第二行"
+    
+    echo "测试制表符："
+    echo "列1\t列2\t列3"
+    
+    echo "测试反斜杠："
+    echo "路径：C:\\Users\\Test"
+    
+    echo "测试引号："
+    echo "他说：\"Hello World\""
+    
+    # 测试字符串索引
+    echo "测试字符串索引："
+    str = "Hello"
+    echo "字符串: " + str
+    echo "第一个字符: " + str[0]
+    echo "第二个字符: " + str[1]
+    echo "最后一个字符: " + str[4]
+    
+    # 测试字符串长度
+    echo "字符串长度: " + len(str)
+}

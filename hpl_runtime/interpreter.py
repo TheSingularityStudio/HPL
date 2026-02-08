@@ -26,10 +26,13 @@ try:
     from hpl_runtime.parser import HPLParser
     from hpl_runtime.evaluator import HPLEvaluator
     from hpl_runtime.models import ImportStatement
+    from hpl_runtime.module_loader import set_current_hpl_file
 except ImportError:
     from parser import HPLParser
     from evaluator import HPLEvaluator
     from models import ImportStatement
+    from module_loader import set_current_hpl_file
+
 
 
 
@@ -40,8 +43,12 @@ def main():
 
     hpl_file = sys.argv[1]
     
+    # 设置当前 HPL 文件路径，用于相对导入
+    set_current_hpl_file(hpl_file)
+    
     try:
         parser = HPLParser(hpl_file)
+
         classes, objects, main_func, call_target, imports = parser.parse()
 
         evaluator = HPLEvaluator(classes, objects, main_func, call_target)
