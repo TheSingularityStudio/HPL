@@ -49,9 +49,11 @@ def main():
     try:
         parser = HPLParser(hpl_file)
 
-        classes, objects, main_func, call_target, imports = parser.parse()
+        classes, objects, functions, main_func, call_target, call_args, imports = parser.parse()
 
-        evaluator = HPLEvaluator(classes, objects, main_func, call_target)
+        evaluator = HPLEvaluator(classes, objects, functions, main_func, call_target, call_args)
+
+
         
         # 处理顶层导入
         for imp in imports:

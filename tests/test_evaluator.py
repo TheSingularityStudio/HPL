@@ -24,26 +24,32 @@ class TestHPLEvaluator(unittest.TestCase):
         """测试前准备"""
         self.classes = {}
         self.objects = {}
+        self.functions = {}
         self.main_func = None
         self.call_target = None
+        self.call_args = []
+
     
     def test_evaluate_integer_literal(self):
         """测试整数字面量求值"""
-        evaluator = HPLEvaluator(self.classes, self.objects, self.main_func)
+        evaluator = HPLEvaluator(self.classes, self.objects, self.functions, self.main_func)
+
         expr = IntegerLiteral(42)
         result = evaluator.evaluate_expression(expr, {})
         self.assertEqual(result, 42)
     
     def test_evaluate_string_literal(self):
         """测试字符串字面量求值"""
-        evaluator = HPLEvaluator(self.classes, self.objects, self.main_func)
+        evaluator = HPLEvaluator(self.classes, self.objects, self.functions, self.main_func)
+
         expr = StringLiteral("Hello")
         result = evaluator.evaluate_expression(expr, {})
         self.assertEqual(result, "Hello")
     
     def test_evaluate_boolean_literal(self):
         """测试布尔值字面量求值"""
-        evaluator = HPLEvaluator(self.classes, self.objects, self.main_func)
+        evaluator = HPLEvaluator(self.classes, self.objects, self.functions, self.main_func)
+
         
         expr_true = BooleanLiteral(True)
         result_true = evaluator.evaluate_expression(expr_true, {})
@@ -55,7 +61,8 @@ class TestHPLEvaluator(unittest.TestCase):
     
     def test_evaluate_variable(self):
         """测试变量求值"""
-        evaluator = HPLEvaluator(self.classes, self.objects, self.main_func)
+        evaluator = HPLEvaluator(self.classes, self.objects, self.functions, self.main_func)
+
         local_scope = {'x': 100}
         
         expr = Variable('x')
@@ -64,7 +71,8 @@ class TestHPLEvaluator(unittest.TestCase):
     
     def test_evaluate_binary_op_arithmetic(self):
         """测试二元算术运算"""
-        evaluator = HPLEvaluator(self.classes, self.objects, self.main_func)
+        evaluator = HPLEvaluator(self.classes, self.objects, self.functions, self.main_func)
+
         local_scope = {}
         
         # 加法
@@ -89,7 +97,8 @@ class TestHPLEvaluator(unittest.TestCase):
     
     def test_evaluate_binary_op_comparison(self):
         """测试二元比较运算"""
-        evaluator = HPLEvaluator(self.classes, self.objects, self.main_func)
+        evaluator = HPLEvaluator(self.classes, self.objects, self.functions, self.main_func)
+
         local_scope = {}
         
         # 等于
@@ -109,7 +118,8 @@ class TestHPLEvaluator(unittest.TestCase):
     
     def test_evaluate_string_concatenation(self):
         """测试字符串拼接"""
-        evaluator = HPLEvaluator(self.classes, self.objects, self.main_func)
+        evaluator = HPLEvaluator(self.classes, self.objects, self.functions, self.main_func)
+
         local_scope = {}
         
         expr = BinaryOp(StringLiteral("Hello"), '+', StringLiteral("World"))
@@ -123,7 +133,8 @@ class TestHPLEvaluator(unittest.TestCase):
     
     def test_evaluate_unary_op(self):
         """测试一元运算"""
-        evaluator = HPLEvaluator(self.classes, self.objects, self.main_func)
+        evaluator = HPLEvaluator(self.classes, self.objects, self.functions, self.main_func)
+
         local_scope = {}
         
         # 逻辑非
@@ -133,7 +144,8 @@ class TestHPLEvaluator(unittest.TestCase):
     
     def test_assignment_statement(self):
         """测试赋值语句"""
-        evaluator = HPLEvaluator(self.classes, self.objects, self.main_func)
+        evaluator = HPLEvaluator(self.classes, self.objects, self.functions, self.main_func)
+
         local_scope = {}
         
         stmt = AssignmentStatement('x', IntegerLiteral(42))
@@ -143,7 +155,8 @@ class TestHPLEvaluator(unittest.TestCase):
     
     def test_if_statement(self):
         """测试 if 语句"""
-        evaluator = HPLEvaluator(self.classes, self.objects, self.main_func)
+        evaluator = HPLEvaluator(self.classes, self.objects, self.functions, self.main_func)
+
         local_scope = {}
         
         # 条件为真的 if 语句
@@ -156,7 +169,8 @@ class TestHPLEvaluator(unittest.TestCase):
     
     def test_return_statement(self):
         """测试 return 语句"""
-        evaluator = HPLEvaluator(self.classes, self.objects, self.main_func)
+        evaluator = HPLEvaluator(self.classes, self.objects, self.functions, self.main_func)
+
         local_scope = {}
         
         stmt = ReturnStatement(IntegerLiteral(42))
@@ -167,7 +181,8 @@ class TestHPLEvaluator(unittest.TestCase):
     
     def test_array_literal(self):
         """测试数组字面量"""
-        evaluator = HPLEvaluator(self.classes, self.objects, self.main_func)
+        evaluator = HPLEvaluator(self.classes, self.objects, self.functions, self.main_func)
+
         local_scope = {}
         
         expr = ArrayLiteral([IntegerLiteral(1), IntegerLiteral(2), IntegerLiteral(3)])
@@ -177,7 +192,8 @@ class TestHPLEvaluator(unittest.TestCase):
     
     def test_array_access(self):
         """测试数组访问"""
-        evaluator = HPLEvaluator(self.classes, self.objects, self.main_func)
+        evaluator = HPLEvaluator(self.classes, self.objects, self.functions, self.main_func)
+
         local_scope = {'arr': [10, 20, 30]}
         
         expr = ArrayAccess(Variable('arr'), IntegerLiteral(1))
@@ -187,7 +203,8 @@ class TestHPLEvaluator(unittest.TestCase):
     
     def test_undefined_variable(self):
         """测试未定义变量错误"""
-        evaluator = HPLEvaluator(self.classes, self.objects, self.main_func)
+        evaluator = HPLEvaluator(self.classes, self.objects, self.functions, self.main_func)
+
         local_scope = {}
         
         expr = Variable('undefined_var')
@@ -198,7 +215,8 @@ class TestHPLEvaluator(unittest.TestCase):
     
     def test_division_by_zero(self):
         """测试除零错误"""
-        evaluator = HPLEvaluator(self.classes, self.objects, self.main_func)
+        evaluator = HPLEvaluator(self.classes, self.objects, self.functions, self.main_func)
+
         local_scope = {}
         
         expr = BinaryOp(IntegerLiteral(10), '/', IntegerLiteral(0))
@@ -209,7 +227,8 @@ class TestHPLEvaluator(unittest.TestCase):
     
     def test_type_error(self):
         """测试类型错误"""
-        evaluator = HPLEvaluator(self.classes, self.objects, self.main_func)
+        evaluator = HPLEvaluator(self.classes, self.objects, self.functions, self.main_func)
+
         local_scope = {}
         
         # 字符串减法应该报错
@@ -221,7 +240,8 @@ class TestHPLEvaluator(unittest.TestCase):
     
     def test_while_statement(self):
         """测试 while 语句执行"""
-        evaluator = HPLEvaluator(self.classes, self.objects, self.main_func)
+        evaluator = HPLEvaluator(self.classes, self.objects, self.functions, self.main_func)
+
         local_scope = {}
         
         # while (i < 3) { sum = sum + i; i++ }
@@ -245,7 +265,8 @@ class TestHPLEvaluator(unittest.TestCase):
     
     def test_logical_operators(self):
         """测试逻辑运算符 && 和 ||"""
-        evaluator = HPLEvaluator(self.classes, self.objects, self.main_func)
+        evaluator = HPLEvaluator(self.classes, self.objects, self.functions, self.main_func)
+
         local_scope = {}
         
         # 测试 && (逻辑与)
@@ -280,7 +301,8 @@ class TestHPLEvaluator(unittest.TestCase):
     
     def test_array_assignment_statement(self):
         """测试数组元素赋值语句"""
-        evaluator = HPLEvaluator(self.classes, self.objects, self.main_func)
+        evaluator = HPLEvaluator(self.classes, self.objects, self.functions, self.main_func)
+
         local_scope = {'arr': [1, 2, 3, 4, 5]}
         
         # arr[0] = 10

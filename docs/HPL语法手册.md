@@ -384,9 +384,38 @@ main: () => {
 
 ## 11. 主函数和调用
 
+### 基本用法
 
 - `main`：定义主函数，包含程序逻辑。
 - `call: main()`：执行主函数。
+
+### 调用任意函数（新特性）
+
+HPL 现在支持调用任意顶层函数，不仅限于 `main`。
+
+```yaml
+# 定义多个顶层函数
+add: (a, b) => {
+    result = a + b
+    echo "Adding " + a + " + " + b + " = " + result
+    return result
+  }
+
+greet: (name) => {
+    echo "Hello, " + name + "!"
+  }
+
+# 调用任意函数
+call: add(5, 3)        # 输出: Adding 5 + 3 = 8
+call: greet("World")   # 输出: Hello, World!
+```
+
+**特性说明：**
+- 可以定义任意数量的顶层函数
+- `call` 可以指定要调用的函数名和参数
+- 支持带参数的函数调用，如 `call: funcName(arg1, arg2)`
+- 如果未指定 `call`，默认执行 `main` 函数（如果存在）
+
 
 ## 12. 完整示例程序分析
 

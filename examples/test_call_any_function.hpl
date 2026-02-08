@@ -1,0 +1,25 @@
+# 测试 call 调用任意函数
+
+# 定义一个加法函数
+add: (a, b) => {
+    result = a + b
+    echo "Adding " + a + " + " + b + " = " + result
+    return result
+  }
+
+# 定义一个问候函数
+greet: (name) => {
+    message = "Hello, " + name + "!"
+    echo message
+    return message
+  }
+
+# 定义主函数（可选）
+main: () => {
+    echo "This is the main function"
+    result = add(10, 20)
+    echo "Result from main: " + result
+  }
+
+# 调用 add 函数（而不是 main）
+call: add(5, 3)

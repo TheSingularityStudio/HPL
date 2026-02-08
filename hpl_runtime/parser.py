@@ -35,10 +35,12 @@ class HPLParser:
         self.hpl_file = hpl_file
         self.classes = {}
         self.objects = {}
+        self.functions = {}  # 存储所有顶层函数
         self.main_func = None
         self.call_target = None
         self.imports = []  # 存储导入语句
         self.data = self.load_and_parse()
+
 
 
     def load_and_parse(self):
@@ -135,14 +137,73 @@ class HPLParser:
             self.parse_classes()
         if 'objects' in self.data:
             self.parse_objects()
-        if 'main' in self.data:
-            self.main_func = self.parse_function(self.data['main'])
+        
+        # 解析所有顶层函数（包括 main 和其他自定义函数）
+        self.parse_top_level_functions()
+        
         # 处理 call 键
+        self.call_args = []  # 存储 call 的参数
         if 'call' in self.data:
             call_str = self.data['call']
-            self.call_target = call_str.rstrip('()').strip()
+            # 解析函数名和参数，如 add(5, 3) -> 函数名: add, 参数: [5, 3]
+            self.call_target, self.call_args = self._parse_call_expression(call_str)
         
-        return self.classes, self.objects, self.main_func, self.call_target, self.imports
+        return self.classes, self.objects, self.functions, self.main_func, self.call_target, self.call_args, self.imports
+
+    def _parse_call_expression(self, call_str):
+        """解析 call 表达式，提取函数名和参数"""
+        call_str = call_str.strip()
+        
+        # 查找左括号
+        if '(' in call_str:
+            func_name = call_str[:call_str.find('(')].strip()
+            args_str = call_str[call_str.find('(')+1:call_str.rfind(')')].strip()
+            
+            # 解析参数
+            args = []
+            if args_str:
+                # 按逗号分割参数
+                for arg in args_str.split(','):
+                    arg = arg.strip()
+                    # 尝试解析为整数
+                    try:
+                        args.append(int(arg))
+                    except ValueError:
+                        # 尝试解析为浮点数
+                        try:
+                            args.append(float(arg))
+                        except ValueError:
+                            # 作为字符串处理（去掉引号）
+                            if (arg.startswith('"') and arg.endswith('"')) or \
+                               (arg.startswith("'") and arg.endswith("'")):
+                                args.append(arg[1:-1])
+                            else:
+                                args.append(arg)  # 变量名或其他
+            
+            return func_name, args
+        else:
+            # 没有括号，如 call: main
+            return call_str, []
+
+
+    def parse_top_level_functions(self):
+        """解析所有顶层函数定义"""
+        # 预定义的保留键，不是函数
+        reserved_keys = {'includes', 'imports', 'classes', 'objects', 'call'}
+        
+        for key, value in self.data.items():
+            if key in reserved_keys:
+                continue
+            
+            # 检查值是否是函数定义（包含 =>）
+            if isinstance(value, str) and '=>' in value:
+                func = self.parse_function(value)
+                self.functions[key] = func
+                
+                # 特别处理 main 函数
+                if key == 'main':
+                    self.main_func = func
+
 
     def parse_imports(self):
         """解析顶层 import 语句"""
