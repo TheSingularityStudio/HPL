@@ -218,9 +218,85 @@ class TestHPLEvaluator(unittest.TestCase):
             evaluator.evaluate_expression(expr, local_scope)
         
         self.assertIn('Unsupported operand type', str(context.exception))
+    
+    def test_while_statement(self):
+        """测试 while 语句执行"""
+        evaluator = HPLEvaluator(self.classes, self.objects, self.main_func)
+        local_scope = {}
+        
+        # while (i < 3) { sum = sum + i; i++ }
+        init_stmt = AssignmentStatement('i', IntegerLiteral(0))
+        evaluator.execute_statement(init_stmt, local_scope)
+        init_stmt2 = AssignmentStatement('sum', IntegerLiteral(0))
+        evaluator.execute_statement(init_stmt2, local_scope)
+        
+        condition = BinaryOp(Variable('i'), '<', IntegerLiteral(3))
+        body = BlockStatement([
+            AssignmentStatement('sum', BinaryOp(Variable('sum'), '+', Variable('i'))),
+            IncrementStatement('i')
+        ])
+        while_stmt = WhileStatement(condition, body)
+        
+        evaluator.execute_statement(while_stmt, local_scope)
+        
+        # 验证结果: 0+1+2 = 3
+        self.assertEqual(local_scope['sum'], 3)
+        self.assertEqual(local_scope['i'], 3)
+    
+    def test_logical_operators(self):
+        """测试逻辑运算符 && 和 ||"""
+        evaluator = HPLEvaluator(self.classes, self.objects, self.main_func)
+        local_scope = {}
+        
+        # 测试 && (逻辑与)
+        expr_and = BinaryOp(BooleanLiteral(True), '&&', BooleanLiteral(True))
+        result = evaluator.evaluate_expression(expr_and, local_scope)
+        self.assertEqual(result, True)
+        
+        expr_and_false = BinaryOp(BooleanLiteral(True), '&&', BooleanLiteral(False))
+        result = evaluator.evaluate_expression(expr_and_false, local_scope)
+        self.assertEqual(result, False)
+        
+        # 测试 || (逻辑或)
+        expr_or = BinaryOp(BooleanLiteral(False), '||', BooleanLiteral(True))
+        result = evaluator.evaluate_expression(expr_or, local_scope)
+        self.assertEqual(result, True)
+        
+        expr_or_false = BinaryOp(BooleanLiteral(False), '||', BooleanLiteral(False))
+        result = evaluator.evaluate_expression(expr_or_false, local_scope)
+        self.assertEqual(result, False)
+    
+    def test_break_continue(self):
+        """测试 break 和 continue 异常"""
+        from evaluator import BreakException, ContinueException
+        
+        # 测试 BreakException
+        with self.assertRaises(BreakException):
+            raise BreakException()
+        
+        # 测试 ContinueException
+        with self.assertRaises(ContinueException):
+            raise ContinueException()
+    
+    def test_array_assignment_statement(self):
+        """测试数组元素赋值语句"""
+        evaluator = HPLEvaluator(self.classes, self.objects, self.main_func)
+        local_scope = {'arr': [1, 2, 3, 4, 5]}
+        
+        # arr[0] = 10
+        stmt = ArrayAssignmentStatement('arr', IntegerLiteral(0), IntegerLiteral(10))
+        evaluator.execute_statement(stmt, local_scope)
+        
+        # arr[2] = 30
+        stmt2 = ArrayAssignmentStatement('arr', IntegerLiteral(2), IntegerLiteral(30))
+        evaluator.execute_statement(stmt2, local_scope)
+        
+        # 验证结果
+        self.assertEqual(local_scope['arr'], [10, 2, 30, 4, 5])
 
 
 class TestReturnValue(unittest.TestCase):
+
     """测试 ReturnValue 类"""
     
     def test_return_value_creation(self):
