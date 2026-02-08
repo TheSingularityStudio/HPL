@@ -1,0 +1,16 @@
+[distutils]
+index-servers = pypi testpypi
+
+# Production PyPI - https://pypi.org/
+# Create account and token at: https://pypi.org/manage/account/token/
+[pypi]
+repository = https://upload.pypi.org/legacy/
+username = __token__
+password = pypi-your-pypi-token-here
+
+# TestPyPI - https://test.pypi.org/
+# Create SEPARATE account and token at: https://test.pypi.org/manage/account/token/
+[testpypi]
+repository = https://test.pypi.org/legacy/
+username = __token__
+password = pypi-your-testpypi-token-here

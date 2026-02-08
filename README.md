@@ -1,6 +1,22 @@
 # HPL
 一种基于YAML格式的面向对象的编程语言的运行器
 
+## 安装
+
+### 从 PyPI 安装（推荐）
+
+```bash
+pip install hpl-runtime
+```
+
+### 从源码安装
+
+```bash
+git clone https://github.com/TheSingularityStudio/HPL.git
+cd hpl-runtime
+pip install -e .
+```
+
 ## 解释器架构
 
 HPL 解释器采用模块化设计，使用 Python 实现。架构包括以下组件：
