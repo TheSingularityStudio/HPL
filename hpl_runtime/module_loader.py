@@ -10,7 +10,7 @@ import sys
 
 # 从 module_base 导入 HPLModule 基类
 try:
-    from src.module_base import HPLModule
+    from hpl_runtime.module_base import HPLModule
 except ImportError:
     from module_base import HPLModule
 
@@ -65,14 +65,14 @@ def init_stdlib():
     try:
         # 尝试多种导入方式以适应不同的运行环境
         try:
-            # 方式1: 从 src.stdlib 导入（当 src 在 Python 路径中时）
-            from src.stdlib import io, math, json_mod, os_mod, time_mod
+            # 方式1: 从 hpl_runtime.stdlib 导入（当 hpl_runtime 在 Python 路径中时）
+            from hpl_runtime.stdlib import io, math, json_mod, os_mod, time_mod
         except ImportError:
-            # 方式2: 直接从 stdlib 导入（当在 src 目录中运行时）
-            # 将 src 目录添加到 Python 路径
-            src_dir = os.path.dirname(os.path.abspath(__file__))
-            if src_dir not in sys.path:
-                sys.path.insert(0, src_dir)
+            # 方式2: 直接从 stdlib 导入（当在 hpl_runtime 目录中运行时）
+            # 将 hpl_runtime 目录添加到 Python 路径
+            hpl_runtime_dir = os.path.dirname(os.path.abspath(__file__))
+            if hpl_runtime_dir not in sys.path:
+                sys.path.insert(0, hpl_runtime_dir)
             from stdlib import io, math, json_mod, os_mod, time_mod
         
         # 注册模块

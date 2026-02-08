@@ -6,8 +6,8 @@ Script to run the HPL interpreter on the example file.
 import sys
 import os
 
-# 将 src 添加到路径
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
+# 将 hpl_runtime 添加到路径
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'hpl_runtime'))
 
 from interpreter import main as interpreter_main
 

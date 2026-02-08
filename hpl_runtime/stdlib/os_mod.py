@@ -9,7 +9,7 @@ import sys as _sys
 import platform as _platform
 
 try:
-    from src.module_base import HPLModule
+    from hpl_runtime.module_base import HPLModule
 except ImportError:
     try:
         from module_base import HPLModule

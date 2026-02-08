@@ -16,9 +16,9 @@ HPL 代码执行器模块
 """
 
 try:
-    from src.models import *
-    from src.ast_parser import BreakStatement, ContinueStatement
-    from src.module_loader import load_module, HPLModule
+    from hpl_runtime.models import *
+    from hpl_runtime.ast_parser import BreakStatement, ContinueStatement
+    from hpl_runtime.module_loader import load_module, HPLModule
 except ImportError:
     from models import *
     from ast_parser import BreakStatement, ContinueStatement

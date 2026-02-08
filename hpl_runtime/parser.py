@@ -21,9 +21,9 @@ import os
 import re
 
 try:
-    from src.models import HPLClass, HPLObject, HPLFunction
-    from src.lexer import HPLLexer
-    from src.ast_parser import HPLASTParser
+    from hpl_runtime.models import HPLClass, HPLObject, HPLFunction
+    from hpl_runtime.lexer import HPLLexer
+    from hpl_runtime.ast_parser import HPLASTParser
 except ImportError:
     from models import HPLClass, HPLObject, HPLFunction
     from lexer import HPLLexer
