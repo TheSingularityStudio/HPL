@@ -286,9 +286,24 @@ class HPLEvaluator:
                 else:
                     raise ValueError(f"input() requires 0 or 1 arguments, got {len(expr.args)}")
             else:
-                raise ValueError(f"Unknown function {expr.func_name}")
+                # 检查是否是用户定义的函数（从include或其他方式导入）
+                if expr.func_name in self.functions:
+                    # 调用用户定义的函数
+                    target_func = self.functions[expr.func_name]
+                    args = [self.evaluate_expression(arg, local_scope) for arg in expr.args]
+                    # 构建参数作用域
+                    func_scope = {}
+                    for i, param in enumerate(target_func.params):
+                        if i < len(args):
+                            func_scope[param] = args[i]
+                        else:
+                            func_scope[param] = None  # 默认值为 None
+                    return self.execute_function(target_func, func_scope)
+                else:
+                    raise ValueError(f"Unknown function {expr.func_name}")
 
         elif isinstance(expr, MethodCall):
+
             obj = self.evaluate_expression(expr.obj_name, local_scope)
             if isinstance(obj, HPLObject):
                 args = [self.evaluate_expression(arg, local_scope) for arg in expr.args]

@@ -278,7 +278,92 @@ methods:
     }
 ```
 
-#### 2.2.3 顶层函数解析
+#### 2.2.3 文件包含处理（改进版）
+
+**`_resolve_include_path()` 方法**
+
+支持多路径搜索的 include 文件解析：
+
+```python
+def _resolve_include_path(self, include_file):
+    """
+    解析include文件路径，支持多种路径格式：
+    1. 绝对路径（Unix: /path, Windows: C:\path）
+    2. 相对当前文件目录
+    3. 相对当前工作目录
+    4. HPL_MODULE_PATHS中的路径
+    """
+    include_path = Path(include_file)
+    
+    # 1. 检查是否为绝对路径
+    if include_path.is_absolute():
+        if include_path.exists():
+            return str(include_path)
+        return None
+    
+    # 获取当前HPL文件所在目录
+    current_dir = Path(self.hpl_file).parent.resolve()
+    
+    # 2. 相对当前文件目录
+    resolved_path = current_dir / include_path
+    if resolved_path.exists():
+        return str(resolved_path)
+    
+    # 3. 相对当前工作目录
+    cwd_path = Path.cwd() / include_path
+    if cwd_path.exists():
+        return str(cwd_path)
+    
+    # 4. HPL_MODULE_PATHS中的路径
+    for search_path in HPL_MODULE_PATHS:
+        module_path = Path(search_path) / include_path
+        if module_path.exists():
+            return str(module_path)
+    
+    return None
+```
+
+**路径解析优先级：**
+1. 绝对路径（直接解析）
+2. 相对当前文件目录（如 `subdir/utils.hpl`）
+3. 相对当前工作目录
+4. HPL_MODULE_PATHS 中的路径（标准库和用户库目录）
+
+**`merge_data()` 方法**
+
+合并 include 文件数据到主数据，支持类、对象、函数和导入：
+
+```python
+def merge_data(self, main_data, include_data):
+    """合并include数据到主数据，支持classes、objects、functions、imports"""
+    reserved_keys = {'includes', 'imports', 'classes', 'objects', 'call'}
+    
+    # 合并字典类型的数据（classes, objects）
+    for key in ['classes', 'objects']:
+        if key in include_data:
+            if key not in main_data:
+                main_data[key] = {}
+            if isinstance(include_data[key], dict):
+                main_data[key].update(include_data[key])
+    
+    # 合并函数定义（HPL中函数是顶层键值对，值包含'=>'）
+    for key, value in include_data.items():
+        if key not in reserved_keys:
+            # 检查是否是函数定义（包含 =>）
+            if isinstance(value, str) and '=>' in value:
+                # 只合并主数据中不存在的函数（避免覆盖）
+                if key not in main_data:
+                    main_data[key] = value
+    
+    # 合并imports
+    if 'imports' in include_data:
+        if 'imports' not in main_data:
+            main_data['imports'] = []
+        if isinstance(include_data['imports'], list):
+            main_data['imports'].extend(include_data['imports'])
+```
+
+#### 2.2.4 顶层函数解析
 
 **`parse_top_level_functions()` 方法**
 
@@ -303,6 +388,7 @@ def parse_top_level_functions(self):
             if key == 'main':
                 self.main_func = func
 ```
+
 
 **`_parse_call_expression()` 方法**
 
@@ -613,7 +699,9 @@ def _call_method(self, obj, method_name, args):
     return result
 ```
 
-#### 2.4.6 内置函数
+#### 2.4.6 内置函数与用户定义函数
+
+**内置函数：**
 
 | 函数 | 参数 | 返回值 | 说明 |
 |------|------|--------|------|
@@ -626,6 +714,34 @@ def _call_method(self, obj, method_name, args):
 | `max(...)` | numbers | number | 最大值 |
 | `min(...)` | numbers | number | 最小值 |
 | `input(prompt?)` | str（可选） | str | 获取用户输入，可选提示信息 |
+
+**用户定义函数调用：**
+
+通过 include 导入的函数或主文件中定义的顶层函数可以直接调用：
+
+```python
+# 在 evaluate_expression() 中处理 FunctionCall
+elif isinstance(expr, FunctionCall):
+    # 内置函数处理...
+    
+    else:
+        # 检查是否是用户定义的函数（从include或其他方式导入）
+        if expr.func_name in self.functions:
+            # 调用用户定义的函数
+            target_func = self.functions[expr.func_name]
+            args = [self.evaluate_expression(arg, local_scope) for arg in expr.args]
+            # 构建参数作用域
+            func_scope = {}
+            for i, param in enumerate(target_func.params):
+                if i < len(args):
+                    func_scope[param] = args[i]
+                else:
+                    func_scope[param] = None  # 默认值为 None
+            return self.execute_function(target_func, func_scope)
+        else:
+            raise ValueError(f"Unknown function {expr.func_name}")
+```
+
 
 
 ---
@@ -702,6 +818,34 @@ HPL_MODULE_PATHS = [
 # 3. HPL_MODULE_PATHS
 # 4. 调用时指定的搜索路径
 ```
+
+### 3.5 Include 文件搜索路径
+
+Include 文件使用与模块加载类似的多路径搜索机制：
+
+```
+搜索优先级：
+1. 绝对路径（Unix: /path/to/file.hpl, Windows: C:\path\to\file.hpl）
+2. 相对当前文件目录（如 subdir/utils.hpl）
+3. 相对当前工作目录
+4. HPL_MODULE_PATHS 中的路径
+```
+
+**示例：**
+```yaml
+# 同级目录
+includes:
+  - utils.hpl
+
+# 子目录
+includes:
+  - lib/helpers.hpl
+
+# 父目录
+includes:
+  - ../common.hpl
+```
+
 
 ---
 
@@ -1006,6 +1150,7 @@ add_module_path("/path/to/custom/modules")
 
 ---
 
-> 文档版本: 1.0.1  
+> 文档版本: 1.1.0  
 > 最后更新: 2026年  
+> 更新内容: 添加改进的 include 系统文档（多路径搜索、函数合并）
 > 作者: 奇点工作室

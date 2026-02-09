@@ -1,0 +1,9 @@
+# 嵌套目录中的工具函数
+
+nested_greet: (name) => {
+    echo "Nested Hello, " + name + "!"
+  }
+
+nested_add: (x, y) => {
+    return x + y
+  }

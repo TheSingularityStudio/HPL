@@ -26,11 +26,84 @@ HPL 程序以 YAML 文件的形式编写，主要包含以下顶级键：
 ```yaml
 includes:
   - base.hpl
+  - subdir/utils.hpl
+  - ../common.hpl
 ```
 
 - 使用 YAML 列表格式，每个文件路径前加 `-`。
-- 被包含的文件中的类和对象可以在当前文件中使用。
+- 被包含的文件中的类、对象和函数可以在当前文件中使用。
 - 被包含的文件会在预处理阶段合并到当前文件中。
+
+### 2.1 路径解析规则
+
+HPL 的 include 系统支持多种路径格式，按以下顺序搜索：
+
+1. **绝对路径**（Unix: `/path/to/file.hpl`, Windows: `C:\path\to\file.hpl`）
+2. **相对当前文件目录**（如 `subdir/utils.hpl`）
+3. **相对当前工作目录**（程序运行时的目录）
+4. **HPL_MODULE_PATHS 中的路径**（标准库和用户库目录）
+
+### 2.2 路径示例
+
+```yaml
+# 同级目录
+includes:
+  - utils.hpl
+
+# 子目录
+includes:
+  - lib/helpers.hpl
+  - modules/math/utils.hpl
+
+# 父目录
+includes:
+  - ../common.hpl
+  - ../../shared/base.hpl
+
+# 绝对路径（不推荐，降低可移植性）
+includes:
+  - /home/user/hpl_libs/utils.hpl
+  - C:\HPL\Libs\utils.hpl
+```
+
+### 2.3 函数复用
+
+被包含文件中的函数定义会自动合并到当前文件，可以直接调用：
+
+**utils.hpl**:
+```yaml
+greet: (name) => {
+    echo "Hello, " + name + "!"
+  }
+
+calculate: (a, b) => {
+    return a + b
+  }
+```
+
+**main.hpl**:
+```yaml
+includes:
+  - utils.hpl
+
+main: () => {
+    greet("World")           # 调用 include 的函数
+    result = calculate(5, 3)  # result = 8
+    echo "Result: " + result
+  }
+
+call: main()
+```
+
+### 2.4 错误处理
+
+当 include 文件不存在时，HPL 会显示警告信息：
+
+```
+Warning: Include file 'missing.hpl' not found in any search path
+Warning: Failed to include 'broken.hpl': [错误详情]
+```
+
 
 ## 2.1 模块导入（imports）
 
