@@ -86,10 +86,18 @@ class HPLASTParser:
         # 情况2: 以花括号开始
         elif self.current_token and self.current_token.type == 'LBRACE':
             self.expect('LBRACE')
-            while self.current_token and self.current_token.type not in ['RBRACE', 'EOF']:
+            # 跳过可能的 INDENT token（花括号内的缩进）
+            if self.current_token and self.current_token.type == 'INDENT':
+                self.advance()
+            while self.current_token and self.current_token.type not in ['RBRACE', 'DEDENT', 'EOF']:
                 statements.append(self.parse_statement())
+            # 跳过可能的 DEDENT token
+            if self.current_token and self.current_token.type == 'DEDENT':
+                self.advance()
             if self.current_token and self.current_token.type == 'RBRACE':
                 self.expect('RBRACE')
+
+
         
         # 情况3: 以冒号开始（缩进敏感语法）
         elif self.current_token and self.current_token.type == 'COLON':
@@ -163,6 +171,9 @@ class HPLASTParser:
         
         # 处理赋值或表达式语句
         if self.current_token.type == 'IDENTIFIER':
+            # 先保存当前位置，以便需要时回退
+            start_pos = self.pos
+            
             name = self.current_token.value
             self.advance()
             
@@ -180,10 +191,27 @@ class HPLASTParser:
                     return ArrayAssignmentStatement(name, index_expr, value_expr)
                 else:
                     # 不是赋值，回退并作为数组访问表达式处理
-                    self.pos -= 1
+                    self.pos = start_pos
                     self.current_token = self.tokens[self.pos]
-                    # 回退到标识符位置
-                    self.pos -= 1
+                    expr = self.parse_expression()
+                    return expr
+            
+            # 检查是否是属性赋值：obj.property = value
+            if self.current_token and self.current_token.type == 'DOT':
+                self.advance()  # 跳过 '.'
+                prop_name = self.expect('IDENTIFIER').value
+                
+                # 检查是否是赋值
+                if self.current_token and self.current_token.type == 'ASSIGN':
+                    self.advance()  # 跳过 '='
+                    value_expr = self.parse_expression()
+                    # 创建属性赋值语句，使用特殊格式存储
+                    # 这里我们使用 ArrayAssignmentStatement 的变体，或者创建新的语句类型
+                    # 为了简单，我们使用 MethodCall 作为左值，但需要在 evaluator 中特殊处理
+                    return AssignmentStatement(f"{name}.{prop_name}", value_expr)
+                else:
+                    # 不是赋值，回退并作为方法调用表达式处理
+                    self.pos = start_pos
                     self.current_token = self.tokens[self.pos]
                     expr = self.parse_expression()
                     return expr
@@ -201,10 +229,11 @@ class HPLASTParser:
             
             # 否则是表达式（如方法调用）
             # 回退并解析为表达式
-            self.pos -= 1
+            self.pos = start_pos
             self.current_token = self.tokens[self.pos]
             expr = self.parse_expression()
             return expr
+
 
         
         # 默认解析为表达式

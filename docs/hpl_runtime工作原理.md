@@ -1150,7 +1150,108 @@ add_module_path("/path/to/custom/modules")
 
 ---
 
-> 文档版本: 1.1.0  
+### 6.6 AST 解析器关键修复说明
+
+#### 6.6.1 花括号代码块缩进处理
+
+**问题描述：**
+当代码使用花括号 `{}` 包裹且内部有缩进时，Lexer 仍会生成 `INDENT` 和 `DEDENT` token，但原 `parse_block()` 方法未正确处理这些 token，导致解析失败。
+
+**错误示例：**
+```python
+code = '''{
+      this.name = name
+      this.age = age
+    }'''
+# 生成的 Token 序列包含：
+# LBRACE, INDENT(6), IDENTIFIER(this), DOT, ...
+# 原解析器遇到 INDENT 时报错
+```
+
+**修复方案：**
+在 `parse_block()` 方法的花括号处理分支中，添加对 `INDENT` 和 `DEDENT` token 的跳过逻辑：
+
+```python
+elif self.current_token and self.current_token.type == 'LBRACE':
+    self.expect('LBRACE')
+    # 跳过可能的 INDENT token（花括号内的缩进）
+    if self.current_token and self.current_token.type == 'INDENT':
+        self.advance()
+    while self.current_token and self.current_token.type not in ['RBRACE', 'DEDENT', 'EOF']:
+        statements.append(self.parse_statement())
+    # 跳过可能的 DEDENT token
+    if self.current_token and self.current_token.type == 'DEDENT':
+        self.advance()
+    if self.current_token and self.current_token.type == 'RBRACE':
+        self.expect('RBRACE')
+```
+
+#### 6.6.2 属性赋值语句解析
+
+**问题描述：**
+原解析器无法处理 `obj.property = value` 格式的属性赋值语句。当解析器看到 `this.name` 时，会将其作为 `MethodCall` 表达式处理，遇到 `=` 时无法继续。
+
+**修复方案：**
+在 `parse_statement()` 方法中添加属性赋值检测逻辑：
+
+```python
+# 检查是否是属性赋值：obj.property = value
+if self.current_token and self.current_token.type == 'DOT':
+    self.advance()  # 跳过 '.'
+    prop_name = self.expect('IDENTIFIER').value
+    
+    # 检查是否是赋值
+    if self.current_token and self.current_token.type == 'ASSIGN':
+        self.advance()  # 跳过 '='
+        value_expr = self.parse_expression()
+        # 使用 "obj.property" 格式存储变量名
+        return AssignmentStatement(f"{name}.{prop_name}", value_expr)
+    else:
+        # 不是赋值，回退并作为方法调用表达式处理
+        self.pos = start_pos
+        self.current_token = self.tokens[self.pos]
+        expr = self.parse_expression()
+        return expr
+```
+
+#### 6.6.3 Evaluator 属性赋值执行
+
+**问题描述：**
+即使 AST 正确解析了属性赋值，Evaluator 也需要正确处理。原代码将 `this.name` 作为普通变量名存储到 local_scope，而不是设置到对象的 attributes 中。
+
+**修复方案：**
+在 `execute_statement()` 方法中检测属性赋值格式并正确处理：
+
+```python
+if isinstance(stmt, AssignmentStatement):
+    value = self.evaluate_expression(stmt.expr, local_scope)
+    # 检查是否是属性赋值（如 this.name = value）
+    if '.' in stmt.var_name:
+        obj_name, prop_name = stmt.var_name.split('.', 1)
+        # 获取对象
+        if obj_name == 'this':
+            obj = local_scope.get('this') or self.current_obj
+        else:
+            obj = self._lookup_variable(obj_name, local_scope)
+        
+        if isinstance(obj, HPLObject):
+            obj.attributes[prop_name] = value
+        else:
+            raise TypeError(f"Cannot set property on non-object value: {type(obj).__name__}")
+    else:
+        local_scope[stmt.var_name] = value
+```
+
+**关键实现细节：**
+1. 使用 `local_scope.get('this')` 或 `self.current_obj` 获取当前对象
+2. 支持任意对象的属性赋值（如 `obj.prop = value`）
+3. 类型检查确保只能在 HPLObject 上设置属性
+
+---
+
+> 文档版本: 1.0.3  
 > 最后更新: 2026年  
-> 更新内容: 添加改进的 include 系统文档（多路径搜索、函数合并）
+> 更新内容: 
+>   - 添加改进的 include 系统文档（多路径搜索、函数合并）
+>   - 添加 AST 解析器关键修复说明（花括号缩进处理、属性赋值解析）
 > 作者: 奇点工作室
