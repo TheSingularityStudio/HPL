@@ -112,7 +112,13 @@ class ArrayAccess(Expression):
         self.index = index
 
 
+class DictionaryLiteral(Expression):
+    def __init__(self, pairs):
+        self.pairs = pairs  # 字典：键 -> 值表达式
+
+
 # 语句
+
 class AssignmentStatement(Statement):
     def __init__(self, var_name, expr):
         self.var_name = var_name

@@ -321,9 +321,22 @@ class HPLEvaluator:
 
             obj = self.evaluate_expression(expr.obj_name, local_scope)
             if isinstance(obj, HPLObject):
+                # 处理 parent 特殊属性访问
+                if expr.method_name == 'parent':
+                    if obj.hpl_class.parent and obj.hpl_class.parent in self.classes:
+                        parent_class = self.classes[obj.hpl_class.parent]
+                        # 如果后面还有调用（如 this.parent.init()），继续处理
+                        return parent_class
+                    else:
+                        raise ValueError(f"Class '{obj.hpl_class.name}' has no parent class")
+                args = [self.evaluate_expression(arg, local_scope) for arg in expr.args]
+                return self._call_method(obj, expr.method_name, args)
+            elif isinstance(obj, HPLClass):
+                # 处理类方法调用（如父类方法）
                 args = [self.evaluate_expression(arg, local_scope) for arg in expr.args]
                 return self._call_method(obj, expr.method_name, args)
             elif isinstance(obj, HPLModule):
+
                 # 模块函数调用或常量访问
                 if len(expr.args) == 0:
                     # 可能是模块常量访问，如 math.PI
@@ -360,9 +373,16 @@ class HPLEvaluator:
             if index < 0 or index >= len(array):
                 raise IndexError(f"Array index {index} out of bounds (length: {len(array)})")
             return array[index]
+        elif isinstance(expr, DictionaryLiteral):
+            # 评估字典字面量，计算所有值表达式
+            result = {}
+            for key, value_expr in expr.pairs.items():
+                result[key] = self.evaluate_expression(value_expr, local_scope)
+            return result
 
         else:
             raise ValueError(f"Unknown expression type {type(expr)}")
+
 
     def _eval_binary_op(self, left, op, right):
         # 逻辑运算符
@@ -429,13 +449,30 @@ class HPLEvaluator:
 
     def _call_method(self, obj, method_name, args):
         """统一方法调用逻辑"""
+        # 处理父类方法调用（当 obj 是 HPLClass 时）
+
+        if isinstance(obj, HPLClass):
+            if method_name in obj.methods:
+                method = obj.methods[method_name]
+                # 父类方法调用时，this 仍然指向当前对象
+                method_scope = {param: args[i] for i, param in enumerate(method.params) if i < len(args)}
+                method_scope['this'] = self.current_obj
+                return self.execute_function(method, method_scope)
+            else:
+                raise ValueError(f"Method '{method_name}' not found in parent class '{obj.name}'")
+        
         hpl_class = obj.hpl_class
         if method_name in hpl_class.methods:
             method = hpl_class.methods[method_name]
         elif hpl_class.parent and method_name in self.classes[hpl_class.parent].methods:
             method = self.classes[hpl_class.parent].methods[method_name]
         else:
-            raise ValueError(f"Method '{method_name}' not found in class '{hpl_class.name}'")
+            # 不是方法，尝试作为属性访问
+            if method_name in obj.attributes:
+                return obj.attributes[method_name]
+            raise ValueError(f"Method or attribute '{method_name}' not found in class '{hpl_class.name}'")
+
+
         
         # 为'this'设置current_obj
         prev_obj = self.current_obj
@@ -457,28 +494,30 @@ class HPLEvaluator:
         
         return result
 
+
     def _call_constructor(self, obj, args):
         """调用对象的构造函数（如果存在）"""
         hpl_class = obj.hpl_class
-        if '__init__' in hpl_class.methods:
-            self._call_method(obj, '__init__', args)
-        elif hpl_class.parent and '__init__' in self.classes[hpl_class.parent].methods:
+        if 'init' in hpl_class.methods:
+            self._call_method(obj, 'init', args)
+        elif hpl_class.parent and 'init' in self.classes[hpl_class.parent].methods:
             # 调用父类的构造函数
             parent_class = self.classes[hpl_class.parent]
-            if '__init__' in parent_class.methods:
-                method = parent_class.methods['__init__']
+            if 'init' in parent_class.methods:
+                method = parent_class.methods['init']
                 prev_obj = self.current_obj
                 self.current_obj = obj
                 
                 method_scope = {param: args[i] for i, param in enumerate(method.params) if i < len(args)}
                 method_scope['this'] = obj
                 
-                self.call_stack.append(f"{obj.name}.__init__()")
+                self.call_stack.append(f"{obj.name}.init()")
                 try:
                     self.execute_function(method, method_scope)
                 finally:
                     self.call_stack.pop()
                     self.current_obj = prev_obj
+
 
     def instantiate_object(self, class_name, obj_name, init_args=None):
         """实例化对象并调用构造函数"""

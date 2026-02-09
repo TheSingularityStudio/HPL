@@ -1,0 +1,708 @@
+# ============================================
+# HPL 复杂功能演示脚本
+# 本脚本展示了 HPL 语言的各种高级特性
+# ============================================
+
+# 1. 文件包含 - 复用其他 HPL 文件的代码
+includes:
+  - base.hpl
+
+# 2. 模块导入 - 导入标准库扩展功能
+imports:
+  - math: m        # 使用别名 m 代替 math
+  - io
+  - json
+  - os
+  - time: t        # 使用别名 t 代替 time
+
+# ============================================
+# 3. 类定义 - 展示面向对象编程特性
+# ============================================
+classes:
+  # 基础类：形状
+  Shape:
+    # 构造函数
+    init: (name) => {
+        this.name = name
+        this.area = 0
+        this.perimeter = 0
+      }
+    
+    # 获取形状信息
+    getInfo: () => {
+        return "形状: " + this.name + ", 面积: " + this.area + ", 周长: " + this.perimeter
+      }
+    
+    # 虚方法：计算面积（子类必须实现）
+    calculateArea: () => {
+        echo "请在子类中实现 calculateArea 方法"
+        return 0
+      }
+
+  # 继承类：矩形
+  Rectangle:
+    parent: Shape
+    # 构造函数
+    init: (width, height) => {
+        this.parent.init("矩形")
+        this.width = width
+        this.height = height
+        this.calculateArea()
+        this.calculatePerimeter()
+      }
+    
+    # 计算矩形面积
+    calculateArea: () => {
+        this.area = this.width * this.height
+        return this.area
+      }
+    
+    # 计算矩形周长
+    calculatePerimeter: () => {
+        this.perimeter = 2 * (this.width + this.height)
+        return this.perimeter
+      }
+    
+    # 判断是否为正方形
+    isSquare: () => {
+        return this.width == this.height
+      }
+
+  # 继承类：圆形
+  Circle:
+    parent: Shape
+    # 构造函数
+    init: (radius) => {
+        this.parent.init("圆形")
+        this.radius = radius
+        this.calculateArea()
+        this.calculatePerimeter()
+      }
+    
+    # 计算圆形面积
+    calculateArea: () => {
+        # 使用 math 模块的 PI 常量和 pow 函数
+        this.area = m.PI * m.pow(this.radius, 2)
+        return this.area
+      }
+    
+    # 计算圆形周长（圆周）
+    calculatePerimeter: () => {
+        this.perimeter = 2 * m.PI * this.radius
+        return this.perimeter
+      }
+    
+    # 获取直径
+    getDiameter: () => {
+        return 2 * this.radius
+      }
+
+  # 工具类：数组处理器
+  ArrayProcessor:
+    # 查找数组中的最大值
+    findMax: (arr) => {
+        if (len(arr) == 0) :
+          return 0
+        
+        maxVal = arr[0]
+        for (i = 1; i < len(arr); i++) :
+          if (arr[i] > maxVal) :
+            maxVal = arr[i]
+        return maxVal
+      }
+    
+    # 计算数组平均值
+    calculateAverage: (arr) => {
+        if (len(arr) == 0) :
+          return 0
+        
+        sum = 0
+        for (i = 0; i < len(arr); i++) :
+          sum = sum + arr[i]
+        return sum / len(arr)
+      }
+    
+    # 数组排序（冒泡排序）
+    bubbleSort: (arr) => {
+        n = len(arr)
+        for (i = 0; i < n - 1; i++) :
+          for (j = 0; j < n - i - 1; j++) :
+            if (arr[j] > arr[j + 1]) :
+              # 交换元素
+              temp = arr[j]
+              arr[j] = arr[j + 1]
+              arr[j + 1] = temp
+        return arr
+      }
+    
+    # 过滤数组中的偶数
+    filterEven: (arr) => {
+        result = []
+        for (i = 0; i < len(arr); i++) :
+          if (arr[i] % 2 == 0) :
+            # 使用数组追加（通过创建新数组模拟）
+            result = result + [arr[i]]
+        return result
+      }
+
+  # 文件管理器类
+  FileManager:
+    # 写入数据到 JSON 文件
+    saveToJson: (filename, data) => {
+        try :
+          json.write(filename, data, 2)  # 使用 2 空格缩进
+          echo "数据已成功保存到: " + filename
+          return true
+        catch (error) :
+          echo "保存文件时出错: " + error
+          return false
+      }
+    
+    # 从 JSON 文件读取数据
+    loadFromJson: (filename) => {
+        try :
+          if (!io.file_exists(filename)) :
+            echo "文件不存在: " + filename
+            return []
+          
+          data = json.read(filename)
+          echo "成功从 " + filename + " 读取数据"
+          return data
+        catch (error) :
+          echo "读取文件时出错: " + error
+          return []
+      }
+    
+    # 显示文件信息
+    showFileInfo: (filename) => {
+        if (io.file_exists(filename)) :
+          size = io.get_file_size(filename)
+          echo "文件: " + filename
+          echo "大小: " + size + " 字节"
+          return true
+        else :
+          echo "文件不存在: " + filename
+          return false
+      }
+
+  # 数学计算器类
+  Calculator:
+    # 阶乘计算
+    factorial: (n) => {
+        if (n < 0) :
+          return 0
+        if (n == 0 || n == 1) :
+          return 1
+        
+        result = 1
+        for (i = 2; i <= n; i++) :
+          result = result * i
+        return result
+      }
+    
+    # 判断质数
+    isPrime: (num) => {
+        if (num <= 1) :
+          return false
+        if (num <= 3) :
+          return true
+        if (num % 2 == 0 || num % 3 == 0) :
+          return false
+        
+        # 使用 while 循环检查
+        i = 5
+        while (i * i <= num) :
+          if (num % i == 0 || num % (i + 2) == 0) :
+            return false
+          i = i + 6
+        return true
+      }
+    
+    # 斐波那契数列
+    fibonacci: (count) => {
+        if (count <= 0) :
+          return []
+        if (count == 1) :
+          return [0]
+        
+        result = [0, 1]
+        for (i = 2; i < count; i++) :
+          nextVal = result[i - 1] + result[i - 2]
+          result = result + [nextVal]
+        return result
+      }
+    
+    # 求解一元二次方程 ax² + bx + c = 0
+    solveQuadratic: (a, b, c) => {
+        # 计算判别式
+        discriminant = b * b - 4 * a * c
+        
+        if (discriminant < 0) :
+          echo "方程无实数解"
+          return []
+        
+        if (discriminant == 0) :
+          x = -b / (2 * a)
+          echo "方程有一个实数解: x = " + x
+          return [x]
+        
+        # 有两个实数解
+        sqrt_disc = m.sqrt(discriminant)
+        x1 = (-b + sqrt_disc) / (2 * a)
+        x2 = (-b - sqrt_disc) / (2 * a)
+        echo "方程有两个实数解: x1 = " + x1 + ", x2 = " + x2
+        return [x1, x2]
+      }
+      
+  # 时间管理类
+  TimeManager:
+    # 显示当前时间信息
+    showCurrentTime: () => {
+        now = t.now()
+        echo "当前时间戳: " + now
+        echo "当前年份: " + t.get_year(now)
+        echo "当前月份: " + t.get_month(now)
+        echo "当前日期: " + t.get_day(now)
+        echo "ISO 格式: " + t.get_iso_date(now)
+      }
+    
+    # 测量代码执行时间
+    measureExecution: (operationName, iterations) => {
+        start = t.now_ms()
+        
+        # 模拟一些计算
+        sum = 0
+        for (i = 0; i < iterations; i++) :
+          sum = sum + i
+        
+        end = t.now_ms()
+        elapsed = end - start
+        
+        echo operationName + " 执行 " + iterations + " 次"
+        echo "耗时: " + elapsed + " 毫秒"
+        return elapsed
+      }
+
+# ============================================
+# 4. 对象实例化
+# ============================================
+objects:
+  # 创建形状对象
+  rect1: Rectangle(10, 5)
+  rect2: Rectangle(8, 8)      # 正方形
+  circle1: Circle(7)
+  
+  # 创建工具对象
+  arrayProc: ArrayProcessor()
+  fileMgr: FileManager()
+  calc: Calculator()
+  timeMgr: TimeManager()
+
+# ============================================
+# 5. 顶层函数 - 可在 call 中直接调用
+# ============================================
+
+# 演示形状类的函数
+demoShapes: () => {
+    echo ""
+    echo "========================================"
+    echo "      形状类演示"
+    echo "========================================"
+    
+    # 矩形演示
+    echo ""
+    echo "--- 矩形 1 (10x5) ---"
+    echo rect1.getInfo()
+    echo "是否为正方形: " + rect1.isSquare()
+    
+    echo ""
+    echo "--- 矩形 2 (8x8) ---"
+    echo rect2.getInfo()
+    echo "是否为正方形: " + rect2.isSquare()
+    
+    # 圆形演示
+    echo ""
+    echo "--- 圆形 (半径=7) ---"
+    echo circle1.getInfo()
+    echo "直径: " + circle1.getDiameter()
+  }
+
+# 演示数组处理的函数
+demoArrays: () => {
+    echo ""
+    echo "========================================"
+    echo "      数组处理演示"
+    echo "========================================"
+    
+    # 创建测试数组
+    numbers = [64, 34, 25, 12, 22, 11, 90, 5]
+    echo ""
+    echo "原始数组: " + numbers
+    echo "数组长度: " + len(numbers)
+    echo "数组类型: " + type(numbers)
+    
+    # 查找最大值
+    maxVal = arrayProc.findMax(numbers)
+    echo "最大值: " + maxVal
+    
+    # 计算平均值
+    avg = arrayProc.calculateAverage(numbers)
+    echo "平均值: " + avg
+    
+    # 排序
+    sorted = arrayProc.bubbleSort(numbers)
+    echo "排序后: " + sorted
+    
+    # 过滤偶数
+    evenNumbers = arrayProc.filterEven(numbers)
+    echo "偶数过滤: " + evenNumbers
+    
+    # 数组元素访问和修改
+    echo ""
+    echo "--- 数组元素操作 ---"
+    echo "第一个元素: " + numbers[0]
+    echo "最后一个元素: " + numbers[len(numbers) - 1]
+    
+    # 修改数组元素
+    numbers[0] = 100
+    echo "修改后第一个元素: " + numbers[0]
+  }
+
+# 演示数学计算的函数
+demoMath: () => {
+    echo ""
+    echo "========================================"
+    echo "      数学计算演示"
+    echo "========================================"
+    
+    # 阶乘
+    echo ""
+    echo "--- 阶乘计算 ---"
+    for (n = 0; n <= 5; n++) :
+      fact = calc.factorial(n)
+      echo n + "! = " + fact
+    
+    # 质数判断
+    echo ""
+    echo "--- 质数判断 ---"
+    testNumbers = [2, 3, 4, 17, 18, 19, 20]
+    for (i = 0; i < len(testNumbers); i++) :
+      num = testNumbers[i]
+      isPrime = calc.isPrime(num)
+      if (isPrime) :
+        echo num + " 是质数"
+      else :
+        echo num + " 不是质数"
+    
+    # 斐波那契数列
+    echo ""
+    echo "--- 斐波那契数列 ---"
+    fib = calc.fibonacci(10)
+    echo "前 10 个斐波那契数: " + fib
+    
+    # 解方程
+    echo ""
+    echo "--- 解一元二次方程 ---"
+    echo "方程: 2x² + 5x - 3 = 0"
+    solutions = calc.solveQuadratic(2, 5, -3)
+    echo "解: " + solutions
+    
+    # 使用 math 模块
+    echo ""
+    echo "--- Math 模块函数 ---"
+    echo "PI = " + m.PI
+    echo "E = " + m.E
+    echo "sqrt(144) = " + m.sqrt(144)
+    echo "pow(2, 10) = " + m.pow(2, 10)
+    echo "sin(30°) = " + m.sin(m.radians(30))
+    echo "cos(60°) = " + m.cos(m.radians(60))
+    echo "log10(1000) = " + m.log10(1000)
+    echo "floor(3.7) = " + m.floor(3.7)
+    echo "ceil(3.2) = " + m.ceil(3.2)
+    echo "round(3.5) = " + m.round(3.5)
+  }
+
+# 演示控制流的函数
+demoControlFlow: () => {
+    echo ""
+    echo "========================================"
+    echo "      控制流演示"
+    echo "========================================"
+    
+    # if-else 嵌套
+    echo ""
+    echo "--- 条件判断 ---"
+    score = 85
+    if (score >= 90) :
+      grade = "A"
+    else :
+      if (score >= 80) :
+        grade = "B"
+      else :
+        if (score >= 70) :
+          grade = "C"
+        else :
+          if (score >= 60) :
+            grade = "D"
+          else :
+            grade = "F"
+    echo "分数: " + score + ", 等级: " + grade
+    
+    # for 循环
+    echo ""
+    echo "--- For 循环 ---"
+    echo "乘法表 (1-5):"
+    for (i = 1; i <= 5; i++) :
+      row = ""
+      for (j = 1; j <= 5; j++) :
+        row = row + (i * j) + "\t"
+      echo row
+    
+    # while 循环和 break/continue
+    echo ""
+    echo "--- While 循环 + Break/Continue ---"
+    echo "打印 1-20 中的质数:"
+    num = 1
+    while (num <= 20) :
+      num++
+      if (num == 2) :
+        echo num + " "
+        continue
+      
+      isPrime = true
+      for (i = 2; i * i <= num; i++) :
+        if (num % i == 0) :
+          isPrime = false
+          break
+      
+      if (!isPrime) :
+        continue
+      
+      echo num + " "
+    echo ""
+    
+    # 逻辑运算符演示
+    echo ""
+    echo "--- 逻辑运算符 ---"
+    a = true
+    b = false
+    c = true
+    
+    echo "a = true, b = false, c = true"
+    echo "a && c = " + (a && c)   # true
+    echo "a && b = " + (a && b)   # false
+    echo "a || b = " + (a || b)   # true
+    echo "b || b = " + (b || b)   # false
+    echo "!a = " + (!a)           # false
+    echo "!b = " + (!b)           # true
+    echo "a && (b || c) = " + (a && (b || c))  # true
+  }
+
+# 演示文件操作的函数
+demoFileOperations: () => {
+    echo ""
+    echo "========================================"
+    echo "      文件操作演示"
+    echo "========================================"
+    
+    # 准备数据
+    data = {
+      "name": "HPL 数据",
+      "version": "1.0",
+      "numbers": [1, 2, 3, 4, 5],
+      "shapes": ["矩形", "圆形", "三角形"]
+    }
+    
+    # 保存到 JSON
+    filename = "demo_data.json"
+    success = fileMgr.saveToJson(filename, data)
+    
+    if (success) :
+      # 显示文件信息
+      fileMgr.showFileInfo(filename)
+      
+      # 读取数据
+      loadedData = fileMgr.loadFromJson(filename)
+      echo "读取的数据: " + json.stringify(loadedData)
+      
+      # 清理
+      io.delete_file(filename)
+      echo "临时文件已删除"
+  }
+
+# 演示异常处理的函数
+demoExceptionHandling: () => {
+    echo ""
+    echo "========================================"
+    echo "      异常处理演示"
+    echo "========================================"
+    
+    # 正常的 try-catch
+    echo ""
+    echo "--- 正常异常捕获 ---"
+    try :
+      result = 10 / 2
+      echo "10 / 2 = " + result
+    catch (error) :
+      echo "错误: " + error
+    
+    # 捕获除零错误
+    echo ""
+    echo "--- 除零错误捕获 ---"
+    try :
+      # 这里不会真的出错，因为 HPL 可能处理除零
+      # 但为了演示语法
+      x = 0
+      if (x == 0) :
+        # 模拟错误情况
+        error = "除数不能为零"
+        throw error
+      result = 10 / x
+    catch (error) :
+      echo "捕获到错误: " + error
+    
+    # 嵌套 try-catch
+    echo ""
+    echo "--- 嵌套异常处理 ---"
+    try :
+      echo "外层 try 开始"
+      try :
+        echo "内层 try"
+        # 模拟一个错误
+        if (true) :
+          innerError = "内层错误"
+          throw innerError
+      catch (innerError) :
+        echo "内层捕获: " + innerError
+      
+      echo "外层 try 继续"
+    catch (outerError) :
+      echo "外层捕获: " + outerError
+  }
+
+# 演示内置函数的函数
+demoBuiltInFunctions: () => {
+    echo ""
+    echo "========================================"
+    echo "      内置函数演示"
+    echo "========================================"
+    
+    # 类型转换
+    echo ""
+    echo "--- 类型转换 ---"
+    strNum = "123"
+    intNum = int(strNum)
+    echo "int(\"123\") = " + intNum + " (类型: " + type(intNum) + ")"
+    
+    floatNum = 3.14159
+    strFloat = str(floatNum)
+    echo "str(3.14159) = " + strFloat + " (类型: " + type(strFloat) + ")"
+    
+    # 类型检查
+    echo ""
+    echo "--- 类型检查 ---"
+    testValues = [42, 3.14, "hello", true, [1, 2, 3]]
+    for (i = 0; i < len(testValues); i++) :
+      val = testValues[i]
+      echo "值: " + val + ", 类型: " + type(val)
+    
+    # 数值函数
+    echo ""
+    echo "--- 数值函数 ---"
+    echo "abs(-42) = " + abs(-42)
+    echo "abs(-3.14) = " + abs(-3.14)
+    echo "max(10, 20, 5, 30, 15) = " + max(10, 20, 5, 30, 15)
+    echo "min(10, 20, 5, 30, 15) = " + min(10, 20, 5, 30, 15)
+    
+    # 字符串长度
+    echo ""
+    echo "--- 字符串长度 ---"
+    testStr = "Hello, HPL!"
+    echo "字符串: \"" + testStr + "\""
+    echo "长度: " + len(testStr)
+  }
+
+# 演示系统信息的函数
+demoSystemInfo: () => {
+    echo ""
+    echo "========================================"
+    echo "      系统信息演示"
+    echo "========================================"
+    
+    # 操作系统信息
+    echo ""
+    echo "--- 操作系统信息 ---"
+    echo "平台: " + os.get_platform()
+    echo "当前工作目录: " + os.get_cwd()
+    echo "CPU 核心数: " + os.cpu_count()
+    echo "Python 版本: " + os.get_python_version()
+    echo "HPL 版本: " + os.get_hpl_version()
+    
+    # 路径操作
+    echo ""
+    echo "--- 路径操作 ---"
+    testPath = "docs/HPL语法手册.md"
+    echo "原始路径: " + testPath
+    echo "绝对路径: " + os.path_abs(testPath)
+    echo "目录名: " + os.path_dir(testPath)
+    echo "文件名: " + os.path_base(testPath)
+    echo "扩展名: " + os.path_ext(testPath)
+    echo "路径分隔符: " + os.get_path_sep()
+    
+    # 时间信息
+    echo ""
+    echo "--- 时间信息 ---"
+    timeMgr.showCurrentTime()
+    
+    # 执行时间测量
+    echo ""
+    echo "--- 性能测试 ---"
+    timeMgr.measureExecution("累加计算", 100000)
+  }
+
+# 综合演示函数 - 调用所有演示
+comprehensiveDemo: () => {
+    echo ""
+    echo "╔══════════════════════════════════════════════════════════════╗"
+    echo "║                                                              ║"
+    echo "║           HPL (H Programming Language) 复杂功能演示           ║"
+    echo "║                                                              ║"
+    echo "╚══════════════════════════════════════════════════════════════╝"
+    
+    # 调用各个演示函数
+    demoShapes()
+    demoArrays()
+    demoMath()
+    demoControlFlow()
+    demoFileOperations()
+    demoExceptionHandling()
+    demoBuiltInFunctions()
+    demoSystemInfo()
+    
+    # 结束
+    echo ""
+    echo "╔══════════════════════════════════════════════════════════════╗"
+    echo "║                                                              ║"
+    echo "║              所有演示已完成！感谢使用 HPL                    ║"
+    echo "║                                                              ║"
+    echo "╚══════════════════════════════════════════════════════════════╝"
+  }
+
+# ============================================
+# 6. 主函数 - 程序入口点
+# ============================================
+main: () => {
+    # 调用综合演示
+    comprehensiveDemo()
+  }
+
+# ============================================
+# 7. 程序执行入口
+# ============================================
+# 可以调用任意顶层函数
+# call: demoShapes()
+# call: demoArrays()
+# call: comprehensiveDemo()
+
+# 默认调用 main 函数
+call: main()
