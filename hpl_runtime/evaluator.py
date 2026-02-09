@@ -229,7 +229,9 @@ class HPLEvaluator:
 
     def _is_hpl_module(self, obj):
         """检查对象是否是HPLModule"""
-        return isinstance(obj, HPLModule)
+        # 使用鸭子类型检查，避免不同导入路径导致的类身份问题
+        return hasattr(obj, 'call_function') and hasattr(obj, 'get_constant') and hasattr(obj, 'name')
+
 
     def evaluate_expression(self, expr, local_scope):
         if isinstance(expr, IntegerLiteral):
@@ -350,8 +352,6 @@ class HPLEvaluator:
                     raise HPLNameError(f"Unknown function '{expr.func_name}'")
 
         elif isinstance(expr, MethodCall):
-
-
             obj = self.evaluate_expression(expr.obj_name, local_scope)
             if isinstance(obj, HPLObject):
                 # 处理 parent 特殊属性访问
@@ -369,10 +369,8 @@ class HPLEvaluator:
                 args = [self.evaluate_expression(arg, local_scope) for arg in expr.args]
                 return self._call_method(obj, expr.method_name, args)
             elif self._is_hpl_module(obj):
-
                 # 模块函数调用或常量访问
                 if len(expr.args) == 0:
-
                     # 可能是模块常量访问，如 math.PI
                     try:
                         return self.get_module_constant(obj, expr.method_name)
@@ -386,8 +384,7 @@ class HPLEvaluator:
             else:
                 raise HPLTypeError(f"Cannot call method on {type(obj).__name__}")
 
-
-
+        elif isinstance(expr, PostfixIncrement):
             var_name = expr.var.name
             value = self._lookup_variable(var_name, local_scope)
             if not isinstance(value, (int, float)):
@@ -395,6 +392,7 @@ class HPLEvaluator:
             new_value = value + 1
             self._update_variable(var_name, new_value, local_scope)
             return value
+
 
         elif isinstance(expr, ArrayLiteral):
             return [self.evaluate_expression(elem, local_scope) for elem in expr.elements]
@@ -540,20 +538,22 @@ class HPLEvaluator:
     def _call_constructor(self, obj, args):
         """调用对象的构造函数（如果存在）"""
         hpl_class = obj.hpl_class
-        if 'init' in hpl_class.methods:
-            self._call_method(obj, 'init', args)
-        elif hpl_class.parent and 'init' in self.classes[hpl_class.parent].methods:
+        if '__init__' in hpl_class.methods:
+            self._call_method(obj, '__init__', args)
+        elif hpl_class.parent and '__init__' in self.classes[hpl_class.parent].methods:
             # 调用父类的构造函数
             parent_class = self.classes[hpl_class.parent]
-            if 'init' in parent_class.methods:
-                method = parent_class.methods['init']
+            if '__init__' in parent_class.methods:
+
+                method = parent_class.methods['__init__']
                 prev_obj = self.current_obj
                 self.current_obj = obj
                 
                 method_scope = {param: args[i] for i, param in enumerate(method.params) if i < len(args)}
                 method_scope['this'] = obj
                 
-                self.call_stack.append(f"{obj.name}.init()")
+                self.call_stack.append(f"{obj.name}.__init__()")
+
                 try:
                     self.execute_function(method, method_scope)
                 finally:
