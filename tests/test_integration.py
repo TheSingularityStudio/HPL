@@ -29,10 +29,18 @@ class TestHPLIntegration(unittest.TestCase):
         
         # 添加 examples 目录到模块搜索路径（用于第三方模块测试）
         try:
-            from hpl_runtime.module_loader import add_module_path
+            from hpl_runtime.module_loader import add_module_path, set_current_hpl_file
         except ImportError:
-            from module_loader import add_module_path
+            from module_loader import add_module_path, set_current_hpl_file
         add_module_path(self.examples_dir)
+        
+        # 设置当前 HPL 文件目录，用于相对导入
+        set_current_hpl_file(filepath)
+        
+        # 添加 examples 目录到 sys.path，以便 importlib 能找到本地 Python 模块
+        if self.examples_dir not in sys.path:
+            sys.path.insert(0, self.examples_dir)
+
 
         
         # 解析

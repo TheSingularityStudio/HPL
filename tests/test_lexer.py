@@ -172,17 +172,20 @@ line2
     
     def test_invalid_character_error(self):
         """测试无效字符错误处理"""
+        from exceptions import HPLSyntaxError
+        
         # 测试单个无效字符
         lexer = HPLLexer('@')
-        with self.assertRaises(ValueError) as context:
+        with self.assertRaises(HPLSyntaxError) as context:
             lexer.tokenize()
         self.assertIn("Invalid character '@'", str(context.exception))
         
         # 测试无效字符在表达式中
         lexer = HPLLexer('x @ y')
-        with self.assertRaises(ValueError) as context:
+        with self.assertRaises(HPLSyntaxError) as context:
             lexer.tokenize()
         self.assertIn("Invalid character", str(context.exception))
+
     
     def test_unclosed_string_error(self):
         """测试未闭合字符串错误处理"""

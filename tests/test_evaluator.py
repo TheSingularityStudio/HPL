@@ -8,12 +8,18 @@ import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'hpl_runtime'))
 
 import unittest
-from evaluator import HPLEvaluator, ReturnValue
+from evaluator import HPLEvaluator
 
 try:
     from hpl_runtime.models import *
+    from hpl_runtime.exceptions import HPLReturnValue, HPLNameError, HPLTypeError, HPLDivisionError
 except ImportError:
     from models import *
+    from exceptions import HPLReturnValue, HPLNameError, HPLTypeError, HPLDivisionError
+
+# 使用正确的 ReturnValue 别名
+ReturnValue = HPLReturnValue
+
 
 
 
@@ -133,8 +139,9 @@ class TestHPLEvaluator(unittest.TestCase):
         
         # 除零错误
         expr = BinaryOp(IntegerLiteral(10), '%', IntegerLiteral(0))
-        with self.assertRaises(ZeroDivisionError):
+        with self.assertRaises(HPLDivisionError):
             evaluator.evaluate_expression(expr, local_scope)
+
 
 
     
@@ -251,10 +258,11 @@ class TestHPLEvaluator(unittest.TestCase):
         local_scope = {}
         
         expr = Variable('undefined_var')
-        with self.assertRaises(ValueError) as context:
+        with self.assertRaises(HPLNameError) as context:
             evaluator.evaluate_expression(expr, local_scope)
         
         self.assertIn('Undefined variable', str(context.exception))
+
     
     def test_division_by_zero(self):
         """测试除零错误"""
@@ -263,10 +271,11 @@ class TestHPLEvaluator(unittest.TestCase):
         local_scope = {}
         
         expr = BinaryOp(IntegerLiteral(10), '/', IntegerLiteral(0))
-        with self.assertRaises(ZeroDivisionError) as context:
+        with self.assertRaises(HPLDivisionError) as context:
             evaluator.evaluate_expression(expr, local_scope)
         
         self.assertIn('Division by zero', str(context.exception))
+
     
     def test_type_error(self):
         """测试类型错误"""
@@ -276,10 +285,11 @@ class TestHPLEvaluator(unittest.TestCase):
         
         # 字符串减法应该报错
         expr = BinaryOp(StringLiteral("hello"), '-', StringLiteral("world"))
-        with self.assertRaises(TypeError) as context:
+        with self.assertRaises(HPLTypeError) as context:
             evaluator.evaluate_expression(expr, local_scope)
         
         self.assertIn('Unsupported operand type', str(context.exception))
+
     
     def test_while_statement(self):
         """测试 while 语句执行"""
@@ -360,15 +370,19 @@ class TestHPLEvaluator(unittest.TestCase):
     
     def test_break_continue(self):
         """测试 break 和 continue 异常"""
-        from evaluator import BreakException, ContinueException
+        try:
+            from hpl_runtime.exceptions import HPLBreakException, HPLContinueException
+        except ImportError:
+            from exceptions import HPLBreakException, HPLContinueException
         
         # 测试 BreakException
-        with self.assertRaises(BreakException):
-            raise BreakException()
+        with self.assertRaises(HPLBreakException):
+            raise HPLBreakException()
         
         # 测试 ContinueException
-        with self.assertRaises(ContinueException):
-            raise ContinueException()
+        with self.assertRaises(HPLContinueException):
+            raise HPLContinueException()
+
     
     def test_postfix_increment(self):
         """测试后缀自增表达式"""
