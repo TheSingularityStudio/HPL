@@ -577,7 +577,12 @@ class HPLASTParser:
         
         # 获取模块名
         if not self.current_token or self.current_token.type != 'IDENTIFIER':
-            raise ValueError(f"Expected module name after 'import', got {self.current_token} at {self._get_position()}")
+            line, column = self._get_position()
+            raise HPLSyntaxError(
+                f"Expected module name after 'import', got {self.current_token}",
+                line=line,
+                column=column
+            )
         
         module_name = self.current_token.value
         self.advance()
@@ -587,11 +592,17 @@ class HPLASTParser:
         if self.current_token and self.current_token.type == 'KEYWORD' and self.current_token.value == 'as':
             self.advance()
             if not self.current_token or self.current_token.type != 'IDENTIFIER':
-                raise ValueError(f"Expected alias name after 'as', got {self.current_token} at {self._get_position()}")
+                line, column = self._get_position()
+                raise HPLSyntaxError(
+                    f"Expected alias name after 'as', got {self.current_token}",
+                    line=line,
+                    column=column
+                )
             alias = self.current_token.value
             self.advance()
         
         return ImportStatement(module_name, alias)
+
 
 
 # BreakStatement 和 ContinueStatement 类已在 models.py 中定义

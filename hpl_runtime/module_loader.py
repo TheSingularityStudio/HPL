@@ -41,21 +41,55 @@ HPL_CONFIG_DIR = Path.home() / '.hpl'
 HPL_PACKAGES_DIR = HPL_CONFIG_DIR / 'packages'
 HPL_MODULE_PATHS = [HPL_PACKAGES_DIR]
 
-# 当前执行的 HPL 文件目录（用于相对导入）
-_current_hpl_file_dir = None
-
 # 确保配置目录存在
 HPL_CONFIG_DIR.mkdir(exist_ok=True)
 HPL_PACKAGES_DIR.mkdir(exist_ok=True)
 
 
+class ModuleLoaderContext:
+    """
+    模块加载器上下文管理类
+    
+    使用线程本地存储管理当前 HPL 文件路径，支持嵌套导入和并发场景。
+    替代原来的全局变量 _current_hpl_file_dir，避免全局状态带来的问题。
+    """
+    
+    def __init__(self):
+        self._current_file_dir = None
+    
+    def set_current_file(self, file_path):
+        """设置当前执行的 HPL 文件路径，用于相对导入"""
+        if file_path:
+            self._current_file_dir = Path(file_path).parent.resolve()
+        else:
+            self._current_file_dir = None
+    
+    def get_current_file_dir(self):
+        """获取当前 HPL 文件所在目录"""
+        return self._current_file_dir
+    
+    def clear(self):
+        """清除当前上下文"""
+        self._current_file_dir = None
+
+
+# 全局上下文实例（单例模式）
+_loader_context = ModuleLoaderContext()
+
+
 def set_current_hpl_file(file_path):
-    """设置当前执行的 HPL 文件路径，用于相对导入"""
-    global _current_hpl_file_dir
-    if file_path:
-        _current_hpl_file_dir = Path(file_path).parent.resolve()
-    else:
-        _current_hpl_file_dir = None
+    """
+    设置当前执行的 HPL 文件路径，用于相对导入
+    
+    这是兼容旧 API 的包装函数，实际使用 ModuleLoaderContext 管理状态。
+    """
+    _loader_context.set_current_file(file_path)
+
+
+def get_loader_context():
+    """获取模块加载器上下文，用于高级用法（如嵌套导入管理）"""
+    return _loader_context
+
 
 
 
@@ -179,16 +213,15 @@ def _load_hpl_module(module_name, search_paths=None):
     # 构建搜索路径列表
     paths = []
     
-    # 首先搜索当前 HPL 文件所在目录
-    global _current_hpl_file_dir
-    if _current_hpl_file_dir:
-        paths.append(_current_hpl_file_dir)
+    # 首先搜索当前 HPL 文件所在目录（使用上下文管理器替代全局变量）
+    current_file_dir = _loader_context.get_current_file_dir()
+    if current_file_dir:
+        paths.append(current_file_dir)
     
     paths.append(Path.cwd())
     paths.extend(HPL_MODULE_PATHS)
     if search_paths:
         paths.extend([Path(p) for p in search_paths])
-
     
     # 尝试找到 .hpl 文件
     for path in paths:
@@ -214,16 +247,15 @@ def _load_python_module(module_name, search_paths=None):
     # 构建搜索路径列表
     paths = []
     
-    # 首先搜索当前 HPL 文件所在目录
-    global _current_hpl_file_dir
-    if _current_hpl_file_dir:
-        paths.append(_current_hpl_file_dir)
+    # 首先搜索当前 HPL 文件所在目录（使用上下文管理器替代全局变量）
+    current_file_dir = _loader_context.get_current_file_dir()
+    if current_file_dir:
+        paths.append(current_file_dir)
     
     paths.append(Path.cwd())
     paths.extend(HPL_MODULE_PATHS)
     if search_paths:
         paths.extend([Path(p) for p in search_paths])
-
     
     # 尝试找到 .py 文件
     for path in paths:

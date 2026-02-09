@@ -26,6 +26,7 @@ try:
         from hpl_runtime.models import DictionaryLiteral
     except ImportError:
         DictionaryLiteral = None
+    from hpl_runtime.exceptions import HPLSyntaxError
 except ImportError:
     from lexer import HPLLexer
     from ast_parser import HPLASTParser
@@ -42,6 +43,8 @@ except ImportError:
         from models import DictionaryLiteral
     except ImportError:
         DictionaryLiteral = None
+    from exceptions import HPLSyntaxError
+
 
 
 
@@ -747,7 +750,7 @@ class TestASTParserErrors(unittest.TestCase):
         code = "@"
         lexer = HPLLexer(code)
         
-        with self.assertRaises(ValueError):
+        with self.assertRaises(HPLSyntaxError):
             tokens = lexer.tokenize()
 
     def test_unclosed_parenthesis(self):
@@ -757,8 +760,9 @@ class TestASTParserErrors(unittest.TestCase):
         tokens = lexer.tokenize()
         parser = HPLASTParser(tokens)
         
-        with self.assertRaises(ValueError):
+        with self.assertRaises(HPLSyntaxError):
             parser.parse_expression()
+
 
 
 if __name__ == '__main__':

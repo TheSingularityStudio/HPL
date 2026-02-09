@@ -31,6 +31,7 @@ try:
     )
     from hpl_runtime.models import HPLObject, HPLClass, HPLFunction
     from hpl_runtime.module_base import HPLModule
+    from hpl_runtime.exceptions import HPLImportError
 except ImportError:
     from module_loader import (
         _parse_hpl_module, load_module, clear_cache, add_module_path,
@@ -39,6 +40,8 @@ except ImportError:
     )
     from models import HPLObject, HPLClass, HPLFunction
     from module_base import HPLModule
+    from exceptions import HPLImportError
+
 
 
 class TestParseHPLModule(unittest.TestCase):
@@ -282,9 +285,10 @@ test: () => {{
     
     def test_error_handling(self):
         """测试错误处理"""
-        # 测试无效文件
-        result = _parse_hpl_module("nonexistent", "/path/to/nonexistent.hpl")
-        self.assertIsNone(result, "无效文件应返回 None")
+        # 测试无效文件 - 应该抛出 HPLImportError
+        with self.assertRaises(HPLImportError):
+            _parse_hpl_module("nonexistent", "/path/to/nonexistent.hpl")
+
 
 
 class TestModuleCache(unittest.TestCase):
@@ -466,8 +470,9 @@ class TestLoadModule(unittest.TestCase):
     
     def test_load_nonexistent_module(self):
         """测试加载不存在的模块"""
-        with self.assertRaises(ImportError):
+        with self.assertRaises(HPLImportError):
             load_module('nonexistent_module_xyz')
+
     
     def test_load_stdlib_module(self):
         """测试加载标准库模块"""

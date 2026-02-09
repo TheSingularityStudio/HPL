@@ -8,7 +8,13 @@ import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'hpl_runtime'))
 
 import unittest
-from lexer import HPLLexer, Token
+try:
+    from hpl_runtime.lexer import HPLLexer, Token
+    from hpl_runtime.exceptions import HPLSyntaxError
+except ImportError:
+    from lexer import HPLLexer, Token
+    from exceptions import HPLSyntaxError
+
 
 
 class TestHPLLexer(unittest.TestCase):
@@ -172,9 +178,8 @@ line2
     
     def test_invalid_character_error(self):
         """测试无效字符错误处理"""
-        from exceptions import HPLSyntaxError
-        
         # 测试单个无效字符
+
         lexer = HPLLexer('@')
         with self.assertRaises(HPLSyntaxError) as context:
             lexer.tokenize()
