@@ -104,7 +104,22 @@ class HPLEvaluator:
     def execute_statement(self, stmt, local_scope):
         if isinstance(stmt, AssignmentStatement):
             value = self.evaluate_expression(stmt.expr, local_scope)
-            local_scope[stmt.var_name] = value
+            # 检查是否是属性赋值（如 this.name = value）
+            if '.' in stmt.var_name:
+                obj_name, prop_name = stmt.var_name.split('.', 1)
+                # 获取对象
+                if obj_name == 'this':
+                    obj = local_scope.get('this') or self.current_obj
+                else:
+                    obj = self._lookup_variable(obj_name, local_scope)
+                
+                if isinstance(obj, HPLObject):
+                    obj.attributes[prop_name] = value
+                else:
+                    raise TypeError(f"Cannot set property on non-object value: {type(obj).__name__}")
+            else:
+                local_scope[stmt.var_name] = value
+
         elif isinstance(stmt, ArrayAssignmentStatement):
             # 数组元素赋值：arr[index] = value
             array = self._lookup_variable(stmt.array_name, local_scope)

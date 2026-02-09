@@ -229,48 +229,129 @@ def _parse_hpl_module(module_name, file_path):
         # 延迟导入以避免循环依赖
         try:
             from hpl_runtime.parser import HPLParser
+            from hpl_runtime.evaluator import HPLEvaluator
+            from hpl_runtime.models import HPLObject
         except ImportError:
             from parser import HPLParser
+            from evaluator import HPLEvaluator
+            from models import HPLObject
         
         # 解析 HPL 文件
         parser = HPLParser(str(file_path))
         classes, objects, functions, main_func, call_target, call_args, imports = parser.parse()
-
-
         
         # 创建 HPL 模块
         hpl_module = HPLModule(module_name, f"HPL module: {module_name}")
         
+        # 创建 evaluator 用于执行构造函数和函数
+        evaluator = HPLEvaluator(classes, objects, functions, main_func)
+        
         # 将类注册为模块函数（构造函数）
         for class_name, hpl_class in classes.items():
-            def make_constructor(cls):
+            def make_constructor(cls, eval_ctx):
                 def constructor(*args):
                     # 创建对象实例
-                    from hpl_runtime.models import HPLObject
                     obj = HPLObject("instance", cls)
-                    # 调用构造函数
+                    
+                    # 调用构造函数 __init__
                     if '__init__' in cls.methods:
-                        # 这里简化处理，实际应该通过 evaluator 调用
-                        pass
+                        init_func = cls.methods['__init__']
+                        # 验证参数数量
+                        if len(args) != len(init_func.params):
+                            raise ValueError(
+                                f"Constructor '{cls.name}' expects {len(init_func.params)} "
+                                f"arguments, got {len(args)}"
+                            )
+                        # 执行构造函数
+                        eval_ctx._call_constructor(obj, list(args))
+                    
                     return obj
                 return constructor
             
+            # 计算构造函数参数数量
+            init_param_count = 0
+            if '__init__' in hpl_class.methods:
+                init_param_count = len(hpl_class.methods['__init__'].params)
+            
             hpl_module.register_function(
                 class_name, 
-                make_constructor(hpl_class), 
-                None, 
+                make_constructor(hpl_class, evaluator), 
+                init_param_count,
                 f"Class constructor: {class_name}"
             )
         
-        # 将对象注册为常量
+        # 将对象注册为常量（执行构造函数如果存在）
         for obj_name, obj in objects.items():
+            # 如果对象有预定义的构造参数，执行构造函数
+            if hasattr(obj, 'attributes') and '__init_args__' in obj.attributes:
+                init_args = obj.attributes['__init_args__']
+                # 解析并转换参数值
+                resolved_args = []
+                for arg in init_args:
+                    if isinstance(arg, (int, float, bool)):
+                        resolved_args.append(arg)
+                    elif isinstance(arg, str):
+                        # 尝试解析为数字
+                        try:
+                            resolved_args.append(int(arg))
+                        except ValueError:
+                            try:
+                                resolved_args.append(float(arg))
+                            except ValueError:
+                                resolved_args.append(arg)
+                # 执行构造函数
+                evaluator._call_constructor(obj, resolved_args)
+            
             hpl_module.register_constant(obj_name, obj, f"Object instance: {obj_name}")
+        
+        # 注册顶层函数到模块
+        for func_name, func in functions.items():
+            def make_function(fn, eval_ctx, name):
+                def wrapper(*args):
+                    # 验证参数数量
+                    if len(args) != len(fn.params):
+                        raise ValueError(
+                            f"Function '{name}' expects {len(fn.params)} "
+                            f"arguments, got {len(args)}"
+                        )
+                    # 构建参数作用域
+                    func_scope = {}
+                    for i, param in enumerate(fn.params):
+                        if i < len(args):
+                            func_scope[param] = args[i]
+                        else:
+                            func_scope[param] = None
+                    # 执行函数
+                    return eval_ctx.execute_function(fn, func_scope)
+                return wrapper
+            
+            hpl_module.register_function(
+                func_name,
+                make_function(func, evaluator, func_name),
+                len(func.params),
+                f"Function: {func_name}"
+            )
+        
+        # 处理导入的模块
+        for imp in imports:
+            module_name_to_import = imp['module']
+            alias = imp['alias']
+            try:
+                imported_module = load_module(module_name_to_import)
+                # 使用别名或原始名称注册
+                register_name = alias if alias else module_name_to_import
+                hpl_module.register_constant(register_name, imported_module, f"Imported module: {module_name_to_import}")
+            except ImportError as e:
+                print(f"Warning: Failed to import '{module_name_to_import}' in module '{module_name}': {e}")
         
         return hpl_module
         
     except Exception as e:
         print(f"Warning: Failed to parse HPL module '{module_name}': {e}")
+        import traceback
+        traceback.print_exc()
         return None
+
 
 
 def _parse_python_module_file(module_name, file_path):

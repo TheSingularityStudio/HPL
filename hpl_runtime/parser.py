@@ -289,9 +289,10 @@ class HPLParser:
                     # 简单格式: module_name
                     self.imports.append({'module': imp, 'alias': None})
                 elif isinstance(imp, dict):
-                    # 复杂格式: {module: alias} 或 {module: name, as: alias}
+                    # 复杂格式: {module: alias}
                     for module, alias in imp.items():
                         self.imports.append({'module': module, 'alias': alias})
+
 
 
     def parse_classes(self):
