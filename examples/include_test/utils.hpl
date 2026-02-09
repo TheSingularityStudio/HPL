@@ -1,0 +1,11 @@
+# 工具函数库 - 用于测试include功能
+
+# 定义工具函数
+greet: (name) => {
+    echo "Hello, " + name + "!"
+  }
+
+calculate: (a, b) => {
+    result = a + b
+    return result
+  }

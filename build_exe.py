@@ -35,7 +35,7 @@ def build_exe():
     current_dir = os.path.dirname(os.path.abspath(__file__))
     
     # 图标路径
-    icon_path = os.path.join(current_dir, "HPL.jpeg")
+    icon_path = os.path.join(current_dir, "HPL.png")
     if not os.path.exists(icon_path):
         print(f"警告: 图标文件不存在 - {icon_path}")
         icon_path = None
@@ -55,8 +55,12 @@ def build_exe():
         "--hidden-import", "yaml",  # 显式包含yaml模块
         "--hidden-import", "platform",  # 显式包含platform模块
         "--hidden-import", "json",  # 显式包含json模块
-
+        "--exclude-module", "tests",  # 排除测试模块
+        "--exclude-module", "docs",  # 排除文档模块
+        "--exclude-module", "examples",  # 排除示例模块
+        "--exclude-module", "src",  # 排除遗留src模块
     ]
+
 
 
     

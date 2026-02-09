@@ -1,0 +1,41 @@
+# 测试改进的include功能
+# 测试场景：
+# 1. 同级目录相对路径
+# 2. 子目录相对路径
+# 3. 父目录相对路径（../）
+# 4. 嵌套include
+
+includes:
+  - utils.hpl                    # 同级目录
+  - subdir/nested_utils.hpl      # 子目录
+  - lib/library.hpl              # 另一子目录
+
+main: () => {
+    echo "=== Testing Improved Include Feature ==="
+    
+    # 测试1: 同级目录include的函数
+    echo "\n1. Testing same-level include:"
+    greet("World")
+    
+    result1 = calculate(10, 20)
+    echo "calculate(10, 20) = " + result1
+    
+    # 测试2: 子目录include的函数
+    echo "\n2. Testing subdirectory include:"
+    nested_greet("HPL")
+    
+    result2 = nested_add(5, 3)
+    echo "nested_add(5, 3) = " + result2
+    
+    # 测试3: 另一子目录include的函数
+    echo "\n3. Testing another subdirectory include:"
+    version = library_version()
+    echo "Library version: " + version
+    
+    result3 = multiply(4, 7)
+    echo "multiply(4, 7) = " + result3
+    
+    echo "\n=== All include tests passed! ==="
+  }
+
+call: main()

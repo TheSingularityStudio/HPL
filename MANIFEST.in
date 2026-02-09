@@ -2,15 +2,10 @@ include README.md
 include LICENSE
 include requirements.txt
 
-# Include documentation
-global-include docs/*.md
-
-# Include examples (optional, for reference)
-recursive-include examples *.hpl
-
 # Exclude unnecessary files
 global-exclude __pycache__
 global-exclude *.py[co]
 global-exclude .git*
 global-exclude .DS_Store
-
+global-exclude src/*
+global-exclude *.egg-info/*

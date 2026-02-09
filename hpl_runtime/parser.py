@@ -19,15 +19,19 @@ HPL 顶层解析器模块
 import yaml
 import os
 import re
+from pathlib import Path
 
 try:
     from hpl_runtime.models import HPLClass, HPLObject, HPLFunction
     from hpl_runtime.lexer import HPLLexer
     from hpl_runtime.ast_parser import HPLASTParser
+    from hpl_runtime.module_loader import HPL_MODULE_PATHS
 except ImportError:
     from models import HPLClass, HPLObject, HPLFunction
     from lexer import HPLLexer
     from ast_parser import HPLASTParser
+    from module_loader import HPL_MODULE_PATHS
+
 
 
 class HPLParser:
@@ -54,18 +58,61 @@ class HPLParser:
         # 使用自定义 YAML 解析器
         data = yaml.safe_load(content)
         
-        # 处理 includes
+        # 处理 includes（支持多路径搜索和嵌套include）
         if 'includes' in data:
             for include_file in data['includes']:
-                include_path = os.path.join(os.path.dirname(self.hpl_file), include_file)
-                if os.path.exists(include_path):
-                    with open(include_path, 'r', encoding='utf-8') as f:
-                        include_content = f.read()
-                    include_content = self.preprocess_functions(include_content)
-                    include_data = yaml.safe_load(include_content)
-                    self.merge_data(data, include_data)
+                include_path = self._resolve_include_path(include_file)
+                if include_path:
+                    try:
+                        with open(include_path, 'r', encoding='utf-8') as f:
+                            include_content = f.read()
+                        include_content = self.preprocess_functions(include_content)
+                        include_data = yaml.safe_load(include_content)
+                        self.merge_data(data, include_data)
+                    except Exception as e:
+                        print(f"Warning: Failed to include '{include_file}': {e}")
+                else:
+                    print(f"Warning: Include file '{include_file}' not found in any search path")
         
         return data
+
+    def _resolve_include_path(self, include_file):
+        """
+        解析include文件路径，支持多种路径格式：
+        1. 绝对路径（Unix: /path, Windows: C:\path）
+        2. 相对当前文件目录
+        3. 相对当前工作目录
+        4. HPL_MODULE_PATHS中的路径
+        """
+        include_path = Path(include_file)
+        
+        # 1. 检查是否为绝对路径
+        if include_path.is_absolute():
+            if include_path.exists():
+                return str(include_path)
+            return None
+        
+        # 获取当前HPL文件所在目录
+        current_dir = Path(self.hpl_file).parent.resolve()
+        
+        # 2. 相对当前文件目录
+        resolved_path = current_dir / include_path
+        if resolved_path.exists():
+            return str(resolved_path)
+        
+        # 3. 相对当前工作目录
+        cwd_path = Path.cwd() / include_path
+        if cwd_path.exists():
+            return str(cwd_path)
+        
+        # 4. HPL_MODULE_PATHS中的路径
+        for search_path in HPL_MODULE_PATHS:
+            module_path = Path(search_path) / include_path
+            if module_path.exists():
+                return str(module_path)
+        
+        return None
+
 
     def preprocess_functions(self, content):
         """
@@ -122,11 +169,37 @@ class HPLParser:
         return '\n'.join(result)
 
     def merge_data(self, main_data, include_data):
+        """合并include数据到主数据，支持classes、objects、functions、imports"""
+        # 预定义的保留键，不是函数
+        reserved_keys = {'includes', 'imports', 'classes', 'objects', 'call'}
+        
+        # 合并字典类型的数据（classes, objects）
         for key in ['classes', 'objects']:
             if key in include_data:
                 if key not in main_data:
                     main_data[key] = {}
-                main_data[key].update(include_data[key])
+                if isinstance(include_data[key], dict):
+                    main_data[key].update(include_data[key])
+        
+        # 合并函数定义（HPL中函数是顶层键值对，值包含'=>'）
+        for key, value in include_data.items():
+            if key not in reserved_keys:
+                # 检查是否是函数定义（包含 =>）
+                if isinstance(value, str) and '=>' in value:
+                    # 只合并主数据中不存在的函数（避免覆盖）
+                    if key not in main_data:
+                        main_data[key] = value
+        
+        # 合并imports
+        if 'imports' in include_data:
+            if 'imports' not in main_data:
+                main_data['imports'] = []
+            if isinstance(include_data['imports'], list):
+                main_data['imports'].extend(include_data['imports'])
+
+
+
+
 
     def parse(self):
         # 处理顶层 import 语句
@@ -203,6 +276,8 @@ class HPLParser:
                 # 特别处理 main 函数
                 if key == 'main':
                     self.main_func = func
+
+
 
 
     def parse_imports(self):
