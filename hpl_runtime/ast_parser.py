@@ -436,24 +436,31 @@ class HPLASTParser:
             
             elif self.current_token and self.current_token.type == 'DOT':
                 # 方法调用或模块函数调用
-                self.advance()
-                member_name = self.expect('IDENTIFIER').value
+                # 支持链式调用：this.parent.init("矩形")
+                current_expr = Variable(name)
                 
-                # 检查是否是函数调用（带括号）
-                if self.current_token and self.current_token.type == 'LPAREN':
+                while self.current_token and self.current_token.type == 'DOT':
                     self.advance()
-                    args = []
-                    if self.current_token and self.current_token.type != 'RPAREN':
-                        args.append(self.parse_expression())
-                        while self.current_token and self.current_token.type == 'COMMA':
-                            self.advance()
+                    member_name = self.expect('IDENTIFIER').value
+                    
+                    # 检查是否是函数调用（带括号）
+                    if self.current_token and self.current_token.type == 'LPAREN':
+                        self.advance()
+                        args = []
+                        if self.current_token and self.current_token.type != 'RPAREN':
                             args.append(self.parse_expression())
-                    self.expect('RPAREN')
-                    return MethodCall(Variable(name), member_name, args)
-                else:
-                    # 模块常量访问，如 math.PI
-                    # 暂时作为变量处理，在运行时解析
-                    return MethodCall(Variable(name), member_name, [])
+                            while self.current_token and self.current_token.type == 'COMMA':
+                                self.advance()
+                                args.append(self.parse_expression())
+                        self.expect('RPAREN')
+                        current_expr = MethodCall(current_expr, member_name, args)
+                    else:
+                        # 模块常量访问或属性访问，如 math.PI
+                        # 作为属性访问处理，在运行时解析
+                        current_expr = MethodCall(current_expr, member_name, [])
+                
+                return current_expr
+
 
             
             elif self.current_token and self.current_token.type == 'INCREMENT':
@@ -490,7 +497,39 @@ class HPLASTParser:
             self.expect('RBRACKET')
             return ArrayLiteral(elements)
         
+        # 处理字典/对象字面量
+        if self.current_token.type == 'LBRACE':
+            self.advance()
+            # 跳过可能的 INDENT token
+            if self.current_token and self.current_token.type == 'INDENT':
+                self.advance()
+            pairs = {}
+            if self.current_token and self.current_token.type != 'RBRACE':
+                # 解析第一个键值对
+                key = self.expect('STRING').value
+                self.expect('COLON')
+                value = self.parse_expression()
+                pairs[key] = value
+                # 解析后续的键值对
+                while self.current_token and self.current_token.type == 'COMMA':
+                    self.advance()
+                    # 跳过可能的 INDENT token
+                    if self.current_token and self.current_token.type == 'INDENT':
+                        self.advance()
+                    if self.current_token and self.current_token.type == 'RBRACE':
+                        break
+                    key = self.expect('STRING').value
+                    self.expect('COLON')
+                    value = self.parse_expression()
+                    pairs[key] = value
+            # 跳过可能的 DEDENT token
+            if self.current_token and self.current_token.type == 'DEDENT':
+                self.advance()
+            self.expect('RBRACE')
+            return DictionaryLiteral(pairs)
+        
         raise ValueError(f"Unexpected token {self.current_token} at {self._get_position()}")
+
 
     def expect(self, type):
         if not self.current_token or self.current_token.type != type:

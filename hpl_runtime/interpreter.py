@@ -25,13 +25,14 @@ if script_dir not in sys.path:
 try:
     from hpl_runtime.parser import HPLParser
     from hpl_runtime.evaluator import HPLEvaluator
-    from hpl_runtime.models import ImportStatement
+    from hpl_runtime.models import ImportStatement, HPLObject
     from hpl_runtime.module_loader import set_current_hpl_file
 except ImportError:
     from parser import HPLParser
     from evaluator import HPLEvaluator
-    from models import ImportStatement
+    from models import ImportStatement, HPLObject
     from module_loader import set_current_hpl_file
+
 
 
 
@@ -53,18 +54,42 @@ def main():
 
         evaluator = HPLEvaluator(classes, objects, functions, main_func, call_target, call_args)
 
-
-        
-        # 处理顶层导入
+        # 处理顶层导入（必须在对象实例化之前，以便构造函数可以使用导入的模块）
         for imp in imports:
+
+
             module_name = imp['module']
             alias = imp['alias'] or module_name
             # 创建 ImportStatement 并执行
             import_stmt = ImportStatement(module_name, alias)
             evaluator.execute_import(import_stmt, evaluator.global_scope)
 
+        # 实例化所有对象并调用构造函数（在导入之后，以便构造函数可以使用导入的模块）
+        for obj_name, obj in list(evaluator.objects.items()):
+            if isinstance(obj, HPLObject) and '__init_args__' in obj.attributes:
+                init_args = obj.attributes.pop('__init_args__')
+                # 将参数字符串转换为实际值（数字或字符串）
+                parsed_args = []
+                for arg in init_args:
+                    arg = arg.strip()
+                    # 尝试解析为整数
+                    try:
+                        parsed_args.append(int(arg))
+                    except ValueError:
+                        # 尝试解析为浮点数
+                        try:
+                            parsed_args.append(float(arg))
+                        except ValueError:
+                            # 作为字符串处理（去掉引号）
+                            if (arg.startswith('"') and arg.endswith('"')) or \
+                               (arg.startswith("'") and arg.endswith("'")):
+                                parsed_args.append(arg[1:-1])
+                            else:
+                                parsed_args.append(arg)  # 变量名或其他
+                evaluator._call_constructor(obj, parsed_args)
 
         evaluator.run()
+
     except FileNotFoundError as e:
         print(f"Error: File not found - {e.filename}")
         sys.exit(1)
