@@ -11,9 +11,9 @@ HPL 词法分析器模块
 """
 
 try:
-    from hpl_runtime.exceptions import HPLSyntaxError
+    from hpl_runtime.utils.exceptions import HPLSyntaxError
 except ImportError:
-    from exceptions import HPLSyntaxError
+    from hpl_runtime.utils.exceptions import HPLSyntaxError
 
 
 

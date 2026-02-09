@@ -22,8 +22,8 @@ from unittest.mock import patch, MagicMock
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'hpl_runtime'))
 
 try:
-    from hpl_runtime.module_loader import get_module, register_module
-    from hpl_runtime.module_base import HPLModule
+    from hpl_runtime.modules.loader import get_module, register_module
+    from hpl_runtime.modules.base import HPLModule
 except ImportError:
     from module_loader import get_module, register_module
     from module_base import HPLModule

@@ -16,7 +16,7 @@ from pathlib import Path
 
 # 导入模块加载器中的包管理功能
 try:
-    from hpl_runtime.module_loader import (
+    from hpl_runtime.modules.loader import (
         install_package, 
         uninstall_package, 
         list_installed_packages,
@@ -24,7 +24,7 @@ try:
         add_module_path
     )
 except ImportError:
-    from module_loader import (
+    from hpl_runtime.modules.loader import (
         install_package, 
         uninstall_package, 
         list_installed_packages,
@@ -174,7 +174,7 @@ def cmd_path(args):
         add_module_path(args.add)
         print(f"✅ Added module path: {args.add}")
     elif args.list:
-        from hpl_runtime.module_loader import HPL_MODULE_PATHS
+        from hpl_runtime.modules.loader import HPL_MODULE_PATHS
         print("📂 Module Search Paths:")
         print("=" * 50)
         for i, path in enumerate(HPL_MODULE_PATHS, 1):

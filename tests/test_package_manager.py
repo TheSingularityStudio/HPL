@@ -24,11 +24,11 @@ from unittest.mock import patch, MagicMock, call
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 try:
-    from hpl_runtime.package_manager import (
+    from hpl_runtime.modules.package_manager import (
         main, cmd_install, cmd_uninstall, cmd_list, 
         cmd_search, cmd_update, cmd_info, cmd_path
     )
-    from hpl_runtime.module_loader import HPL_PACKAGES_DIR
+    from hpl_runtime.modules.loader import HPL_PACKAGES_DIR
 except ImportError:
     from package_manager import (
         main, cmd_install, cmd_uninstall, cmd_list, 

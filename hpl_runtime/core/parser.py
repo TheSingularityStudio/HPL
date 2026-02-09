@@ -22,17 +22,17 @@ import re
 from pathlib import Path
 
 try:
-    from hpl_runtime.models import HPLClass, HPLObject, HPLFunction
-    from hpl_runtime.lexer import HPLLexer
-    from hpl_runtime.ast_parser import HPLASTParser
-    from hpl_runtime.module_loader import HPL_MODULE_PATHS
-    from hpl_runtime.exceptions import HPLSyntaxError, HPLImportError
+    from hpl_runtime.core.models import HPLClass, HPLObject, HPLFunction
+    from hpl_runtime.core.lexer import HPLLexer
+    from hpl_runtime.core.ast_parser import HPLASTParser
+    from hpl_runtime.modules.loader import HPL_MODULE_PATHS
+    from hpl_runtime.utils.exceptions import HPLSyntaxError, HPLImportError
 except ImportError:
-    from models import HPLClass, HPLObject, HPLFunction
-    from lexer import HPLLexer
-    from ast_parser import HPLASTParser
-    from module_loader import HPL_MODULE_PATHS
-    from exceptions import HPLSyntaxError, HPLImportError
+    from hpl_runtime.core.models import HPLClass, HPLObject, HPLFunction
+    from hpl_runtime.core.lexer import HPLLexer
+    from hpl_runtime.core.ast_parser import HPLASTParser
+    from hpl_runtime.modules.loader import HPL_MODULE_PATHS
+    from hpl_runtime.utils.exceptions import HPLSyntaxError, HPLImportError
 
 
 

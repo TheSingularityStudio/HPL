@@ -24,14 +24,14 @@ from unittest.mock import patch, MagicMock
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 try:
-    from hpl_runtime.module_loader import (
+    from hpl_runtime.modules.loader import (
         _parse_hpl_module, load_module, clear_cache, add_module_path,
         register_module, get_module, install_package, uninstall_package,
         list_installed_packages, _module_cache, _stdlib_modules
     )
-    from hpl_runtime.models import HPLObject, HPLClass, HPLFunction
-    from hpl_runtime.module_base import HPLModule
-    from hpl_runtime.exceptions import HPLImportError
+    from hpl_runtime.core.models import HPLObject, HPLClass, HPLFunction
+    from hpl_runtime.modules.base import HPLModule
+    from hpl_runtime.utils.exceptions import HPLImportError
 except ImportError:
     from module_loader import (
         _parse_hpl_module, load_module, clear_cache, add_module_path,
@@ -373,7 +373,7 @@ class TestModulePathManagement(unittest.TestCase):
     def setUp(self):
         """保存原始路径"""
         try:
-            from hpl_runtime.module_loader import HPL_MODULE_PATHS
+            from hpl_runtime.modules.loader import HPL_MODULE_PATHS
         except ImportError:
             from module_loader import HPL_MODULE_PATHS
         self.original_paths = HPL_MODULE_PATHS.copy()
@@ -381,7 +381,7 @@ class TestModulePathManagement(unittest.TestCase):
     def tearDown(self):
         """恢复原始路径"""
         try:
-            from hpl_runtime.module_loader import HPL_MODULE_PATHS
+            from hpl_runtime.modules.loader import HPL_MODULE_PATHS
         except ImportError:
             from module_loader import HPL_MODULE_PATHS
         HPL_MODULE_PATHS.clear()
@@ -395,7 +395,7 @@ class TestModulePathManagement(unittest.TestCase):
             add_module_path(temp_dir)
             
             # 验证路径已添加
-            from hpl_runtime.module_loader import HPL_MODULE_PATHS
+            from hpl_runtime.modules.loader import HPL_MODULE_PATHS
             self.assertIn(Path(temp_dir).resolve(), HPL_MODULE_PATHS)
         finally:
             shutil.rmtree(temp_dir)

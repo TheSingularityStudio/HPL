@@ -9,8 +9,8 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'hpl_runtime'))
 
 import unittest
 try:
-    from hpl_runtime.lexer import HPLLexer, Token
-    from hpl_runtime.exceptions import HPLSyntaxError
+    from hpl_runtime.core.lexer import HPLLexer, Token
+    from hpl_runtime.utils.exceptions import HPLSyntaxError
 except ImportError:
     from lexer import HPLLexer, Token
     from exceptions import HPLSyntaxError

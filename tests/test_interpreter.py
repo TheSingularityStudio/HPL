@@ -23,8 +23,8 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 try:
     from hpl_runtime.interpreter import main
-    from hpl_runtime.parser import HPLParser
-    from hpl_runtime.evaluator import HPLEvaluator
+    from hpl_runtime.core.parser import HPLParser
+    from hpl_runtime.core.evaluator import HPLEvaluator
 except ImportError:
     from interpreter import main
     from parser import HPLParser
@@ -141,7 +141,7 @@ call: main()
         
         # 添加临时目录到模块路径
         try:
-            from hpl_runtime.module_loader import add_module_path
+            from hpl_runtime.modules.loader import add_module_path
         except ImportError:
             from module_loader import add_module_path
         add_module_path(self.temp_dir)

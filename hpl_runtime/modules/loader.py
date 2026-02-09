@@ -20,11 +20,11 @@ from pathlib import Path
 
 # 从 module_base 导入 HPLModule 基类
 try:
-    from hpl_runtime.module_base import HPLModule
-    from hpl_runtime.exceptions import HPLImportError
+    from hpl_runtime.modules.base import HPLModule
+    from hpl_runtime.utils.exceptions import HPLImportError
 except ImportError:
-    from module_base import HPLModule
-    from exceptions import HPLImportError
+    from hpl_runtime.modules.base import HPLModule
+    from hpl_runtime.utils.exceptions import HPLImportError
 
 # 配置日志
 logger = logging.getLogger('hpl.module_loader')
@@ -281,13 +281,13 @@ def _parse_hpl_module(module_name, file_path):
     try:
         # 延迟导入以避免循环依赖
         try:
-            from hpl_runtime.parser import HPLParser
-            from hpl_runtime.evaluator import HPLEvaluator
-            from hpl_runtime.models import HPLObject
+            from hpl_runtime.core.parser import HPLParser
+            from hpl_runtime.core.evaluator import HPLEvaluator
+            from hpl_runtime.core.models import HPLObject
         except ImportError:
-            from parser import HPLParser
-            from evaluator import HPLEvaluator
-            from models import HPLObject
+            from hpl_runtime.core.parser import HPLParser
+            from hpl_runtime.core.evaluator import HPLEvaluator
+            from hpl_runtime.core.models import HPLObject
         
         # 解析 HPL 文件
         parser = HPLParser(str(file_path))

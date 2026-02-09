@@ -29,7 +29,7 @@ class TestHPLIntegration(unittest.TestCase):
         
         # 添加 examples 目录到模块搜索路径（用于第三方模块测试）
         try:
-            from hpl_runtime.module_loader import add_module_path, set_current_hpl_file
+            from hpl_runtime.modules.loader import add_module_path, set_current_hpl_file
         except ImportError:
             from module_loader import add_module_path, set_current_hpl_file
         add_module_path(self.examples_dir)
@@ -56,7 +56,7 @@ class TestHPLIntegration(unittest.TestCase):
             module_name = imp['module']
             alias = imp['alias'] or module_name
             # 创建 ImportStatement 并执行
-            from hpl_runtime.models import ImportStatement
+            from hpl_runtime.core.models import ImportStatement
             import_stmt = ImportStatement(module_name, alias)
             evaluator.execute_import(import_stmt, evaluator.global_scope)
 

@@ -7,15 +7,15 @@ HPL 标准库 - math 模块
 import math as _math
 
 try:
-    from hpl_runtime.module_base import HPLModule
+    from hpl_runtime.modules.base import HPLModule
 except ImportError:
     try:
-        from module_base import HPLModule
+        from hpl_runtime.modules.base import HPLModule
     except ImportError:
         import sys
         import os
         sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-        from module_base import HPLModule
+        from hpl_runtime.modules.base import HPLModule
 
 
 
