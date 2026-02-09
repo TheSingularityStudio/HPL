@@ -23,20 +23,20 @@ if script_dir not in sys.path:
     sys.path.insert(0, script_dir)
 
 try:
-    from hpl_runtime.parser import HPLParser
-    from hpl_runtime.evaluator import HPLEvaluator
-    from hpl_runtime.models import ImportStatement, HPLObject
-    from hpl_runtime.module_loader import set_current_hpl_file
-    from hpl_runtime.exceptions import (
+    from hpl_runtime.core.parser import HPLParser
+    from hpl_runtime.core.evaluator import HPLEvaluator
+    from hpl_runtime.core.models import ImportStatement, HPLObject
+    from hpl_runtime.modules.loader import set_current_hpl_file
+    from hpl_runtime.utils.exceptions import (
         HPLError, HPLSyntaxError, HPLRuntimeError, HPLImportError,
         format_error_for_user
     )
 except ImportError:
-    from parser import HPLParser
-    from evaluator import HPLEvaluator
-    from models import ImportStatement, HPLObject
-    from module_loader import set_current_hpl_file
-    from exceptions import (
+    from hpl_runtime.core.parser import HPLParser
+    from hpl_runtime.core.evaluator import HPLEvaluator
+    from hpl_runtime.core.models import ImportStatement, HPLObject
+    from hpl_runtime.modules.loader import set_current_hpl_file
+    from hpl_runtime.utils.exceptions import (
         HPLError, HPLSyntaxError, HPLRuntimeError, HPLImportError,
         format_error_for_user
     )

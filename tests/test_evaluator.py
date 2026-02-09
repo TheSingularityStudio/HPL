@@ -11,8 +11,8 @@ import unittest
 from evaluator import HPLEvaluator
 
 try:
-    from hpl_runtime.models import *
-    from hpl_runtime.exceptions import HPLReturnValue, HPLNameError, HPLTypeError, HPLDivisionError
+    from hpl_runtime.core.models import *
+    from hpl_runtime.utils.exceptions import HPLReturnValue, HPLNameError, HPLTypeError, HPLDivisionError
 except ImportError:
     from models import *
     from exceptions import HPLReturnValue, HPLNameError, HPLTypeError, HPLDivisionError
@@ -371,7 +371,7 @@ class TestHPLEvaluator(unittest.TestCase):
     def test_break_continue(self):
         """测试 break 和 continue 异常"""
         try:
-            from hpl_runtime.exceptions import HPLBreakException, HPLContinueException
+            from hpl_runtime.utils.exceptions import HPLBreakException, HPLContinueException
         except ImportError:
             from exceptions import HPLBreakException, HPLContinueException
         

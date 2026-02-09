@@ -15,11 +15,11 @@ HPL AST 解析器模块
 """
 
 try:
-    from hpl_runtime.models import *
-    from hpl_runtime.exceptions import HPLSyntaxError
+    from hpl_runtime.core.models import *
+    from hpl_runtime.utils.exceptions import HPLSyntaxError
 except ImportError:
-    from models import *
-    from exceptions import HPLSyntaxError
+    from hpl_runtime.core.models import *
+    from hpl_runtime.utils.exceptions import HPLSyntaxError
 
 
 

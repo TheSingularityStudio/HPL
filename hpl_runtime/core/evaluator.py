@@ -16,17 +16,17 @@ HPL 代码执行器模块
 """
 
 try:
-    from hpl_runtime.models import *
-    from hpl_runtime.module_loader import load_module, HPLModule
-    from hpl_runtime.exceptions import (
+    from hpl_runtime.core.models import *
+    from hpl_runtime.modules.loader import load_module, HPLModule
+    from hpl_runtime.utils.exceptions import (
         HPLRuntimeError, HPLTypeError, HPLNameError, HPLAttributeError,
         HPLIndexError, HPLDivisionError, HPLValueError, HPLIOError,
         HPLImportError, HPLBreakException, HPLContinueException, HPLReturnValue
     )
 except ImportError:
-    from models import *
-    from module_loader import load_module, HPLModule
-    from exceptions import (
+    from hpl_runtime.core.models import *
+    from hpl_runtime.modules.loader import load_module, HPLModule
+    from hpl_runtime.utils.exceptions import (
         HPLRuntimeError, HPLTypeError, HPLNameError, HPLAttributeError,
         HPLIndexError, HPLDivisionError, HPLValueError, HPLIOError,
         HPLImportError, HPLBreakException, HPLContinueException, HPLReturnValue
