@@ -26,11 +26,14 @@ try:
     from hpl_runtime.lexer import HPLLexer
     from hpl_runtime.ast_parser import HPLASTParser
     from hpl_runtime.module_loader import HPL_MODULE_PATHS
+    from hpl_runtime.exceptions import HPLSyntaxError, HPLImportError
 except ImportError:
     from models import HPLClass, HPLObject, HPLFunction
     from lexer import HPLLexer
     from ast_parser import HPLASTParser
     from module_loader import HPL_MODULE_PATHS
+    from exceptions import HPLSyntaxError, HPLImportError
+
 
 
 
@@ -69,10 +72,22 @@ class HPLParser:
                         include_content = self.preprocess_functions(include_content)
                         include_data = yaml.safe_load(include_content)
                         self.merge_data(data, include_data)
+                    except yaml.YAMLError as e:
+                        raise HPLSyntaxError(
+                            f"YAML syntax error in included file '{include_file}': {e}",
+                            file=include_path
+                        ) from e
                     except Exception as e:
-                        print(f"Warning: Failed to include '{include_file}': {e}")
+                        raise HPLImportError(
+                            f"Failed to include '{include_file}': {e}",
+                            file=include_path
+                        ) from e
                 else:
-                    print(f"Warning: Include file '{include_file}' not found in any search path")
+                    raise HPLImportError(
+                        f"Include file '{include_file}' not found in any search path",
+                        file=self.hpl_file
+                    )
+
         
         return data
 
@@ -335,13 +350,20 @@ class HPLParser:
         # 找到箭头 =>
         arrow_pos = func_str.find('=>', end)
         if arrow_pos == -1:
-            raise ValueError("Arrow function syntax error: => not found")
+            raise HPLSyntaxError(
+                "Arrow function syntax error: => not found",
+                file=self.hpl_file
+            )
         
         # 找到函数体
         body_start = func_str.find('{', arrow_pos)
         body_end = func_str.rfind('}')
         if body_start == -1 or body_end == -1:
-            raise ValueError("Arrow function syntax error: braces not found")
+            raise HPLSyntaxError(
+                "Arrow function syntax error: braces not found",
+                file=self.hpl_file
+            )
+
         body_str = func_str[body_start+1:body_end].strip()
         
         # 标记化和解析AST
