@@ -38,6 +38,20 @@ class TestHPLEvaluator(unittest.TestCase):
         result = evaluator.evaluate_expression(expr, {})
         self.assertEqual(result, 42)
     
+    def test_evaluate_float_literal(self):
+        """测试浮点数字面量求值"""
+        evaluator = HPLEvaluator(self.classes, self.objects, self.functions, self.main_func)
+
+        expr = FloatLiteral(3.14)
+        result = evaluator.evaluate_expression(expr, {})
+        self.assertEqual(result, 3.14)
+        
+        # 测试负数浮点数
+        expr_neg = BinaryOp(IntegerLiteral(0), '-', FloatLiteral(2.5))
+        result_neg = evaluator.evaluate_expression(expr_neg, {})
+        self.assertEqual(result_neg, -2.5)
+
+    
     def test_evaluate_string_literal(self):
         """测试字符串字面量求值"""
         evaluator = HPLEvaluator(self.classes, self.objects, self.functions, self.main_func)
@@ -94,6 +108,35 @@ class TestHPLEvaluator(unittest.TestCase):
         expr = BinaryOp(IntegerLiteral(20), '/', IntegerLiteral(4))
         result = evaluator.evaluate_expression(expr, local_scope)
         self.assertEqual(result, 5.0)
+    
+    def test_evaluate_modulo_operator(self):
+        """测试取模运算符"""
+        evaluator = HPLEvaluator(self.classes, self.objects, self.functions, self.main_func)
+
+        local_scope = {}
+        
+        # 基本取模
+        expr = BinaryOp(IntegerLiteral(17), '%', IntegerLiteral(5))
+        result = evaluator.evaluate_expression(expr, local_scope)
+        self.assertEqual(result, 2)
+        
+        # 取模为零的情况
+        expr = BinaryOp(IntegerLiteral(15), '%', IntegerLiteral(5))
+        result = evaluator.evaluate_expression(expr, local_scope)
+        self.assertEqual(result, 0)
+        
+        # 负数取模 - Python 的取模运算结果总是与除数同号
+        # -17 % 5 = 3 (因为 -17 = -4 * 5 + 3)
+        expr = BinaryOp(IntegerLiteral(-17), '%', IntegerLiteral(5))
+        result = evaluator.evaluate_expression(expr, local_scope)
+        self.assertEqual(result, 3)
+        
+        # 除零错误
+        expr = BinaryOp(IntegerLiteral(10), '%', IntegerLiteral(0))
+        with self.assertRaises(ZeroDivisionError):
+            evaluator.evaluate_expression(expr, local_scope)
+
+
     
     def test_evaluate_binary_op_comparison(self):
         """测试二元比较运算"""
@@ -287,6 +330,34 @@ class TestHPLEvaluator(unittest.TestCase):
         result = evaluator.evaluate_expression(expr_or_false, local_scope)
         self.assertEqual(result, False)
     
+    def test_complex_logical_expressions(self):
+        """测试复杂逻辑表达式"""
+        evaluator = HPLEvaluator(self.classes, self.objects, self.functions, self.main_func)
+
+        local_scope = {}
+        
+        # 组合逻辑: (true && false) || (true && true)
+        left = BinaryOp(BooleanLiteral(True), '&&', BooleanLiteral(False))
+        right = BinaryOp(BooleanLiteral(True), '&&', BooleanLiteral(True))
+        expr = BinaryOp(left, '||', right)
+        result = evaluator.evaluate_expression(expr, local_scope)
+        self.assertEqual(result, True)
+        
+        # 组合逻辑: (true || false) && (false || false)
+        left = BinaryOp(BooleanLiteral(True), '||', BooleanLiteral(False))
+        right = BinaryOp(BooleanLiteral(False), '||', BooleanLiteral(False))
+        expr = BinaryOp(left, '&&', right)
+        result = evaluator.evaluate_expression(expr, local_scope)
+        self.assertEqual(result, False)
+        
+        # 与比较运算符结合: (5 > 3) && (10 < 20)
+        left = BinaryOp(IntegerLiteral(5), '>', IntegerLiteral(3))
+        right = BinaryOp(IntegerLiteral(10), '<', IntegerLiteral(20))
+        expr = BinaryOp(left, '&&', right)
+        result = evaluator.evaluate_expression(expr, local_scope)
+        self.assertEqual(result, True)
+
+    
     def test_break_continue(self):
         """测试 break 和 continue 异常"""
         from evaluator import BreakException, ContinueException
@@ -298,6 +369,148 @@ class TestHPLEvaluator(unittest.TestCase):
         # 测试 ContinueException
         with self.assertRaises(ContinueException):
             raise ContinueException()
+    
+    def test_postfix_increment(self):
+        """测试后缀自增表达式"""
+        evaluator = HPLEvaluator(self.classes, self.objects, self.functions, self.main_func)
+
+        local_scope = {'x': 5}
+        
+        # 后缀自增返回旧值
+        expr = PostfixIncrement(Variable('x'))
+        result = evaluator.evaluate_expression(expr, local_scope)
+        self.assertEqual(result, 5)  # 返回旧值
+        
+        # 变量应该被自增
+        self.assertEqual(local_scope['x'], 6)
+        
+        # 再次自增
+        result = evaluator.evaluate_expression(expr, local_scope)
+        self.assertEqual(result, 6)  # 返回旧值
+        self.assertEqual(local_scope['x'], 7)
+    
+    def test_for_statement(self):
+        """测试 for 语句执行"""
+        evaluator = HPLEvaluator(self.classes, self.objects, self.functions, self.main_func)
+
+        local_scope = {}
+        
+        # for (i = 0; i < 3; i++) { sum = sum + i }
+        init = AssignmentStatement('i', IntegerLiteral(0))
+        condition = BinaryOp(Variable('i'), '<', IntegerLiteral(3))
+        increment = PostfixIncrement(Variable('i'))
+        body = BlockStatement([
+            AssignmentStatement('sum', BinaryOp(Variable('sum'), '+', Variable('i')))
+        ])
+        
+        # 初始化 sum
+        local_scope['sum'] = 0
+        
+        for_stmt = ForStatement(init, condition, increment, body)
+        evaluator.execute_statement(for_stmt, local_scope)
+        
+        # 验证结果: 0+1+2 = 3
+        self.assertEqual(local_scope['sum'], 3)
+        self.assertEqual(local_scope['i'], 3)
+    
+    def test_for_statement_with_break(self):
+        """测试带 break 的 for 语句"""
+        evaluator = HPLEvaluator(self.classes, self.objects, self.functions, self.main_func)
+
+        local_scope = {}
+        
+        # for (i = 0; i < 10; i++) { if (i == 3) break; sum = sum + i }
+        init = AssignmentStatement('i', IntegerLiteral(0))
+        condition = BinaryOp(Variable('i'), '<', IntegerLiteral(10))
+        increment = PostfixIncrement(Variable('i'))
+        
+        # 创建 if 语句包含 break
+        break_if = IfStatement(
+            BinaryOp(Variable('i'), '==', IntegerLiteral(3)),
+            BlockStatement([BreakStatement()])
+        )
+        body = BlockStatement([
+            break_if,
+            AssignmentStatement('sum', BinaryOp(Variable('sum'), '+', Variable('i')))
+        ])
+        
+        local_scope['sum'] = 0
+        for_stmt = ForStatement(init, condition, increment, body)
+        evaluator.execute_statement(for_stmt, local_scope)
+        
+        # 验证结果: 0+1+2 = 3 (在 i=3 时 break)
+        self.assertEqual(local_scope['sum'], 3)
+    
+    def test_for_statement_with_continue(self):
+        """测试带 continue 的 for 语句"""
+        evaluator = HPLEvaluator(self.classes, self.objects, self.functions, self.main_func)
+
+        local_scope = {}
+        
+        # for (i = 0; i < 5; i++) { if (i == 2) continue; sum = sum + i }
+        init = AssignmentStatement('i', IntegerLiteral(0))
+        condition = BinaryOp(Variable('i'), '<', IntegerLiteral(5))
+        increment = PostfixIncrement(Variable('i'))
+        
+        # 创建 if 语句包含 continue
+        continue_if = IfStatement(
+            BinaryOp(Variable('i'), '==', IntegerLiteral(2)),
+            BlockStatement([ContinueStatement()])
+        )
+        body = BlockStatement([
+            continue_if,
+            AssignmentStatement('sum', BinaryOp(Variable('sum'), '+', Variable('i')))
+        ])
+        
+        local_scope['sum'] = 0
+        for_stmt = ForStatement(init, condition, increment, body)
+        evaluator.execute_statement(for_stmt, local_scope)
+        
+        # 验证结果: 0+1+3+4 = 8 (跳过了 i=2)
+        self.assertEqual(local_scope['sum'], 8)
+    
+    def test_try_catch_statement(self):
+        """测试 try-catch 语句"""
+        evaluator = HPLEvaluator(self.classes, self.objects, self.functions, self.main_func)
+
+        local_scope = {}
+        
+        # try { x = 1 / 0 } catch (e) { error = e }
+        try_block = BlockStatement([
+            AssignmentStatement('x', BinaryOp(IntegerLiteral(1), '/', IntegerLiteral(0)))
+        ])
+        catch_block = BlockStatement([
+            AssignmentStatement('error', Variable('e'))
+        ])
+        
+        try_catch = TryCatchStatement(try_block, 'e', catch_block)
+        evaluator.execute_statement(try_catch, local_scope)
+        
+        # 应该捕获除零错误
+        self.assertIn('error', local_scope)
+        self.assertIn('Division by zero', local_scope['error'])
+    
+    def test_try_catch_no_exception(self):
+        """测试无异常的 try-catch 语句"""
+        evaluator = HPLEvaluator(self.classes, self.objects, self.functions, self.main_func)
+
+        local_scope = {}
+        
+        # try { x = 42 } catch (e) { error = e }
+        try_block = BlockStatement([
+            AssignmentStatement('x', IntegerLiteral(42))
+        ])
+        catch_block = BlockStatement([
+            AssignmentStatement('error', Variable('e'))
+        ])
+        
+        try_catch = TryCatchStatement(try_block, 'e', catch_block)
+        evaluator.execute_statement(try_catch, local_scope)
+        
+        # 应该正常执行，不进入 catch
+        self.assertEqual(local_scope['x'], 42)
+        self.assertNotIn('error', local_scope)
+
     
     def test_array_assignment_statement(self):
         """测试数组元素赋值语句"""

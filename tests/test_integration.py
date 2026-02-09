@@ -217,11 +217,54 @@ class TestHPLIntegration(unittest.TestCase):
         # 此测试需要复杂的模块路径设置，暂时跳过
         # 如需运行此测试，需要确保 my_python_module.py 在模块搜索路径中
         self.skipTest("第三方模块测试需要特殊环境设置")
+    
+    def test_input_function_hpl(self):
+        """测试 input() 函数"""
+        # 使用 mock 模拟用户输入
+        from unittest.mock import patch
+        
+        # 模拟输入序列
+        inputs = ['Alice', '25', 'Hello World']
+        
+        with patch('builtins.input', side_effect=inputs):
+            output = self.run_hpl_file('test_input_function.hpl')
+            
+            # 验证输出包含预期内容
+            self.assertIn('=== 测试 input() 函数 ===', output)
+            self.assertIn('你好, Alice!', output)
+            self.assertIn('明年你将 26 岁', output)
+            self.assertIn('你输入了: Hello World', output)
+            self.assertIn('=== input() 函数测试完成 ===', output)
+    
+    def test_import_alias_hpl(self):
+        """测试模块导入别名功能"""
+        output = self.run_hpl_file('test_import_alias.hpl')
+        
+        # 验证别名导入的模块功能正常
+        self.assertIn('=== HPL Import Alias Test (Fixed Format) ===', output)
+        self.assertIn('m.PI = 3.14159', output)
+        self.assertIn('m.sqrt(16) = 4', output)
+        self.assertIn('m.floor(3.14) = 3', output)
+        self.assertIn('Hello, Alias Tester!', output)
+        # 验证模块常量存在（实际值可能不同）
+        self.assertIn('App:', output)
+        self.assertIn('Version:', output)
+        self.assertIn('20 / 4 = 5', output)
+        self.assertIn('=== Alias Test Complete ===', output)
+
+    
+    def test_call_any_function_hpl(self):
+        """测试 call 调用任意函数功能"""
+        output = self.run_hpl_file('test_call_any_function.hpl')
+        
+        # 验证调用了 add(5, 3) 而不是 main()
+        self.assertIn('Adding 5 + 3 = 8', output)
+        # 不应该执行 main 函数的内容
+        self.assertNotIn('This is the main function', output)
 
 
 
 class TestErrorHandling(unittest.TestCase):
-
     """测试错误处理"""
     
     def test_file_not_found(self):
@@ -229,6 +272,27 @@ class TestErrorHandling(unittest.TestCase):
         with self.assertRaises(FileNotFoundError):
             parser = HPLParser('nonexistent_file.hpl')
             parser.parse()
+    
+    def test_syntax_error_handling(self):
+        """测试语法错误处理"""
+        import tempfile
+        import os
+        
+        # 创建一个包含语法错误的临时 HPL 文件
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.hpl', delete=False, encoding='utf-8') as f:
+            f.write("""main: () => {
+    # 缺少闭合括号
+    x = (1 + 2
+  }""")
+            temp_file = f.name
+        
+        try:
+            # 语法错误应该在解析时抛出异常
+            with self.assertRaises(Exception):
+                parser = HPLParser(temp_file)
+                parser.parse()
+        finally:
+            os.unlink(temp_file)
 
 
 if __name__ == '__main__':
