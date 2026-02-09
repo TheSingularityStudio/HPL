@@ -111,7 +111,7 @@ class Token:
 |------|------|------|
 | `NUMBER` | `42`, `3.14` | 整数或浮点数 |
 | `STRING` | `"hello"` | 字符串字面量 |
-| `BOOLEAN` | `true`, `false` | 布尔值 |
+| `BOOLEAN` | `true`, `false` | 布尔值（作为独立token类型） |
 | `IDENTIFIER` | `foo`, `bar` | 标识符 |
 | `KEYWORD` | `if`, `for`, `return` | 关键字 |
 | `PLUS` | `+` | 加号 |
@@ -457,7 +457,7 @@ def parse_function(self, func_str):
 **表达式优先级（从高到低）：**
 
 ```
-1.  primary: 字面量、变量、括号表达式、数组字面量
+1.  primary: 字面量、变量、括号表达式、数组字面量、字典字面量
 2.  postfix: 数组访问、后缀自增、方法调用
 3.  unary: 前缀自增、逻辑非、负号
 4.  multiplicative: *, /, %
@@ -494,6 +494,7 @@ def parse_or(self):
 |------|----------|-----------|
 | 赋值 | `parse_statement()` | `AssignmentStatement` |
 | 数组赋值 | `parse_statement()` | `ArrayAssignmentStatement` |
+| 字典赋值 | `parse_statement()` | `AssignmentStatement` (属性格式) |
 | 返回 | `parse_statement()` | `ReturnStatement` |
 | 自增 | `parse_statement()` | `IncrementStatement` |
 | 条件 | `parse_if_statement()` | `IfStatement` |
@@ -520,9 +521,16 @@ def parse_block(self):
     # 情况2: 以花括号开始（C风格）
     elif current_token is LBRACE:
         expect(LBRACE)
-        while not RBRACE:
-            statements.append(parse_statement())
-        expect(RBRACE)
+        # 跳过可能的 INDENT token（花括号内的缩进）
+        if current_token and current_token.type == 'INDENT':
+            self.advance()
+        while self.current_token and self.current_token.type not in ['RBRACE', 'DEDENT', 'EOF']:
+            statements.append(self.parse_statement())
+        # 跳过可能的 DEDENT token
+        if self.current_token and self.current_token.type == 'DEDENT':
+            self.advance()
+        if self.current_token and self.current_token.type == 'RBRACE':
+            self.expect('RBRACE')
     
     # 情况3: 以冒号开始（YAML风格）
     elif current_token is COLON:
@@ -596,7 +604,11 @@ def run(self):
 def evaluate_expression(self, expr, local_scope):
     if isinstance(expr, IntegerLiteral):
         return expr.value
+    elif isinstance(expr, FloatLiteral):
+        return expr.value
     elif isinstance(expr, StringLiteral):
+        return expr.value
+    elif isinstance(expr, BooleanLiteral):
         return expr.value
     elif isinstance(expr, Variable):
         return self._lookup_variable(expr.name, local_scope)
@@ -608,6 +620,12 @@ def evaluate_expression(self, expr, local_scope):
         return self._call_builtin_function(expr, local_scope)
     elif isinstance(expr, MethodCall):
         return self._call_method(expr, local_scope)
+    elif isinstance(expr, DictionaryLiteral):
+        # 评估字典字面量，计算所有值表达式
+        result = {}
+        for key, value_expr in expr.pairs.items():
+            result[key] = self.evaluate_expression(value_expr, local_scope)
+        return result
     # ... 其他表达式类型
 ```
 
@@ -617,7 +635,37 @@ def evaluate_expression(self, expr, local_scope):
 def execute_statement(self, stmt, local_scope):
     if isinstance(stmt, AssignmentStatement):
         value = evaluate_expression(stmt.expr, local_scope)
-        local_scope[stmt.var_name] = value
+        # 检查是否是属性赋值（如 this.name = value）
+        if '.' in stmt.var_name:
+            obj_name, prop_name = stmt.var_name.split('.', 1)
+            # 获取对象
+            if obj_name == 'this':
+                obj = local_scope.get('this') or self.current_obj
+            else:
+                obj = self._lookup_variable(obj_name, local_scope)
+            
+            if isinstance(obj, HPLObject):
+                obj.attributes[prop_name] = value
+            else:
+                raise TypeError(f"Cannot set property on non-object value: {type(obj).__name__}")
+        else:
+            local_scope[stmt.var_name] = value
+    
+    elif isinstance(stmt, ArrayAssignmentStatement):
+        # 数组元素赋值：arr[index] = value
+        array = self._lookup_variable(stmt.array_name, local_scope)
+        if not isinstance(array, list):
+            raise TypeError(f"Cannot assign to non-array value: {type(array).__name__}")
+        
+        index = self.evaluate_expression(stmt.index_expr, local_scope)
+        if not isinstance(index, int):
+            raise TypeError(f"Array index must be integer, got {type(index).__name__}")
+        
+        if index < 0 or index >= len(array):
+            raise IndexError(f"Array index {index} out of bounds (length: {len(array)})")
+        
+        value = self.evaluate_expression(stmt.value_expr, local_scope)
+        array[index] = value
     
     elif isinstance(stmt, ReturnStatement):
         value = evaluate_expression(stmt.expr, local_scope)
@@ -866,7 +914,8 @@ Expression (表达式基类)
 ├── MethodCall (方法调用: obj.method(args))
 ├── PostfixIncrement (后缀自增)
 ├── ArrayLiteral (数组字面量: [1, 2, 3])
-└── ArrayAccess (数组访问: arr[index])
+├── ArrayAccess (数组访问: arr[index])
+└── DictionaryLiteral (字典字面量: {"key": value})
 
 Statement (语句基类)
 ├── AssignmentStatement (赋值: var = expr)
@@ -903,6 +952,23 @@ class HPLFunction:
     def __init__(self, params, body):
         self.params = params       # 参数名列表
         self.body = body           # 函数体 AST (BlockStatement)
+```
+
+### 4.3 控制流异常类
+
+```python
+class ReturnValue:
+    """包装返回值，用于区分正常执行结果和return语句"""
+    def __init__(self, value):
+        self.value = value
+
+class BreakException(Exception):
+    """用于跳出循环"""
+    pass
+
+class ContinueException(Exception):
+    """用于继续下一次循环"""
+    pass
 ```
 
 ---
@@ -1247,11 +1313,52 @@ if isinstance(stmt, AssignmentStatement):
 2. 支持任意对象的属性赋值（如 `obj.prop = value`）
 3. 类型检查确保只能在 HPLObject 上设置属性
 
+#### 6.6.4 字典字面量解析支持
+
+**新增功能：**
+AST 解析器现在支持字典字面量解析：
+
+```python
+# 处理字典/对象字面量
+if self.current_token.type == 'LBRACE':
+    self.advance()
+    # 跳过可能的 INDENT token
+    if self.current_token and self.current_token.type == 'INDENT':
+        self.advance()
+    pairs = {}
+    if self.current_token and self.current_token.type != 'RBRACE':
+        # 解析第一个键值对
+        key = self.expect('STRING').value
+        self.expect('COLON')
+        value = self.parse_expression()
+        pairs[key] = value
+        # 解析后续的键值对
+        while self.current_token and self.current_token.type == 'COMMA':
+            self.advance()
+            # 跳过可能的 INDENT token
+            if self.current_token and self.current_token.type == 'INDENT':
+                self.advance()
+            if self.current_token and self.current_token.type == 'RBRACE':
+                break
+            key = self.expect('STRING').value
+            self.expect('COLON')
+            value = self.parse_expression()
+            pairs[key] = value
+    # 跳过可能的 DEDENT token
+    if self.current_token and self.current_token.type == 'DEDENT':
+        self.advance()
+    self.expect('RBRACE')
+    return DictionaryLiteral(pairs)
+```
+
 ---
 
-> 文档版本: 1.0.3  
-> 最后更新: 2026年  
+> 文档版本: 1.0.4  
+> 最后更新: 2026年2月  
 > 更新内容: 
->   - 添加改进的 include 系统文档（多路径搜索、函数合并）
->   - 添加 AST 解析器关键修复说明（花括号缩进处理、属性赋值解析）
+>   - 添加字典/Map 类型支持文档
+>   - 添加 FloatLiteral 到 AST 节点类层次
+>   - 更新 math 模块完整函数列表
+>   - 添加控制流异常类文档 (ReturnValue, BreakException, ContinueException)
+>   - 修正版本信息
 > 作者: 奇点工作室
