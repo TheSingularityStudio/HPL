@@ -16,8 +16,11 @@ HPL AST 解析器模块
 
 try:
     from hpl_runtime.models import *
+    from hpl_runtime.exceptions import HPLSyntaxError
 except ImportError:
     from models import *
+    from exceptions import HPLSyntaxError
+
 
 
 
@@ -44,8 +47,9 @@ class HPLASTParser:
     def _get_position(self):
         """获取当前 token 的位置信息"""
         if self.current_token:
-            return f"line {self.current_token.line}, column {self.current_token.column}"
-        return "unknown position"
+            return self.current_token.line, self.current_token.column
+        return None, None
+
 
     def _is_block_terminator(self):
         """检查当前 token 是否是块结束标记"""
@@ -394,7 +398,13 @@ class HPLASTParser:
 
     def parse_primary(self):
         if not self.current_token:
-            raise ValueError(f"Unexpected end of input at {self._get_position()}")
+            line, column = self._get_position()
+            raise HPLSyntaxError(
+                "Unexpected end of input",
+                line=line,
+                column=column
+            )
+
         
         # 处理布尔值
         if self.current_token.type == 'BOOLEAN':
@@ -528,20 +538,38 @@ class HPLASTParser:
             self.expect('RBRACE')
             return DictionaryLiteral(pairs)
         
-        raise ValueError(f"Unexpected token {self.current_token} at {self._get_position()}")
+        line, column = self._get_position()
+        raise HPLSyntaxError(
+            f"Unexpected token {self.current_token}",
+            line=line,
+            column=column
+        )
+
 
 
     def expect(self, type):
         if not self.current_token or self.current_token.type != type:
-            raise ValueError(f"Expected {type}, got {self.current_token} at {self._get_position()}")
+            line, column = self._get_position()
+            raise HPLSyntaxError(
+                f"Expected {type}, got {self.current_token}",
+                line=line,
+                column=column
+            )
         token = self.current_token
         self.advance()
         return token
 
+
     def expect_keyword(self, value):
         if not self.current_token or self.current_token.type != 'KEYWORD' or self.current_token.value != value:
-            raise ValueError(f"Expected keyword {value}, got {self.current_token} at {self._get_position()}")
+            line, column = self._get_position()
+            raise HPLSyntaxError(
+                f"Expected keyword '{value}', got {self.current_token}",
+                line=line,
+                column=column
+            )
         self.advance()
+
 
     def parse_import_statement(self):
         """解析 import 语句: import module_name [as alias]"""

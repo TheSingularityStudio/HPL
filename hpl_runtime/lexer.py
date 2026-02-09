@@ -10,6 +10,12 @@ HPL 词法分析器模块
 - HPLLexer: 词法分析器，将源代码字符串转换为 Token 列表
 """
 
+try:
+    from hpl_runtime.exceptions import HPLSyntaxError
+except ImportError:
+    from exceptions import HPLSyntaxError
+
+
 
 class Token:
     def __init__(self, type, value, line=0, column=0):
@@ -189,7 +195,6 @@ class HPLLexer:
             if self.current_char.isalpha() or self.current_char == '_':
                 ident = self.identifier()
                 if ident in ['if', 'else', 'for', 'while', 'try', 'catch', 'return', 'break', 'continue', 'import']:
-
                     tokens.append(Token('KEYWORD', ident, token_line, token_column))
                 elif ident in ['true', 'false']:
                     tokens.append(Token('BOOLEAN', ident == 'true', token_line, token_column))
@@ -283,16 +288,28 @@ class HPLLexer:
                     tokens.append(Token('AND', '&&', token_line, token_column))
                     self.advance()
                 else:
-                    raise ValueError(f"Invalid character '&' at line {self.line}, column {self.column}")
+                    raise HPLSyntaxError(
+                        f"Invalid character '&'",
+                        line=self.line,
+                        column=self.column
+                    )
             elif self.current_char == '|':
                 self.advance()
                 if self.current_char == '|':
                     tokens.append(Token('OR', '||', token_line, token_column))
                     self.advance()
                 else:
-                    raise ValueError(f"Invalid character '|' at line {self.line}, column {self.column}")
+                    raise HPLSyntaxError(
+                        f"Invalid character '|'",
+                        line=self.line,
+                        column=self.column
+                    )
             else:
-                raise ValueError(f"Invalid character '{self.current_char}' at line {self.line}, column {self.column}")
+                raise HPLSyntaxError(
+                    f"Invalid character '{self.current_char}'",
+                    line=self.line,
+                    column=self.column
+                )
 
         # 文件结束时，弹出所有缩进级别
         while len(self.indent_stack) > 1:

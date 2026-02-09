@@ -393,8 +393,12 @@ classes:
 - 示例：`42`, `0`, `-10`
 
 ### 浮点数（Float）
+
 - 支持小数表示
 - 示例：`3.14`, `-0.5`, `2.0`
+- 支持科学计数法：`1.5e10`, `-2.5e-3`
+- 整数和浮点数混合运算时，结果自动提升为浮点数
+
 
 ### 字符串（String）
 - 使用双引号包围
@@ -428,10 +432,49 @@ second = arr[1]  # 获取第二个元素
 arr[0] = 100  # 修改第一个元素
 ```
 
+
 - 数组可以包含不同类型的元素：
 ```yaml
 mixed = [1, "hello", true, 3.14]
 ```
+
+### 字典/映射（Dictionary/Map）
+
+- 使用花括号 `{}` 定义字典字面量
+- 键必须是字符串，值可以是任意类型
+- 使用 `dict[key]` 语法访问字典元素
+- 支持字典元素赋值：`dict[key] = value`
+
+```yaml
+# 字典定义
+person = {
+  "name": "Alice",
+  "age": 30,
+  "is_student": false
+}
+
+# 字典访问
+name = person["name"]  # 获取值 "Alice"
+age = person["age"]   # 获取值 30
+
+# 字典元素赋值
+person["age"] = 31
+person["city"] = "Beijing"  # 添加新键值对
+```
+
+- 字典可以嵌套：
+```yaml
+nested = {
+  "user": {
+    "name": "Bob",
+    "contacts": {
+      "email": "bob@example.com"
+    }
+  }
+}
+email = nested["user"]["contacts"]["email"]
+```
+
 
 
 
@@ -723,41 +766,54 @@ HPL 解释器现在包含类型检查，提供清晰的错误信息：
 #### 函数
 
 **基本运算**
-- `math.sqrt(x)` - 平方根
-- `math.pow(base, exp)` - 幂运算
-- `math.abs(x)` - 绝对值（也可作为内置函数使用）
-- `math.max(a, b, ...)` - 最大值（也可作为内置函数使用）
-- `math.min(a, b, ...)` - 最小值（也可作为内置函数使用）
+| 函数 | 参数 | 返回值 | 说明 |
+|------|------|--------|------|
+| `math.sqrt(x)` | number | float | 平方根 |
+| `math.pow(base, exp)` | number, number | float | 幂运算 |
+| `math.abs(x)` | number | number | 绝对值（也可作为内置函数使用） |
+| `math.max(a, b, ...)` | number... | number | 最大值（也可作为内置函数使用） |
+| `math.min(a, b, ...)` | number... | number | 最小值（也可作为内置函数使用） |
 
 **三角函数**
-- `math.sin(x)` - 正弦（弧度）
-- `math.cos(x)` - 余弦（弧度）
-- `math.tan(x)` - 正切（弧度）
-- `math.asin(x)` - 反正弦
-- `math.acos(x)` - 反余弦
-- `math.atan(x)` - 反正切
-- `math.atan2(y, x)` - 带象限的反正切
+| 函数 | 参数 | 返回值 | 说明 |
+|------|------|--------|------|
+| `math.sin(x)` | number (弧度) | float | 正弦 |
+| `math.cos(x)` | number (弧度) | float | 余弦 |
+| `math.tan(x)` | number (弧度) | float | 正切 |
+| `math.asin(x)` | number (-1~1) | float (弧度) | 反正弦 |
+| `math.acos(x)` | number (-1~1) | float (弧度) | 反余弦 |
+| `math.atan(x)` | number | float (弧度) | 反正切 |
+| `math.atan2(y, x)` | number, number | float (弧度) | 带象限的反正切，处理 y/x 的符号 |
 
 **对数和指数**
-- `math.log(x, base)` - 对数（base 可选，默认自然对数）
-- `math.log10(x)` - 常用对数（以10为底）
-- `math.exp(x)` - e^x
+| 函数 | 参数 | 返回值 | 说明 |
+|------|------|--------|------|
+| `math.log(x, base?)` | number, number? | float | 对数，base 可选，默认自然对数 e |
+| `math.log10(x)` | number | float | 常用对数（以10为底） |
+| `math.exp(x)` | number | float | e 的 x 次幂 |
 
 **数值处理**
-- `math.floor(x)` - 向下取整
-- `math.ceil(x)` - 向上取整
-- `math.round(x, ndigits)` - 四舍五入（ndigits 可选）
-- `math.trunc(x)` - 截断小数部分
-- `math.factorial(n)` - 阶乘
-- `math.gcd(a, b)` - 最大公约数
+| 函数 | 参数 | 返回值 | 说明 |
+|------|------|--------|------|
+| `math.floor(x)` | number | int | 向下取整 |
+| `math.ceil(x)` | number | int | 向上取整 |
+| `math.round(x, ndigits?)` | number, int? | number | 四舍五入，ndigits 指定小数位数 |
+| `math.trunc(x)` | number | int | 截断小数部分 |
+| `math.factorial(n)` | int (≥0) | int | 阶乘 |
+| `math.gcd(a, b)` | int, int | int | 最大公约数 |
 
 **角度转换**
-- `math.degrees(x)` - 弧度转角度
-- `math.radians(x)` - 角度转弧度
+| 函数 | 参数 | 返回值 | 说明 |
+|------|------|--------|------|
+| `math.degrees(x)` | number (弧度) | float | 弧度转角度 |
+| `math.radians(x)` | number (角度) | float | 角度转弧度 |
 
 **特殊函数**
-- `math.is_nan(x)` - 检查是否为 NaN
-- `math.is_inf(x)` - 检查是否为无穷大
+| 函数 | 参数 | 返回值 | 说明 |
+|------|------|--------|------|
+| `math.is_nan(x)` | number | boolean | 检查是否为 NaN |
+| `math.is_inf(x)` | number | boolean | 检查是否为无穷大 |
+
 
 
 ### 17.2 io 模块 - 文件操作

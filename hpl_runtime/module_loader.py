@@ -15,13 +15,20 @@ import importlib
 import importlib.util
 import subprocess
 import json
+import logging
 from pathlib import Path
 
 # 从 module_base 导入 HPLModule 基类
 try:
     from hpl_runtime.module_base import HPLModule
+    from hpl_runtime.exceptions import HPLImportError
 except ImportError:
     from module_base import HPLModule
+    from exceptions import HPLImportError
+
+# 配置日志
+logger = logging.getLogger('hpl.module_loader')
+
 
 # 模块缓存
 _module_cache = {}
@@ -80,38 +87,51 @@ def load_module(module_name, search_paths=None):
     - Python 第三方包 (通过 pip 安装)
     - 自定义 HPL 模块文件 (.hpl)
     - 自定义 Python 模块 (.py)
+    
+    Raises:
+        HPLImportError: 当模块无法找到或加载失败时
     """
     # 检查缓存
     if module_name in _module_cache:
+        logger.debug(f"Module '{module_name}' found in cache")
         return _module_cache[module_name]
     
     # 1. 尝试加载标准库模块
     module = get_module(module_name)
     if module:
+        logger.debug(f"Module '{module_name}' loaded from stdlib")
         _module_cache[module_name] = module
         return module
     
     # 2. 尝试加载 Python 第三方包
     module = _load_python_package(module_name)
     if module:
+        logger.debug(f"Module '{module_name}' loaded from Python packages")
         _module_cache[module_name] = module
         return module
     
     # 3. 尝试加载本地 HPL 模块文件
     module = _load_hpl_module(module_name, search_paths)
     if module:
+        logger.debug(f"Module '{module_name}' loaded from HPL file")
         _module_cache[module_name] = module
         return module
     
     # 4. 尝试加载本地 Python 模块文件
     module = _load_python_module(module_name, search_paths)
     if module:
+        logger.debug(f"Module '{module_name}' loaded from Python file")
         _module_cache[module_name] = module
         return module
     
     # 模块未找到
     available = list(_stdlib_modules.keys())
-    raise ImportError(f"Module '{module_name}' not found. Available modules: {available}")
+    raise HPLImportError(
+        f"Module '{module_name}' not found. "
+        f"Available stdlib modules: {available}. "
+        f"Searched paths: {HPL_MODULE_PATHS}"
+    )
+
 
 
 def _load_python_package(module_name):
@@ -146,8 +166,9 @@ def _load_python_package(module_name):
     except ImportError:
         return None
     except Exception as e:
-        print(f"Warning: Failed to load Python package '{module_name}': {e}")
+        logger.warning(f"Failed to load Python package '{module_name}': {e}")
         return None
+
 
 
 def _load_hpl_module(module_name, search_paths=None):
@@ -347,10 +368,11 @@ def _parse_hpl_module(module_name, file_path):
         return hpl_module
         
     except Exception as e:
-        print(f"Warning: Failed to parse HPL module '{module_name}': {e}")
+        logger.error(f"Failed to parse HPL module '{module_name}': {e}")
         import traceback
         traceback.print_exc()
-        return None
+        raise HPLImportError(f"Failed to parse HPL module '{module_name}': {e}") from e
+
 
 
 
@@ -390,8 +412,9 @@ def _parse_python_module_file(module_name, file_path):
         return hpl_module
         
     except Exception as e:
-        print(f"Warning: Failed to load Python module '{module_name}': {e}")
+        logger.warning(f"Failed to load Python module '{module_name}': {e}")
         return None
+
 
 
 def install_package(package_name, version=None):
@@ -414,16 +437,16 @@ def install_package(package_name, version=None):
         result = subprocess.run(cmd, capture_output=True, text=True)
         
         if result.returncode == 0:
-            print(f"✅ Successfully installed '{package_spec}'")
+            logger.info(f"Successfully installed '{package_spec}'")
             return True
         else:
-            print(f"❌ Failed to install '{package_spec}':")
-            print(result.stderr)
+            logger.error(f"Failed to install '{package_spec}': {result.stderr}")
             return False
             
     except Exception as e:
-        print(f"❌ Error installing package: {e}")
+        logger.error(f"Error installing package: {e}")
         return False
+
 
 
 def uninstall_package(package_name):
@@ -436,7 +459,7 @@ def uninstall_package(package_name):
         if package_dir.exists():
             import shutil
             shutil.rmtree(package_dir)
-            print(f"✅ Uninstalled '{package_name}'")
+            logger.info(f"Uninstalled '{package_name}'")
             return True
         
         # 尝试用 pip 卸载
@@ -444,15 +467,16 @@ def uninstall_package(package_name):
         result = subprocess.run(cmd, capture_output=True, text=True)
         
         if result.returncode == 0:
-            print(f"✅ Uninstalled '{package_name}'")
+            logger.info(f"Uninstalled '{package_name}'")
             return True
         else:
-            print(f"❌ Failed to uninstall '{package_name}'")
+            logger.error(f"Failed to uninstall '{package_name}'")
             return False
             
     except Exception as e:
-        print(f"❌ Error uninstalling package: {e}")
+        logger.error(f"Error uninstalling package: {e}")
         return False
+
 
 
 def list_installed_packages():
@@ -503,7 +527,8 @@ def init_stdlib():
         
     except ImportError as e:
         # 如果某些模块导入失败，记录错误但不中断
-        print(f"Warning: Some stdlib modules failed to load: {e}")
+        logger.warning(f"Some stdlib modules failed to load: {e}")
+
 
 
 # 初始化标准库

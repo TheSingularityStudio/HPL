@@ -27,11 +27,20 @@ try:
     from hpl_runtime.evaluator import HPLEvaluator
     from hpl_runtime.models import ImportStatement, HPLObject
     from hpl_runtime.module_loader import set_current_hpl_file
+    from hpl_runtime.exceptions import (
+        HPLError, HPLSyntaxError, HPLRuntimeError, HPLImportError,
+        format_error_for_user
+    )
 except ImportError:
     from parser import HPLParser
     from evaluator import HPLEvaluator
     from models import ImportStatement, HPLObject
     from module_loader import set_current_hpl_file
+    from exceptions import (
+        HPLError, HPLSyntaxError, HPLRuntimeError, HPLImportError,
+        format_error_for_user
+    )
+
 
 
 
@@ -90,15 +99,29 @@ def main():
 
         evaluator.run()
 
-    except FileNotFoundError as e:
-        print(f"Error: File not found - {e.filename}")
+    except HPLSyntaxError as e:
+        print(format_error_for_user(e))
         sys.exit(1)
-    except ValueError as e:
-        print(f"Error: {e}")
+    except HPLRuntimeError as e:
+        print(format_error_for_user(e))
+        sys.exit(1)
+    except HPLImportError as e:
+        print(format_error_for_user(e))
+        sys.exit(1)
+    except HPLError as e:
+        print(format_error_for_user(e))
+        sys.exit(1)
+    except FileNotFoundError as e:
+        print(f"❌ File not found: {e.filename}")
         sys.exit(1)
     except Exception as e:
-        print(f"Runtime Error: {e}")
+        # 未预期的内部错误，显示完整信息
+        import traceback
+        print(f"❌ Internal Error: {e}")
+        print("\n--- Full traceback ---")
+        traceback.print_exc()
         sys.exit(1)
+
 
 
 if __name__ == "__main__":
