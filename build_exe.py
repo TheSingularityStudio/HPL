@@ -35,10 +35,11 @@ def build_exe():
     current_dir = os.path.dirname(os.path.abspath(__file__))
     
     # 图标路径
-    icon_path = os.path.join(current_dir, "HPL.png")
+    icon_path = os.path.join(current_dir, "HPL128.ico")
     if not os.path.exists(icon_path):
         print(f"警告: 图标文件不存在 - {icon_path}")
         icon_path = None
+
     
     # 启动器路径
     launcher_path = os.path.join(current_dir, "hpl_launcher.py")
