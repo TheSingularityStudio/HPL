@@ -195,3 +195,8 @@ class BreakStatement(Statement):
 
 class ContinueStatement(Statement):
     pass
+
+
+class ThrowStatement(Statement):
+    def __init__(self, expr):
+        self.expr = expr  # 要抛出的异常表达式

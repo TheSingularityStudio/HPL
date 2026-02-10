@@ -188,7 +188,14 @@ class HPLEvaluator:
             raise HPLBreakException()
         elif isinstance(stmt, ContinueStatement):
             raise HPLContinueException()
+        elif isinstance(stmt, ThrowStatement):
+            # 评估 throw 表达式并抛出异常
+            value = None
+            if stmt.expr:
+                value = self.evaluate_expression(stmt.expr, local_scope)
+            raise HPLRuntimeError(str(value) if value is not None else "Exception thrown")
         elif isinstance(stmt, TryCatchStatement):
+
             try:
                 result = self.execute_block(stmt.try_block, local_scope)
                 # 如果是HPLReturnValue，向上传播
@@ -428,12 +435,16 @@ class HPLEvaluator:
         if op == '||':
             return left or right
         
-        # 加法需要特殊处理（字符串拼接 vs 数值相加）
+        # 加法需要特殊处理（数组拼接、字符串拼接 vs 数值相加）
         if op == '+':
             if isinstance(left, (int, float)) and isinstance(right, (int, float)):
                 return left + right
+            # 数组拼接
+            if isinstance(left, list) and isinstance(right, list):
+                return left + right
             # 字符串拼接
             return str(left) + str(right)
+
         
         # 其他算术运算符需要数值操作数
         self._check_numeric_operands(left, right, op)
@@ -492,8 +503,12 @@ class HPLEvaluator:
         # 处理父类方法调用（当 obj 是 HPLClass 时）
 
         if isinstance(obj, HPLClass):
-            if method_name in obj.methods:
-                method = obj.methods[method_name]
+            # 支持 init 作为 __init__ 的别名
+            actual_method_name = method_name
+            if method_name == 'init' and 'init' not in obj.methods and '__init__' in obj.methods:
+                actual_method_name = '__init__'
+            if method_name in obj.methods or actual_method_name in obj.methods:
+                method = obj.methods.get(method_name) or obj.methods.get(actual_method_name)
                 # 父类方法调用时，this 仍然指向当前对象
                 method_scope = {param: args[i] for i, param in enumerate(method.params) if i < len(args)}
                 method_scope['this'] = self.current_obj
@@ -502,15 +517,25 @@ class HPLEvaluator:
                 raise HPLAttributeError(f"Method '{method_name}' not found in parent class '{obj.name}'")
         
         hpl_class = obj.hpl_class
+        # 支持 init 作为 __init__ 的别名
+        actual_method_name = method_name
+        if method_name == 'init' and 'init' not in hpl_class.methods and '__init__' in hpl_class.methods:
+            actual_method_name = '__init__'
+        
         if method_name in hpl_class.methods:
             method = hpl_class.methods[method_name]
+        elif actual_method_name in hpl_class.methods:
+            method = hpl_class.methods[actual_method_name]
         elif hpl_class.parent and method_name in self.classes[hpl_class.parent].methods:
             method = self.classes[hpl_class.parent].methods[method_name]
+        elif hpl_class.parent and actual_method_name in self.classes[hpl_class.parent].methods:
+            method = self.classes[hpl_class.parent].methods[actual_method_name]
         else:
             # 不是方法，尝试作为属性访问
             if method_name in obj.attributes:
                 return obj.attributes[method_name]
             raise HPLAttributeError(f"Method or attribute '{method_name}' not found in class '{hpl_class.name}'")
+
 
 
         
@@ -538,27 +563,40 @@ class HPLEvaluator:
     def _call_constructor(self, obj, args):
         """调用对象的构造函数（如果存在）"""
         hpl_class = obj.hpl_class
-        if '__init__' in hpl_class.methods:
-            self._call_method(obj, '__init__', args)
-        elif hpl_class.parent and '__init__' in self.classes[hpl_class.parent].methods:
+        # 支持 init 和 __init__ 作为构造函数名
+        constructor_name = None
+        if 'init' in hpl_class.methods:
+            constructor_name = 'init'
+        elif '__init__' in hpl_class.methods:
+            constructor_name = '__init__'
+        
+        if constructor_name:
+            self._call_method(obj, constructor_name, args)
+        elif hpl_class.parent:
             # 调用父类的构造函数
             parent_class = self.classes[hpl_class.parent]
-            if '__init__' in parent_class.methods:
-
-                method = parent_class.methods['__init__']
+            parent_constructor_name = None
+            if 'init' in parent_class.methods:
+                parent_constructor_name = 'init'
+            elif '__init__' in parent_class.methods:
+                parent_constructor_name = '__init__'
+            
+            if parent_constructor_name:
+                method = parent_class.methods[parent_constructor_name]
                 prev_obj = self.current_obj
                 self.current_obj = obj
                 
                 method_scope = {param: args[i] for i, param in enumerate(method.params) if i < len(args)}
                 method_scope['this'] = obj
                 
-                self.call_stack.append(f"{obj.name}.__init__()")
+                self.call_stack.append(f"{obj.name}.{parent_constructor_name}()")
 
                 try:
                     self.execute_function(method, method_scope)
                 finally:
                     self.call_stack.pop()
                     self.current_obj = prev_obj
+
 
 
     def instantiate_object(self, class_name, obj_name, init_args=None):

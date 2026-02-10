@@ -306,25 +306,23 @@ def _parse_hpl_module(module_name, file_path):
                     # 创建对象实例
                     obj = HPLObject("instance", cls)
                     
-                    # 调用构造函数 __init__
-                    if '__init__' in cls.methods:
-                        init_func = cls.methods['__init__']
-                        # 验证参数数量
-                        if len(args) != len(init_func.params):
-                            raise ValueError(
-                                f"Constructor '{cls.name}' expects {len(init_func.params)} "
-                                f"arguments, got {len(args)}"
-                            )
-                        # 执行构造函数
-                        eval_ctx._call_constructor(obj, list(args))
+                    # 调用构造函数 init 或 __init__
+                    constructor_name = None
+                    if 'init' in cls.methods:
+                        constructor_name = 'init'
+                    elif '__init__' in cls.methods:
+                        constructor_name = '__init__'
                     
-                    return obj
-                return constructor
-            
-            # 计算构造函数参数数量
+                    if constructor_name:
+                        init_func = cls.methods[constructor_name]
+                        # 验证参数数量
             init_param_count = 0
-            if '__init__' in hpl_class.methods:
+            # 支持 init 和 __init__ 作为构造函数名
+            if 'init' in hpl_class.methods:
+                init_param_count = len(hpl_class.methods['init'].params)
+            elif '__init__' in hpl_class.methods:
                 init_param_count = len(hpl_class.methods['__init__'].params)
+
             
             hpl_module.register_function(
                 class_name, 

@@ -146,9 +146,18 @@ class HPLASTParser:
             self.advance()
             return ContinueStatement()
         
+        # 处理 throw 语句
+        if self.current_token.type == 'KEYWORD' and self.current_token.value == 'throw':
+            self.advance()
+            expr = None
+            if self.current_token and self.current_token.type not in ['SEMICOLON', 'RBRACE', 'EOF', 'DEDENT']:
+                expr = self.parse_expression()
+            return ThrowStatement(expr)
+        
         # 处理 import 语句
         if self.current_token.type == 'KEYWORD' and self.current_token.value == 'import':
             return self.parse_import_statement()
+
         
         # 处理 if 语句
 
