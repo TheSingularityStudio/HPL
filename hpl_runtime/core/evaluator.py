@@ -73,8 +73,6 @@ class HPLEvaluator:
             self.execute_function(self.main_func, {}, 'main')
 
 
-
-
     def execute_function(self, func, local_scope, func_name=None):
         # 执行语句块并返回结果
         # 添加到调用栈（如果提供了函数名）
@@ -309,11 +307,7 @@ class HPLEvaluator:
             # 表达式作为语句
             return self.evaluate_expression(stmt, local_scope)
         return None
-
-
-
-
-
+    
 
     def evaluate_expression(self, expr, local_scope):
         if isinstance(expr, IntegerLiteral):
@@ -324,7 +318,11 @@ class HPLEvaluator:
             return expr.value
         elif isinstance(expr, BooleanLiteral):
             return expr.value
+        elif isinstance(expr, NullLiteral):
+            return None
+
         elif isinstance(expr, Variable):
+
             return self._lookup_variable(expr.name, local_scope, expr.line, expr.column)
         elif isinstance(expr, BinaryOp):
             left = self.evaluate_expression(expr.left, local_scope)
@@ -528,9 +526,6 @@ class HPLEvaluator:
             raise HPLRuntimeError(f"Unknown expression type: {type(expr).__name__}")
 
 
-
-
-
     def _eval_binary_op(self, left, op, right):
         # 逻辑运算符
         if op == '&&':
@@ -551,7 +546,6 @@ class HPLEvaluator:
         
         # 其他算术运算符需要数值操作数
         check_numeric_operands(left, right, op)
-
         
         if op == '-':
             return left - right
@@ -640,8 +634,6 @@ class HPLEvaluator:
                 return obj.attributes[method_name]
             raise HPLAttributeError(f"Method or attribute '{method_name}' not found in class '{hpl_class.name}'")
 
-
-
         
         # 为'this'设置current_obj
         prev_obj = self.current_obj
@@ -655,7 +647,6 @@ class HPLEvaluator:
         # 获取对象名称：HPLObject使用hpl_class.name，HPLClass使用name
         obj_name = obj.hpl_class.name if isinstance(obj, HPLObject) else obj.name
         self.call_stack.append(f"{obj_name}.{method_name}()")
-
         
         try:
             result = self.execute_function(method, method_scope)

@@ -72,7 +72,13 @@ class BooleanLiteral(Expression):
         self.value = value
 
 
+class NullLiteral(Expression):
+    def __init__(self, line=None, column=None):
+        super().__init__(line, column)
+
+
 # 表达式
+
 class BinaryOp(Expression):
     def __init__(self, left, op, right, line=None, column=None):
         super().__init__(line, column)

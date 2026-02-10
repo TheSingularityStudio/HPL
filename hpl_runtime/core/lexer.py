@@ -200,6 +200,9 @@ class HPLLexer:
                     tokens.append(Token('KEYWORD', ident, token_line, token_column))
                 elif ident in ['true', 'false']:
                     tokens.append(Token('BOOLEAN', ident == 'true', token_line, token_column))
+                elif ident == 'null':
+                    tokens.append(Token('NULL', None, token_line, token_column))
+
                 else:
                     tokens.append(Token('IDENTIFIER', ident, token_line, token_column))
                 continue

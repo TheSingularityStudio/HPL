@@ -75,11 +75,11 @@ class HPLASTParser:
         """解析 return 语句"""
         line, column = self._get_position()
         self.advance()  # 跳过 'return'
-        self._skip_dedents()
         expr = None
-        if self.current_token and self.current_token.type not in ['SEMICOLON', 'RBRACE', 'EOF']:
+        if self.current_token and self.current_token.type not in ['SEMICOLON', 'RBRACE', 'EOF', 'DEDENT']:
             expr = self.parse_expression()
         return ReturnStatement(expr, line, column)
+
     
     def _parse_break_statement(self):
         """解析 break 语句"""
@@ -717,17 +717,23 @@ class HPLASTParser:
         self.expect('RBRACE')
         return DictionaryLiteral(pairs)
 
+    def _parse_null_literal(self):
+        """解析 null 字面量"""
+        line, column = self._get_position()
+        self.advance()
+        return NullLiteral(line, column)
+
     # 主表达式分发表：token 类型 -> 处理方法
     _PRIMARY_HANDLERS = {
         'BOOLEAN': '_parse_literal',
         'NUMBER': '_parse_literal',
         'STRING': '_parse_literal',
+        'NULL': '_parse_null_literal',
         'IDENTIFIER': '_parse_identifier_primary',
         'LPAREN': '_parse_paren_expression',
         'LBRACKET': '_parse_array_literal_expr',
         'LBRACE': '_parse_dict_literal_expr',
     }
-
 
 
     def parse_primary(self):

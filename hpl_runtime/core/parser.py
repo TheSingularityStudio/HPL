@@ -52,6 +52,95 @@ class HPLParser:
         self.data = self.load_and_parse()
 
 
+    def _merge_duplicate_keys(self, content):
+        """合并 YAML 中重复的键（如多个 objects 或 classes 段）"""
+        # 只合并特定的字典类型键
+        keys_to_merge = ['objects', 'classes']
+        
+        lines = content.split('\n')
+        key_contents = {}  # 存储每个键的所有内容
+        key_order = []  # 记录键的出现顺序
+        current_key = None
+        current_lines = []
+        
+        for line in lines:
+            stripped = line.strip()
+            
+            # 检查是否是顶级键（无缩进，后跟冒号）
+            if stripped and not line.startswith(' ') and not line.startswith('\t') and ':' in stripped:
+                key = stripped[:stripped.find(':')].strip()
+                
+                # 只处理需要合并的键
+                if key in keys_to_merge:
+                    # 保存之前键的内容
+                    if current_key and current_lines and current_key in keys_to_merge:
+                        if current_key not in key_contents:
+                            key_contents[current_key] = []
+                            key_order.append(current_key)
+                        key_contents[current_key].extend(current_lines)
+                    
+                    # 开始新键
+                    current_key = key
+                    current_lines = []
+                else:
+                    # 对于不需要合并的键，保存之前的内容并重置
+                    if current_key and current_lines and current_key in keys_to_merge:
+                        if current_key not in key_contents:
+                            key_contents[current_key] = []
+                            key_order.append(current_key)
+                        key_contents[current_key].extend(current_lines)
+                    current_key = None
+                    current_lines = []
+            elif current_key and current_key in keys_to_merge:
+                # 属于当前合并键的内容
+                current_lines.append(line)
+        
+        # 保存最后一个键的内容
+        if current_key and current_lines and current_key in keys_to_merge:
+            if current_key not in key_contents:
+                key_contents[current_key] = []
+                key_order.append(current_key)
+            key_contents[current_key].extend(current_lines)
+        
+        # 如果没有需要合并的键，直接返回原内容
+        if not key_order:
+            return content
+        
+        # 重建内容，合并重复的键
+        result = []
+        processed_keys = set()
+        current_key = None
+        
+        for line in lines:
+            stripped = line.strip()
+            
+            # 检查是否是顶级键
+            if stripped and not line.startswith(' ') and not line.startswith('\t') and ':' in stripped:
+                key = stripped[:stripped.find(':')].strip()
+                
+                # 如果是需要合并的键且未处理过
+                if key in keys_to_merge and key not in processed_keys:
+                    # 输出合并后的键
+                    result.append(f"{key}:")
+                    result.extend(key_contents[key])
+                    processed_keys.add(key)
+                    current_key = key
+                elif key not in keys_to_merge:
+                    # 不需要合并的键，直接输出
+                    result.append(line)
+                    current_key = None
+                # 如果是已处理的合并键，跳过
+            elif current_key in processed_keys:
+                # 跳过已合并键的原始内容
+                continue
+            else:
+                # 其他内容直接输出
+                result.append(line)
+        
+        return '\n'.join(result)
+
+
+
     def load_and_parse(self):
         """加载并解析 HPL 文件"""
         with open(self.hpl_file, 'r', encoding='utf-8') as f:
@@ -59,6 +148,9 @@ class HPLParser:
         
         # 保存原始源代码用于错误显示
         self.source_code = content
+        
+        # 预处理：合并重复的 YAML 键
+        content = self._merge_duplicate_keys(content)
         
         # 预处理：将函数定义转换为 YAML 字面量块格式
         content = preprocess_functions(content)
@@ -71,6 +163,7 @@ class HPLParser:
         # 如果 YAML 解析返回 None（空文件或只有注释），使用空字典
         if data is None:
             data = {}
+
         
         # 处理 includes（支持多路径搜索和嵌套include）
         if 'includes' in data:
