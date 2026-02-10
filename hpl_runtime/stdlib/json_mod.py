@@ -8,14 +8,18 @@ import json as _json
 
 try:
     from hpl_runtime.modules.base import HPLModule
+    from hpl_runtime.utils.exceptions import HPLTypeError, HPLValueError, HPLIOError
 except ImportError:
     try:
         from hpl_runtime.modules.base import HPLModule
+        from hpl_runtime.utils.exceptions import HPLTypeError, HPLValueError, HPLIOError
     except ImportError:
         import sys
         import os
         sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
         from hpl_runtime.modules.base import HPLModule
+        from hpl_runtime.utils.exceptions import HPLTypeError, HPLValueError, HPLIOError
+
 
 
 
@@ -23,14 +27,15 @@ except ImportError:
 def parse(json_str):
     """解析 JSON 字符串为 HPL 值"""
     if not isinstance(json_str, str):
-        raise TypeError(f"parse() requires string, got {type(json_str).__name__}")
+        raise HPLTypeError(f"parse() requires string, got {type(json_str).__name__}")
     
     try:
         result = _json.loads(json_str)
         # 将 Python 类型转换为 HPL 兼容类型
         return _convert_to_hpl(result)
     except _json.JSONDecodeError as e:
-        raise ValueError(f"Invalid JSON: {e}")
+        raise HPLValueError(f"Invalid JSON: {e}")
+
 
 
 def stringify(value, indent=None):
@@ -41,21 +46,22 @@ def stringify(value, indent=None):
     try:
         if indent is not None:
             if not isinstance(indent, int):
-                raise TypeError(f"stringify() indent must be int, got {type(indent).__name__}")
+                raise HPLTypeError(f"stringify() indent must be int, got {type(indent).__name__}")
             return _json.dumps(py_value, indent=indent, ensure_ascii=False)
         return _json.dumps(py_value, ensure_ascii=False)
     except (TypeError, ValueError) as e:
-        raise ValueError(f"Cannot convert to JSON: {e}")
+        raise HPLValueError(f"Cannot convert to JSON: {e}")
+
 
 
 def read_json(path):
     """从文件读取 JSON"""
     if not isinstance(path, str):
-        raise TypeError(f"read_json() requires string path, got {type(path).__name__}")
+        raise HPLTypeError(f"read_json() requires string path, got {type(path).__name__}")
     
     import os
     if not os.path.exists(path):
-        raise FileNotFoundError(f"File not found: {path}")
+        raise HPLIOError(f"File not found: {path}")
     
     with open(path, 'r', encoding='utf-8') as f:
         content = f.read()
@@ -63,10 +69,12 @@ def read_json(path):
     return parse(content)
 
 
+
 def write_json(path, value, indent=None):
     """将值写入 JSON 文件"""
     if not isinstance(path, str):
-        raise TypeError(f"write_json() requires string path, got {type(path).__name__}")
+        raise HPLTypeError(f"write_json() requires string path, got {type(path).__name__}")
+
     
     json_str = stringify(value, indent)
     

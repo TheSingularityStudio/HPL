@@ -5,8 +5,15 @@ HPL 模块基类
 避免循环导入问题。
 """
 
+try:
+    from hpl_runtime.utils.exceptions import HPLNameError, HPLAttributeError, HPLValueError
+except ImportError:
+    from hpl_runtime.utils.exceptions import HPLNameError, HPLAttributeError, HPLValueError
+
+
 
 class HPLModule:
+
     """
     HPL 标准库模块基类
     
@@ -40,7 +47,8 @@ class HPLModule:
     def call_function(self, func_name, args):
         """调用模块函数"""
         if func_name not in self.functions:
-            raise ValueError(f"Function '{func_name}' not found in module '{self.name}'")
+            raise HPLNameError(f"Function '{func_name}' not found in module '{self.name}'")
+
         
         func_info = self.functions[func_name]
         func = func_info['func']
@@ -48,15 +56,17 @@ class HPLModule:
         # 检查参数数量
         if func_info['param_count'] is not None:
             if len(args) != func_info['param_count']:
-                raise ValueError(f"Function '{func_name}' expects {func_info['param_count']} arguments, got {len(args)}")
+                raise HPLValueError(f"Function '{func_name}' expects {func_info['param_count']} arguments, got {len(args)}")
+
         
         return func(*args)
     
     def get_constant(self, name):
         """获取模块常量"""
         if name not in self.constants:
-            raise ValueError(f"Constant '{name}' not found in module '{self.name}'")
+            raise HPLAttributeError(f"Constant '{name}' not found in module '{self.name}'")
         return self.constants[name]['value']
+
     
     def list_functions(self):
         """列出模块中所有函数"""

@@ -9,14 +9,18 @@ import datetime as _datetime
 
 try:
     from hpl_runtime.modules.base import HPLModule
+    from hpl_runtime.utils.exceptions import HPLTypeError, HPLValueError
 except ImportError:
     try:
         from hpl_runtime.modules.base import HPLModule
+        from hpl_runtime.utils.exceptions import HPLTypeError, HPLValueError
     except ImportError:
         import sys
         import os
         sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
         from hpl_runtime.modules.base import HPLModule
+        from hpl_runtime.utils.exceptions import HPLTypeError, HPLValueError
+
 
 
 
@@ -34,9 +38,10 @@ def now_ms():
 def sleep(seconds):
     """休眠指定秒数"""
     if not isinstance(seconds, (int, float)):
-        raise TypeError(f"sleep() requires number, got {type(seconds).__name__}")
+        raise HPLTypeError(f"sleep() requires number, got {type(seconds).__name__}")
     if seconds < 0:
-        raise ValueError("sleep() requires non-negative number")
+        raise HPLValueError("sleep() requires non-negative number")
+
     
     _time.sleep(seconds)
     return True
@@ -45,9 +50,10 @@ def sleep(seconds):
 def sleep_ms(milliseconds):
     """休眠指定毫秒数"""
     if not isinstance(milliseconds, (int, float)):
-        raise TypeError(f"sleep_ms() requires number, got {type(milliseconds).__name__}")
+        raise HPLTypeError(f"sleep_ms() requires number, got {type(milliseconds).__name__}")
     if milliseconds < 0:
-        raise ValueError("sleep_ms() requires non-negative number")
+        raise HPLValueError("sleep_ms() requires non-negative number")
+
     
     _time.sleep(milliseconds / 1000.0)
     return True
@@ -59,27 +65,29 @@ def format_time(timestamp=None, format_str="%Y-%m-%d %H:%M:%S"):
         dt = _datetime.datetime.now()
     else:
         if not isinstance(timestamp, (int, float)):
-            raise TypeError(f"format_time() requires number for timestamp, got {type(timestamp).__name__}")
+            raise HPLTypeError(f"format_time() requires number for timestamp, got {type(timestamp).__name__}")
         dt = _datetime.datetime.fromtimestamp(timestamp)
     
     if not isinstance(format_str, str):
-        raise TypeError(f"format_time() requires string for format, got {type(format_str).__name__}")
+        raise HPLTypeError(f"format_time() requires string for format, got {type(format_str).__name__}")
     
     return dt.strftime(format_str)
+
 
 
 def parse_time(time_str, format_str="%Y-%m-%d %H:%M:%S"):
     """解析时间字符串"""
     if not isinstance(time_str, str):
-        raise TypeError(f"parse_time() requires string for time, got {type(time_str).__name__}")
+        raise HPLTypeError(f"parse_time() requires string for time, got {type(time_str).__name__}")
     if not isinstance(format_str, str):
-        raise TypeError(f"parse_time() requires string for format, got {type(format_str).__name__}")
+        raise HPLTypeError(f"parse_time() requires string for format, got {type(format_str).__name__}")
     
     try:
         dt = _datetime.datetime.strptime(time_str, format_str)
         return dt.timestamp()
     except ValueError as e:
-        raise ValueError(f"Cannot parse time: {e}")
+        raise HPLValueError(f"Cannot parse time: {e}")
+
 
 
 def get_year(timestamp=None):
@@ -87,7 +95,8 @@ def get_year(timestamp=None):
     if timestamp is None:
         return _datetime.datetime.now().year
     if not isinstance(timestamp, (int, float)):
-        raise TypeError(f"get_year() requires number, got {type(timestamp).__name__}")
+        raise HPLTypeError(f"get_year() requires number, got {type(timestamp).__name__}")
+
     return _datetime.datetime.fromtimestamp(timestamp).year
 
 
@@ -96,7 +105,8 @@ def get_month(timestamp=None):
     if timestamp is None:
         return _datetime.datetime.now().month
     if not isinstance(timestamp, (int, float)):
-        raise TypeError(f"get_month() requires number, got {type(timestamp).__name__}")
+        raise HPLTypeError(f"get_month() requires number, got {type(timestamp).__name__}")
+
     return _datetime.datetime.fromtimestamp(timestamp).month
 
 
@@ -105,7 +115,8 @@ def get_day(timestamp=None):
     if timestamp is None:
         return _datetime.datetime.now().day
     if not isinstance(timestamp, (int, float)):
-        raise TypeError(f"get_day() requires number, got {type(timestamp).__name__}")
+        raise HPLTypeError(f"get_day() requires number, got {type(timestamp).__name__}")
+
     return _datetime.datetime.fromtimestamp(timestamp).day
 
 
@@ -114,7 +125,8 @@ def get_hour(timestamp=None):
     if timestamp is None:
         return _datetime.datetime.now().hour
     if not isinstance(timestamp, (int, float)):
-        raise TypeError(f"get_hour() requires number, got {type(timestamp).__name__}")
+        raise HPLTypeError(f"get_hour() requires number, got {type(timestamp).__name__}")
+
     return _datetime.datetime.fromtimestamp(timestamp).hour
 
 
@@ -123,7 +135,8 @@ def get_minute(timestamp=None):
     if timestamp is None:
         return _datetime.datetime.now().minute
     if not isinstance(timestamp, (int, float)):
-        raise TypeError(f"get_minute() requires number, got {type(timestamp).__name__}")
+        raise HPLTypeError(f"get_minute() requires number, got {type(timestamp).__name__}")
+
     return _datetime.datetime.fromtimestamp(timestamp).minute
 
 
@@ -132,7 +145,8 @@ def get_second(timestamp=None):
     if timestamp is None:
         return _datetime.datetime.now().second
     if not isinstance(timestamp, (int, float)):
-        raise TypeError(f"get_second() requires number, got {type(timestamp).__name__}")
+        raise HPLTypeError(f"get_second() requires number, got {type(timestamp).__name__}")
+
     return _datetime.datetime.fromtimestamp(timestamp).second
 
 
@@ -141,7 +155,8 @@ def get_weekday(timestamp=None):
     if timestamp is None:
         return _datetime.datetime.now().weekday()
     if not isinstance(timestamp, (int, float)):
-        raise TypeError(f"get_weekday() requires number, got {type(timestamp).__name__}")
+        raise HPLTypeError(f"get_weekday() requires number, got {type(timestamp).__name__}")
+
     return _datetime.datetime.fromtimestamp(timestamp).weekday()
 
 
@@ -150,7 +165,8 @@ def get_iso_date(timestamp=None):
     if timestamp is None:
         return _datetime.datetime.now().date().isoformat()
     if not isinstance(timestamp, (int, float)):
-        raise TypeError(f"get_iso_date() requires number, got {type(timestamp).__name__}")
+        raise HPLTypeError(f"get_iso_date() requires number, got {type(timestamp).__name__}")
+
     return _datetime.datetime.fromtimestamp(timestamp).date().isoformat()
 
 
@@ -159,16 +175,18 @@ def get_iso_time(timestamp=None):
     if timestamp is None:
         return _datetime.datetime.now().time().isoformat()
     if not isinstance(timestamp, (int, float)):
-        raise TypeError(f"get_iso_time() requires number, got {type(timestamp).__name__}")
+        raise HPLTypeError(f"get_iso_time() requires number, got {type(timestamp).__name__}")
+
     return _datetime.datetime.fromtimestamp(timestamp).time().isoformat()
 
 
 def add_days(timestamp, days):
     """添加天数"""
     if not isinstance(timestamp, (int, float)):
-        raise TypeError(f"add_days() requires number for timestamp, got {type(timestamp).__name__}")
+        raise HPLTypeError(f"add_days() requires number for timestamp, got {type(timestamp).__name__}")
     if not isinstance(days, (int, float)):
-        raise TypeError(f"add_days() requires number for days, got {type(days).__name__}")
+        raise HPLTypeError(f"add_days() requires number for days, got {type(days).__name__}")
+
     
     dt = _datetime.datetime.fromtimestamp(timestamp)
     new_dt = dt + _datetime.timedelta(days=days)
@@ -178,9 +196,10 @@ def add_days(timestamp, days):
 def diff_days(timestamp1, timestamp2):
     """计算两个时间戳相差的天数"""
     if not isinstance(timestamp1, (int, float)):
-        raise TypeError(f"diff_days() requires number for timestamp1, got {type(timestamp1).__name__}")
+        raise HPLTypeError(f"diff_days() requires number for timestamp1, got {type(timestamp1).__name__}")
     if not isinstance(timestamp2, (int, float)):
-        raise TypeError(f"diff_days() requires number for timestamp2, got {type(timestamp2).__name__}")
+        raise HPLTypeError(f"diff_days() requires number for timestamp2, got {type(timestamp2).__name__}")
+
     
     dt1 = _datetime.datetime.fromtimestamp(timestamp1)
     dt2 = _datetime.datetime.fromtimestamp(timestamp2)
