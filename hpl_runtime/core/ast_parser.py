@@ -305,22 +305,25 @@ class HPLASTParser:
     def _parse_statements_until_end(self):
         """解析语句直到遇到块结束标记"""
         statements = []
-        while not self._is_block_terminator():
-            # 跳过连续的 DEDENT token（处理空行后的缩进变化）
-            self._skip_dedents()
-            
-            self._consume_indent()
-            if self._is_block_terminator():
-                break
-            
-            # 再次检查 DEDENT（消费缩进后可能遇到）
-            self._skip_dedents()
-            if self._is_block_terminator():
+        while self.current_token and self.current_token.type not in ['RBRACE', 'EOF']:
+            # 首先检查是否是DEDENT（缩进减少表示块结束）
+            if self.current_token.type == 'DEDENT':
+                # DEDENT表示缩进减少，块应该结束
                 return statements
             
-            if self.current_token and self.current_token.type not in ['RBRACE', 'EOF', 'DEDENT']:
+            self._consume_indent()
+            
+            # 再次检查块终止符（消费INDENT后可能遇到）
+            if self.current_token and self.current_token.type in ['RBRACE', 'EOF', 'DEDENT']:
+                break
+            
+            if self.current_token:
                 statements.append(self.parse_statement())
+        
         return statements
+
+
+
 
 
 
@@ -328,12 +331,30 @@ class HPLASTParser:
         """解析语句块，支持多种语法格式"""
         statements = []
         
-        # 情况1: 以 INDENT 开始（函数体等情况）
-        if self.current_token and self.current_token.type == 'INDENT':
-            self.expect('INDENT')
-            statements = self._parse_statements_until_end()
-            if self.current_token and self.current_token.type == 'DEDENT':
-                self.expect('DEDENT')
+        # 情况1: 以冒号开始（缩进敏感语法）- 优先检查，因为冒号是明确的块开始标记
+        if self.current_token and self.current_token.type == 'COLON':
+            self.expect('COLON')
+            if self.current_token and self.current_token.type == 'INDENT':
+                # 保存当前缩进级别并设置新的缩进级别
+                saved_indent_level = self.indent_level
+                block_indent_level = self.current_token.value
+                self.indent_level = block_indent_level
+                self.expect('INDENT')
+                statements = self._parse_statements_until_end()
+                # 恢复之前的缩进级别
+                self.indent_level = saved_indent_level
+                # 只跳过与父级缩进级别匹配的 DEDENT
+                if self.current_token and self.current_token.type == 'DEDENT':
+                    if hasattr(self.current_token, 'value') and self.current_token.value == saved_indent_level:
+                        self.advance()
+
+            else:
+                # 单行语句
+                while self.current_token and self.current_token.type not in ['RBRACE', 'EOF', 'KEYWORD']:
+                    if self.current_token.type == 'KEYWORD' and self.current_token.value in ['else', 'catch']:
+                        break
+                    statements.append(self.parse_statement())
+
         
         # 情况2: 以花括号开始
         elif self.current_token and self.current_token.type == 'LBRACE':
@@ -356,25 +377,21 @@ class HPLASTParser:
                 self.expect('RBRACE')
 
         
-        # 情况3: 以冒号开始（缩进敏感语法）
-        elif self.current_token and self.current_token.type == 'COLON':
-            self.expect('COLON')
-            if self.current_token and self.current_token.type == 'INDENT':
-                # 保存当前缩进级别并设置新的缩进级别
-                saved_indent_level = self.indent_level
-                self.indent_level = self.current_token.value
-                self.expect('INDENT')
-                statements = self._parse_statements_until_end()
-                # 恢复之前的缩进级别
-                self.indent_level = saved_indent_level
-                # 跳过所有连续的 DEDENT token
-                self._skip_dedents()
-            else:
-                # 单行语句
-                while self.current_token and self.current_token.type not in ['RBRACE', 'EOF', 'KEYWORD']:
-                    if self.current_token.type == 'KEYWORD' and self.current_token.value in ['else', 'catch']:
-                        break
-                    statements.append(self.parse_statement())
+        # 情况3: 以 INDENT 开始（函数体等情况）
+        elif self.current_token and self.current_token.type == 'INDENT':
+            # 保存当前缩进级别并设置新的缩进级别
+            saved_indent_level = self.indent_level
+            block_indent_level = self.current_token.value
+            self.indent_level = block_indent_level
+            self.expect('INDENT')
+            statements = self._parse_statements_until_end()
+            # 恢复之前的缩进级别
+            self.indent_level = saved_indent_level
+            # 只跳过与父级缩进级别匹配的 DEDENT
+            if self.current_token and self.current_token.type == 'DEDENT':
+                if hasattr(self.current_token, 'value') and self.current_token.value == saved_indent_level:
+                    self.advance()
+
 
         
         # 情况4: 没有花括号也没有冒号，直接解析单个语句或语句序列
@@ -382,6 +399,7 @@ class HPLASTParser:
             statements = self._parse_statements_until_end()
         
         return BlockStatement(statements)
+
 
 
 
