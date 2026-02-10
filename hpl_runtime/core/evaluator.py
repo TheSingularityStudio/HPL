@@ -338,8 +338,17 @@ class HPLEvaluator:
                 raise HPLRuntimeError(f"Unknown unary operator {expr.op}", expr.line, expr.column)
 
         elif isinstance(expr, FunctionCall):
+            # 检查是否是类实例化（类名存在于 self.classes 中）
+            if expr.func_name in self.classes:
+                hpl_class = self.classes[expr.func_name]
+                # 实例化对象
+                args = [self.evaluate_expression(arg, local_scope) for arg in expr.args]
+                obj_name = f"__{expr.func_name}_instance_{id(expr)}__"
+                return self.instantiate_object(expr.func_name, obj_name, args)
+            
             # 内置函数处理
             if expr.func_name == 'echo':
+
 
                 message = self.evaluate_expression(expr.args[0], local_scope)
                 echo(message)
