@@ -12,9 +12,10 @@ HPL 词法分析器模块
 
 try:
     from hpl_runtime.utils.exceptions import HPLSyntaxError
+    from hpl_runtime.utils.text_utils import skip_whitespace, skip_comment
 except ImportError:
     from hpl_runtime.utils.exceptions import HPLSyntaxError
-
+    from hpl_runtime.utils.text_utils import skip_whitespace, skip_comment
 
 
 class Token:
@@ -26,7 +27,6 @@ class Token:
 
     def __repr__(self):
         return f'Token({self.type}, {self.value}, line={self.line}, col={self.column})'
-
 
 
 class HPLLexer:
@@ -200,6 +200,9 @@ class HPLLexer:
                     tokens.append(Token('KEYWORD', ident, token_line, token_column))
                 elif ident in ['true', 'false']:
                     tokens.append(Token('BOOLEAN', ident == 'true', token_line, token_column))
+                elif ident == 'null':
+                    tokens.append(Token('NULL', None, token_line, token_column))
+
                 else:
                     tokens.append(Token('IDENTIFIER', ident, token_line, token_column))
                 continue

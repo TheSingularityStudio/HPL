@@ -27,14 +27,16 @@ try:
     from hpl_runtime.core.ast_parser import HPLASTParser
     from hpl_runtime.modules.loader import HPL_MODULE_PATHS
     from hpl_runtime.utils.exceptions import HPLSyntaxError, HPLImportError
+    from hpl_runtime.utils.path_utils import resolve_include_path
+    from hpl_runtime.utils.text_utils import preprocess_functions, parse_call_expression
 except ImportError:
     from hpl_runtime.core.models import HPLClass, HPLObject, HPLFunction
     from hpl_runtime.core.lexer import HPLLexer
     from hpl_runtime.core.ast_parser import HPLASTParser
     from hpl_runtime.modules.loader import HPL_MODULE_PATHS
     from hpl_runtime.utils.exceptions import HPLSyntaxError, HPLImportError
-
-
+    from hpl_runtime.utils.path_utils import resolve_include_path
+    from hpl_runtime.utils.text_utils import preprocess_functions, parse_call_expression
 
 
 class HPLParser:
@@ -50,6 +52,93 @@ class HPLParser:
         self.data = self.load_and_parse()
 
 
+    def _merge_duplicate_keys(self, content):
+        """合并 YAML 中重复的键（如多个 objects 或 classes 段）"""
+        # 只合并特定的字典类型键
+        keys_to_merge = ['objects', 'classes']
+        
+        lines = content.split('\n')
+        key_contents = {}  # 存储每个键的所有内容
+        key_order = []  # 记录键的出现顺序
+        current_key = None
+        current_lines = []
+        
+        for line in lines:
+            stripped = line.strip()
+            
+            # 检查是否是顶级键（无缩进，后跟冒号）
+            if stripped and not line.startswith(' ') and not line.startswith('\t') and ':' in stripped:
+                key = stripped[:stripped.find(':')].strip()
+                
+                # 只处理需要合并的键
+                if key in keys_to_merge:
+                    # 保存之前键的内容
+                    if current_key and current_lines and current_key in keys_to_merge:
+                        if current_key not in key_contents:
+                            key_contents[current_key] = []
+                            key_order.append(current_key)
+                        key_contents[current_key].extend(current_lines)
+                    
+                    # 开始新键
+                    current_key = key
+                    current_lines = []
+                else:
+                    # 对于不需要合并的键，保存之前的内容并重置
+                    if current_key and current_lines and current_key in keys_to_merge:
+                        if current_key not in key_contents:
+                            key_contents[current_key] = []
+                            key_order.append(current_key)
+                        key_contents[current_key].extend(current_lines)
+                    current_key = None
+                    current_lines = []
+            elif current_key and current_key in keys_to_merge:
+                # 属于当前合并键的内容
+                current_lines.append(line)
+        
+        # 保存最后一个键的内容
+        if current_key and current_lines and current_key in keys_to_merge:
+            if current_key not in key_contents:
+                key_contents[current_key] = []
+                key_order.append(current_key)
+            key_contents[current_key].extend(current_lines)
+        
+        # 如果没有需要合并的键，直接返回原内容
+        if not key_order:
+            return content
+        
+        # 重建内容，合并重复的键
+        result = []
+        processed_keys = set()
+        current_key = None
+        
+        for line in lines:
+            stripped = line.strip()
+            
+            # 检查是否是顶级键
+            if stripped and not line.startswith(' ') and not line.startswith('\t') and ':' in stripped:
+                key = stripped[:stripped.find(':')].strip()
+                
+                # 如果是需要合并的键且未处理过
+                if key in keys_to_merge and key not in processed_keys:
+                    # 输出合并后的键
+                    result.append(f"{key}:")
+                    result.extend(key_contents[key])
+                    processed_keys.add(key)
+                    current_key = key
+                elif key not in keys_to_merge:
+                    # 不需要合并的键，直接输出
+                    result.append(line)
+                    current_key = None
+                # 如果是已处理的合并键，跳过
+            elif current_key in processed_keys:
+                # 跳过已合并键的原始内容
+                continue
+            else:
+                # 其他内容直接输出
+                result.append(line)
+        
+        return '\n'.join(result)
+
 
 
     def load_and_parse(self):
@@ -60,26 +149,32 @@ class HPLParser:
         # 保存原始源代码用于错误显示
         self.source_code = content
         
+        # 预处理：合并重复的 YAML 键
+        content = self._merge_duplicate_keys(content)
+        
         # 预处理：将函数定义转换为 YAML 字面量块格式
-        content = self.preprocess_functions(content)
+        content = preprocess_functions(content)
 
         
         # 使用自定义 YAML 解析器
         data = yaml.safe_load(content)
+
         
         # 如果 YAML 解析返回 None（空文件或只有注释），使用空字典
         if data is None:
             data = {}
+
         
         # 处理 includes（支持多路径搜索和嵌套include）
         if 'includes' in data:
             for include_file in data['includes']:
-                include_path = self._resolve_include_path(include_file)
+                include_path = resolve_include_path(include_file, self.hpl_file, HPL_MODULE_PATHS)
                 if include_path:
                     try:
                         with open(include_path, 'r', encoding='utf-8') as f:
                             include_content = f.read()
-                        include_content = self.preprocess_functions(include_content)
+                        include_content = preprocess_functions(include_content)
+
                         include_data = yaml.safe_load(include_content)
                         self.merge_data(data, include_data)
                     except yaml.YAMLError as e:
@@ -104,98 +199,6 @@ class HPLParser:
         
         return data
 
-
-    def _resolve_include_path(self, include_file):
-        """
-        解析include文件路径，支持多种路径格式：
-        1. 绝对路径（Unix: /path, Windows: C:\path）
-        2. 相对当前文件目录
-        3. 相对当前工作目录
-        4. HPL_MODULE_PATHS中的路径
-        """
-        include_path = Path(include_file)
-        
-        # 1. 检查是否为绝对路径
-        if include_path.is_absolute():
-            if include_path.exists():
-                return str(include_path)
-            return None
-        
-        # 获取当前HPL文件所在目录
-        current_dir = Path(self.hpl_file).parent.resolve()
-        
-        # 2. 相对当前文件目录
-        resolved_path = current_dir / include_path
-        if resolved_path.exists():
-            return str(resolved_path)
-        
-        # 3. 相对当前工作目录
-        cwd_path = Path.cwd() / include_path
-        if cwd_path.exists():
-            return str(cwd_path)
-        
-        # 4. HPL_MODULE_PATHS中的路径
-        for search_path in HPL_MODULE_PATHS:
-            module_path = Path(search_path) / include_path
-            if module_path.exists():
-                return str(module_path)
-        
-        return None
-
-
-    def preprocess_functions(self, content):
-        """
-        预处理函数定义，将其转换为 YAML 字面量块格式
-        这样 YAML 就不会解析函数体内部的语法
-        """
-        lines = content.split('\n')
-        result = []
-        i = 0
-        
-        while i < len(lines):
-            line = lines[i]
-            
-            # 检测函数定义行（包含 =>）
-            # 匹配模式：methodName: (params) => {
-            func_pattern = r'^(\s*)(\w+):\s*\(.*\)\s*=>.*\{'
-            match = re.match(func_pattern, line)
-            
-            if match:
-                indent = match.group(1)
-                key = match.group(2)
-                
-                # 收集完整的函数体
-                func_lines = [line]
-                brace_count = line.count('{') - line.count('}')
-                j = i + 1
-                
-                while brace_count > 0 and j < len(lines):
-                    next_line = lines[j]
-                    func_lines.append(next_line)
-                    brace_count += next_line.count('{') - next_line.count('}')
-                    j += 1
-                
-                # 合并函数定义
-                full_func = '\n'.join(func_lines)
-                
-                # 提取 key 和 value
-                colon_pos = full_func.find(':')
-                key_part = full_func[:colon_pos].rstrip()
-                value_part = full_func[colon_pos+1:].strip()
-                
-                # 转换为 YAML 字面量块格式
-                # 使用 | 表示保留换行符的字面量块
-                # 注意：| 后面要直接跟内容，不能有空行
-                result.append(f'{key_part}: |')
-                for func_line in value_part.split('\n'):
-                    result.append(f'{indent}  {func_line}')
-                
-                i = j
-            else:
-                result.append(line)
-                i += 1
-        
-        return '\n'.join(result)
 
     def merge_data(self, main_data, include_data):
         """合并include数据到主数据，支持classes、objects、functions、imports"""
@@ -227,9 +230,6 @@ class HPLParser:
                 main_data['imports'].extend(include_data['imports'])
 
 
-
-
-
     def parse(self):
         # 处理顶层 import 语句
         if 'imports' in self.data:
@@ -248,44 +248,9 @@ class HPLParser:
         if 'call' in self.data:
             call_str = self.data['call']
             # 解析函数名和参数，如 add(5, 3) -> 函数名: add, 参数: [5, 3]
-            self.call_target, self.call_args = self._parse_call_expression(call_str)
-        
-        return self.classes, self.objects, self.functions, self.main_func, self.call_target, self.call_args, self.imports
+            self.call_target, self.call_args = parse_call_expression(call_str)
 
-    def _parse_call_expression(self, call_str):
-        """解析 call 表达式，提取函数名和参数"""
-        call_str = call_str.strip()
-        
-        # 查找左括号
-        if '(' in call_str:
-            func_name = call_str[:call_str.find('(')].strip()
-            args_str = call_str[call_str.find('(')+1:call_str.rfind(')')].strip()
-            
-            # 解析参数
-            args = []
-            if args_str:
-                # 按逗号分割参数
-                for arg in args_str.split(','):
-                    arg = arg.strip()
-                    # 尝试解析为整数
-                    try:
-                        args.append(int(arg))
-                    except ValueError:
-                        # 尝试解析为浮点数
-                        try:
-                            args.append(float(arg))
-                        except ValueError:
-                            # 作为字符串处理（去掉引号）
-                            if (arg.startswith('"') and arg.endswith('"')) or \
-                               (arg.startswith("'") and arg.endswith("'")):
-                                args.append(arg[1:-1])
-                            else:
-                                args.append(arg)  # 变量名或其他
-            
-            return func_name, args
-        else:
-            # 没有括号，如 call: main
-            return call_str, []
+        return self.classes, self.objects, self.functions, self.main_func, self.call_target, self.call_args, self.imports
 
 
     def parse_top_level_functions(self):
@@ -307,8 +272,6 @@ class HPLParser:
                     self.main_func = func
 
 
-
-
     def parse_imports(self):
         """解析顶层 import 语句"""
         imports_data = self.data['imports']
@@ -321,7 +284,6 @@ class HPLParser:
                     # 复杂格式: {module: alias}
                     for module, alias in imp.items():
                         self.imports.append({'module': module, 'alias': alias})
-
 
 
     def parse_classes(self):
@@ -377,7 +339,6 @@ class HPLParser:
                 "Arrow function syntax error: braces not found",
                 file=self.hpl_file
             )
-
 
         body_str = func_str[body_start+1:body_end].strip()
         
