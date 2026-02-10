@@ -8,14 +8,16 @@ import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'hpl_runtime'))
 
 import unittest
-from evaluator import HPLEvaluator
 
 try:
+    from hpl_runtime.core.evaluator import HPLEvaluator
     from hpl_runtime.core.models import *
     from hpl_runtime.utils.exceptions import HPLReturnValue, HPLNameError, HPLTypeError, HPLDivisionError
 except ImportError:
+    from evaluator import HPLEvaluator
     from models import *
     from exceptions import HPLReturnValue, HPLNameError, HPLTypeError, HPLDivisionError
+
 
 # 使用正确的 ReturnValue 别名
 ReturnValue = HPLReturnValue

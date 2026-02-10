@@ -61,8 +61,13 @@ class HPLParser:
         # 使用自定义 YAML 解析器
         data = yaml.safe_load(content)
         
+        # 如果 YAML 解析返回 None（空文件或只有注释），使用空字典
+        if data is None:
+            data = {}
+        
         # 处理 includes（支持多路径搜索和嵌套include）
         if 'includes' in data:
+
             for include_file in data['includes']:
                 include_path = self._resolve_include_path(include_file)
                 if include_path:

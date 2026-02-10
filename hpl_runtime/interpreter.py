@@ -61,7 +61,13 @@ def main():
 
         classes, objects, functions, main_func, call_target, call_args, imports = parser.parse()
 
+        # 检查是否有 main 函数
+        if main_func is None:
+            print("[ERROR] No main function found in the HPL file")
+            sys.exit(1)
+
         evaluator = HPLEvaluator(classes, objects, functions, main_func, call_target, call_args)
+
 
         # 处理顶层导入（必须在对象实例化之前，以便构造函数可以使用导入的模块）
         for imp in imports:

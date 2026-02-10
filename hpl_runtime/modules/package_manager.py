@@ -217,7 +217,7 @@ Examples:
   hpl info requests               Show package details
   hpl path --add ./my_modules     Add custom module path
 
-For more help: https://github.com/yourusername/hpl
+For more help: https://github.com/TheSingularityStudio/HPL
         """
     )
     

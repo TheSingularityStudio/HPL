@@ -10,8 +10,14 @@ import contextlib
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'hpl_runtime'))
 
 import unittest
-from parser import HPLParser
-from evaluator import HPLEvaluator
+
+try:
+    from hpl_runtime.core.parser import HPLParser
+    from hpl_runtime.core.evaluator import HPLEvaluator
+except ImportError:
+    from parser import HPLParser
+    from evaluator import HPLEvaluator
+
 
 
 class TestHPLIntegration(unittest.TestCase):
