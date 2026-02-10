@@ -175,7 +175,7 @@ class HPLRecursionError(HPLRuntimeError):
     pass
 
 
-class HPLBreakException(Exception):
+class HPLBreakException(HPLError):
     """
     用于跳出循环的内部异常
     
@@ -184,7 +184,7 @@ class HPLBreakException(Exception):
     pass
 
 
-class HPLContinueException(Exception):
+class HPLContinueException(HPLError):
     """
     用于继续下一次循环的内部异常
     
@@ -193,7 +193,7 @@ class HPLContinueException(Exception):
     pass
 
 
-class HPLReturnValue(Exception):
+class HPLReturnValue(HPLError):
     """
     用于传递返回值的内部异常
     
@@ -202,6 +202,7 @@ class HPLReturnValue(Exception):
     def __init__(self, value):
         self.value = value
         super().__init__("Return value wrapper")
+
 
 
 def format_error_for_user(error, source_code=None):
