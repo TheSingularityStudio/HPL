@@ -251,15 +251,50 @@ else :
 - 条件：如 `i % 2 == 0`。
 - 使用冒号 `:` 表示代码块开始，后续代码缩进。
 
-### 循环语句（for）
+### 循环语句（for in）
+
+HPL 使用 `for in` 语法进行循环迭代，支持遍历范围、数组、字典和字符串。
 
 ```yaml
-for (initialization; condition; increment) :
+for (variable in iterable) :
   code
 ```
 
-- 示例：`for (i = 0; i < count; i++) :`
+- **基本语法**：`for (i in range(5)) :`
+- **遍历数组**：`for (item in arr) :`
+- **遍历字典**：`for (key in dict) :`（遍历字典的键）
+- **遍历字符串**：`for (char in str) :`（遍历字符串的每个字符）
 - 循环体使用缩进表示。
+
+#### 支持的迭代对象
+
+1. **range 函数**：`range(n)` 生成 0 到 n-1 的整数序列
+   ```yaml
+   for (i in range(5)) :
+     echo i  # 输出 0, 1, 2, 3, 4
+   ```
+
+2. **数组**：直接遍历数组元素
+   ```yaml
+   arr = [10, 20, 30]
+   for (item in arr) :
+     echo item  # 输出 10, 20, 30
+   ```
+
+3. **字典**：遍历字典的键
+   ```yaml
+   person = {"name": "Alice", "age": 30}
+   for (key in person) :
+     echo key  # 输出 "name", "age"
+   ```
+
+4. **字符串**：遍历每个字符
+   ```yaml
+   text = "Hello"
+   for (char in text) :
+     echo char  # 输出 H, e, l, l, o
+   ```
+
 
 ### while 循环
 
@@ -294,10 +329,11 @@ while (true) :
   i++
 
 # continue 示例
-for (i = 0; i < 5; i++) :
+for (i in range(5)) :
   if (i == 2) :
     continue  # 跳过 i == 2 的情况
   echo "i = " + i
+
 ```
 
 
@@ -623,12 +659,13 @@ classes:
         this.print("Hello World")
       }
     showmessages: (count) => {
-        for (i = 0; i < count; i++) :
+        for (i in range(count)) :
           if (i % 2 == 0) :
             this.print("Even: Hello World " + i)
           else :
             this.print("Odd: Hello World " + i)
       }
+
 
 objects:
   printer: MessagePrinter()
@@ -667,20 +704,19 @@ call: main()
 ```yaml
 classes:
   FeatureDemo:
-    # 演示 while 循环和 break/continue
+    # 演示 for in 循环和 break/continue
     demo_loop: () => {
-        echo "=== While Loop Demo ==="
-        i = 0
+        echo "=== For In Loop Demo ==="
         sum = 0
-        while (i < 10) :
-          i++
+        for (i in range(10)) :
           if (i == 3) :
             continue  # 跳过 3
           if (i == 7) :
             break     # 在 7 时退出
           sum = sum + i
-        echo "Sum (1+2+4+5+6): " + sum
+        echo "Sum (0+1+2+4+5+6): " + sum
       }
+
     
     # 演示逻辑运算符
     demo_logic: () => {

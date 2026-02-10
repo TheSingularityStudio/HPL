@@ -287,8 +287,9 @@ call: main()
     
     # 测试循环
     sum = 0
-    for (i = 0; i < 5; i++) :
+    for (i in range(5)) :
       sum = sum + arr[i]
+
     
     echo "Sum: " + sum
   }
