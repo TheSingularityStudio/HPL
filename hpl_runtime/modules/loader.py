@@ -301,6 +301,13 @@ def _parse_hpl_module(module_name, file_path):
         
         # 将类注册为模块函数（构造函数）
         for class_name, hpl_class in classes.items():
+            # 计算构造函数参数数量
+            init_param_count = 0
+            if 'init' in hpl_class.methods:
+                init_param_count = len(hpl_class.methods['init'].params)
+            elif '__init__' in hpl_class.methods:
+                init_param_count = len(hpl_class.methods['__init__'].params)
+            
             def make_constructor(cls, eval_ctx):
                 def constructor(*args):
                     # 创建对象实例
@@ -316,13 +323,24 @@ def _parse_hpl_module(module_name, file_path):
                     if constructor_name:
                         init_func = cls.methods[constructor_name]
                         # 验证参数数量
-            init_param_count = 0
-            # 支持 init 和 __init__ 作为构造函数名
-            if 'init' in hpl_class.methods:
-                init_param_count = len(hpl_class.methods['init'].params)
-            elif '__init__' in hpl_class.methods:
-                init_param_count = len(hpl_class.methods['__init__'].params)
-
+                        if len(args) != len(init_func.params):
+                            raise ValueError(
+                                f"Constructor '{cls.name}' expects {len(init_func.params)} "
+                                f"arguments, got {len(args)}"
+                            )
+                        # 构建参数作用域
+                        func_scope = {'this': obj}
+                        for i, param in enumerate(init_func.params):
+                            if i < len(args):
+                                func_scope[param] = args[i]
+                            else:
+                                func_scope[param] = None
+                        # 执行构造函数
+                        eval_ctx.execute_function(init_func, func_scope)
+                    
+                    return obj
+                
+                return constructor
             
             hpl_module.register_function(
                 class_name, 
@@ -330,6 +348,7 @@ def _parse_hpl_module(module_name, file_path):
                 init_param_count,
                 f"Class constructor: {class_name}"
             )
+
         
         # 将对象注册为常量（执行构造函数如果存在）
         for obj_name, obj in objects.items():

@@ -190,6 +190,37 @@ classes:
 - 使用 `parent: BaseClass` 指定继承关系。
 - 子类可以调用父类方法，使用 `this.methodName()`。
 
+### 构造函数
+
+HPL 支持使用 `init` 或 `__init__` 作为构造函数名（推荐使用简化的 `init`）：
+
+```yaml
+classes:
+  Shape:
+    # 使用简化的 init 作为构造函数名
+    init: (name) => {
+        this.name = name
+      }
+    
+    getName: () => {
+        return this.name
+      }
+
+  Rectangle:
+    parent: Shape
+    init: (width, height) => {
+        # 调用父类构造函数
+        this.parent.init("矩形")
+        this.width = width
+        this.height = height
+      }
+```
+
+- 构造函数在对象实例化时自动调用
+- 支持 `init` 和 `__init__` 两种形式（`init` 是 `__init__` 的别名）
+- 子类可以通过 `this.parent.init(...)` 调用父类构造函数
+
+
 ## 5. 对象实例化（objects）
 
 
@@ -270,10 +301,12 @@ for (i = 0; i < 5; i++) :
 ```
 
 
-## 7. 异常处理（try-catch）
+## 7. 异常处理（try-catch 和 throw）
 
 
-使用 try-catch 块处理异常。
+使用 try-catch 块处理异常，使用 throw 语句抛出异常。
+
+### try-catch 基本用法
 
 ```yaml
 try :
@@ -284,6 +317,39 @@ catch (error) :
 
 - `error`：捕获的异常变量。
 - 使用冒号和缩进表示代码块。
+
+### throw 语句
+
+使用 `throw` 语句主动抛出异常：
+
+```yaml
+try :
+  if (x == 0) :
+    throw "除数不能为零"
+  result = 10 / x
+catch (error) :
+  echo "错误: " + error
+```
+
+- `throw` 后面可以跟任意表达式，表达式的值将被转换为字符串作为错误信息
+- 如果没有提供表达式，将抛出默认错误信息 "Exception thrown"
+- throw 语句只能在 try-catch 块中使用（或任何会被捕获的地方）
+
+### 嵌套异常处理
+
+```yaml
+try :
+  echo "外层 try 开始"
+  try :
+    echo "内层 try"
+    throw "内层错误"
+  catch (innerError) :
+    echo "内层捕获: " + innerError
+  echo "外层 try 继续"
+catch (outerError) :
+  echo "外层捕获: " + outerError
+```
+
 
 ## 8. 内置函数和操作符
 
@@ -325,13 +391,15 @@ catch (error) :
 
 ### 算术操作符
 
-- `+`：加法（支持数值加法和字符串拼接）
+- `+`：加法（支持数值加法、字符串拼接和**数组拼接**）
   - 如果两边都是数字，执行数值加法：`10 + 20` → `30`
+  - 如果两边都是数组，执行数组拼接：`[1, 2] + [3, 4]` → `[1, 2, 3, 4]`
   - 否则执行字符串拼接：`"Hello" + "World"` → `"HelloWorld"`
 - `-`：减法（仅支持数值）
 - `*`：乘法（仅支持数值）
 - `/`：除法（仅支持数值）
 - `%`：取模（仅支持数值）
+
 
 ### 比较操作符
 - `==`：等于
