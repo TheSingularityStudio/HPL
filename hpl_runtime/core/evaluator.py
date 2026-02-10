@@ -74,23 +74,40 @@ class HPLEvaluator:
                         local_scope[param] = self.call_args[i]
                     else:
                         local_scope[param] = None  # 默认值为 None
-                self.execute_function(target_func, local_scope)
+                self.execute_function(target_func, local_scope, self.call_target)
             elif self.call_target == 'main' and self.main_func:
-                self.execute_function(self.main_func, {})
+                self.execute_function(self.main_func, {}, 'main')
             else:
                 raise HPLNameError(f"Unknown call target: '{self.call_target}'")
         elif self.main_func:
-            self.execute_function(self.main_func, {})
+            self.execute_function(self.main_func, {}, 'main')
 
 
 
-    def execute_function(self, func, local_scope):
+
+    def execute_function(self, func, local_scope, func_name=None):
         # 执行语句块并返回结果
-        result = self.execute_block(func.body, local_scope)
-        # 如果是ReturnValue包装器，解包；否则返回原始值（或无返回值）
-        if isinstance(result, ReturnValue):
-            return result.value
-        return result
+        # 添加到调用栈（如果提供了函数名）
+        if func_name:
+            self.call_stack.append(f"{func_name}()")
+        
+        try:
+            result = self.execute_block(func.body, local_scope)
+            # 如果是ReturnValue包装器，解包；否则返回原始值（或无返回值）
+            if isinstance(result, ReturnValue):
+                return result.value
+            return result
+        except HPLRuntimeError as e:
+            # 附加调用栈信息到错误对象
+            if not e.call_stack:
+                e.call_stack = self.call_stack.copy()
+            raise
+        finally:
+            # 从调用栈移除
+            if func_name:
+                self.call_stack.pop()
+
+
 
     def execute_block(self, block, local_scope):
         for stmt in block.statements:
@@ -407,9 +424,10 @@ class HPLEvaluator:
                             func_scope[param] = args[i]
                         else:
                             func_scope[param] = None  # 默认值为 None
-                    return self.execute_function(target_func, func_scope)
+                    return self.execute_function(target_func, func_scope, expr.func_name)
                 else:
                     raise HPLNameError(f"Unknown function '{expr.func_name}'")
+
 
         elif isinstance(expr, MethodCall):
             obj = self.evaluate_expression(expr.obj_name, local_scope)

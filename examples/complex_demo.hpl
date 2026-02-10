@@ -278,8 +278,9 @@ classes:
         
         # 模拟一些计算
         sum = 0
-        for (i = 0; i < iterations; i++) :
+        for (i in range(iterations)) :
           sum = sum + i
+
         
         end = t.now_ms()
         elapsed = end - start

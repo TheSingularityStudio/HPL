@@ -57,9 +57,14 @@ def main():
     set_current_hpl_file(hpl_file)
     
     try:
+        # 读取源代码用于错误显示
+        with open(hpl_file, 'r', encoding='utf-8') as f:
+            source_code = f.read()
+        
         parser = HPLParser(hpl_file)
 
         classes, objects, functions, main_func, call_target, call_args, imports = parser.parse()
+
 
         # 检查是否有 main 函数
         if main_func is None:
@@ -106,29 +111,44 @@ def main():
         evaluator.run()
 
     except HPLSyntaxError as e:
-        print(format_error_for_user(e))
+        print(format_error_for_user(e, source_code if 'source_code' in locals() else None))
         sys.exit(1)
     except HPLRuntimeError as e:
-        print(format_error_for_user(e))
+        # 附加调用栈信息到错误对象
+        if 'evaluator' in locals() and evaluator.call_stack:
+            e.call_stack = evaluator.call_stack.copy()
+        print(format_error_for_user(e, source_code if 'source_code' in locals() else None))
         sys.exit(1)
     except HPLImportError as e:
-        print(format_error_for_user(e))
+        print(format_error_for_user(e, source_code if 'source_code' in locals() else None))
         sys.exit(1)
     except HPLError as e:
-        print(format_error_for_user(e))
+        print(format_error_for_user(e, source_code if 'source_code' in locals() else None))
         sys.exit(1)
+
+
     except FileNotFoundError as e:
         print(f"[ERROR] File not found: {e.filename}")
 
         sys.exit(1)
     except Exception as e:
-        # 未预期的内部错误，显示完整信息
+        # 未预期的内部错误，使用友好格式显示
         import traceback
-        print(f"[ERROR] Internal Error: {e}")
-
-        print("\n--- Full traceback ---")
-        traceback.print_exc()
+        
+        # 创建友好的内部错误包装
+        internal_error = HPLRuntimeError(
+            f"Internal error: {type(e).__name__}: {str(e)}",
+            file=hpl_file
+        )
+        print(format_error_for_user(internal_error))
+        
+        # 在调试模式下显示完整traceback
+        if os.environ.get('HPL_DEBUG'):
+            print("\n--- Full traceback ---")
+            traceback.print_exc()
         sys.exit(1)
+
+
 
 
 

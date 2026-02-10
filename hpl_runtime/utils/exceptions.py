@@ -54,6 +54,11 @@ class HPLError(Exception):
                 f"line={self.line!r}, "
                 f"column={self.column!r}, "
                 f"file={self.file!r})")
+    
+    @property
+    def error_message(self):
+        """获取纯错误消息（不含位置信息）"""
+        return super().__str__()
 
 
 class HPLSyntaxError(HPLError):
@@ -83,8 +88,8 @@ class HPLRuntimeError(HPLError):
         result = super().__str__()
         
         if self.call_stack:
-            result += "\n  Call stack:"
-            for i, frame in enumerate(reversed(self.call_stack), 1):
+            result += "\n  Call stack (most recent first):"
+            for i, frame in enumerate(self.call_stack, 1):
                 result += f"\n    {i}. {frame}"
         
         return result
@@ -224,8 +229,20 @@ def format_error_for_user(error, source_code=None):
         # 非 HPL 异常，返回标准格式
         return f"Error: {error}"
     
+    # 根据错误类型选择标签
+    if isinstance(error, HPLSyntaxError):
+        error_label = "[SYNTAX_ERROR]"
+    elif isinstance(error, HPLRuntimeError):
+        error_label = "[RUNTIME_ERROR]"
+    elif isinstance(error, HPLImportError):
+        error_label = "[IMPORT_ERROR]"
+    else:
+        error_label = "[ERROR]"
+    
     lines = []
-    lines.append(f"[ERROR] {error.__class__.__name__}: {str(error).split('] ', 1)[-1]}")
+    # 使用 error_message 属性获取纯消息，避免解析问题
+    message = getattr(error, 'error_message', str(error).split('] ', 1)[-1])
+    lines.append(f"{error_label} {error.__class__.__name__}: {message}")
 
     
     if error.file:
@@ -251,15 +268,17 @@ def format_error_for_user(error, source_code=None):
                 prefix = ">>> " if line_num == error.line else "    "
                 lines.append(f"{prefix}{line_num:4d} | {source_lines[i]}")
             
-            # 显示错误位置指示器
+            # 显示错误位置指示器（动态计算位置）
             if error.column is not None:
-                indicator = " " * (8 + error.column) + "^"
+                # 计算前缀长度：4位行号 + 3位分隔符 = 7，再加上前缀"    "或">>> "
+                base_offset = 7 + 4  # 7 for "    " + "4d | ", 4 for prefix
+                indicator = " " * (base_offset + error.column) + "^"
                 lines.append(indicator)
     
-    # 显示调用栈
+    # 显示调用栈（改为 most recent first）
     if isinstance(error, HPLRuntimeError) and error.call_stack:
-        lines.append("\n   Call stack (most recent last):")
-        for i, frame in enumerate(reversed(error.call_stack), 1):
+        lines.append("\n   Call stack (most recent first):")
+        for i, frame in enumerate(error.call_stack, 1):
             lines.append(f"      {i}. {frame}")
     
     return '\n'.join(lines)
