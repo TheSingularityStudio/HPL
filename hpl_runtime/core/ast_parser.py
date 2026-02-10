@@ -325,8 +325,6 @@ class HPLASTParser:
 
 
 
-
-
     def parse_block(self):
         """解析语句块，支持多种语法格式"""
         statements = []
@@ -343,10 +341,12 @@ class HPLASTParser:
                 statements = self._parse_statements_until_end()
                 # 恢复之前的缩进级别
                 self.indent_level = saved_indent_level
-                # 只跳过与父级缩进级别匹配的 DEDENT
-                if self.current_token and self.current_token.type == 'DEDENT':
-                    if hasattr(self.current_token, 'value') and self.current_token.value == saved_indent_level:
+                # 跳过所有连续的 DEDENT token，直到遇到非 DEDENT 或缩进级别小于等于父级
+                while self.current_token and self.current_token.type == 'DEDENT':
+                    if hasattr(self.current_token, 'value') and self.current_token.value <= saved_indent_level:
                         self.advance()
+                    else:
+                        break
 
             else:
                 # 单行语句
@@ -387,11 +387,12 @@ class HPLASTParser:
             statements = self._parse_statements_until_end()
             # 恢复之前的缩进级别
             self.indent_level = saved_indent_level
-            # 只跳过与父级缩进级别匹配的 DEDENT
-            if self.current_token and self.current_token.type == 'DEDENT':
-                if hasattr(self.current_token, 'value') and self.current_token.value == saved_indent_level:
+            # 跳过所有连续的 DEDENT token，直到遇到非 DEDENT 或缩进级别小于等于父级
+            while self.current_token and self.current_token.type == 'DEDENT':
+                if hasattr(self.current_token, 'value') and self.current_token.value <= saved_indent_level:
                     self.advance()
-
+                else:
+                    break
 
         
         # 情况4: 没有花括号也没有冒号，直接解析单个语句或语句序列
@@ -485,7 +486,11 @@ class HPLASTParser:
         self.expect_keyword('try')
         try_block = self.parse_block()
         
+        # 跳过所有 DEDENT token，处理嵌套块后的多个缩进减少
+        self._skip_dedents()
+        
         self.expect_keyword('catch')
+
         self.expect('LPAREN')
         catch_var = self.expect('IDENTIFIER').value
         self.expect('RPAREN')

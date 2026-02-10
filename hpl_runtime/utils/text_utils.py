@@ -108,7 +108,9 @@ def preprocess_functions(content):
         # 检测函数定义行（包含 =>）
         # 匹配模式：methodName: (params) => {
         # 支持任意缩进（用于类方法和顶层函数）
-        func_pattern = r'^(\s*)(\w+):\s*\(.*\)\s*=>.*\{'
+        # 排除 YAML 列表项（以 - 开头的行）
+        func_pattern = r'^(\s*)(?!-)(\w+):\s*\(.*\)\s*=>.*\{'
+
         match = re.match(func_pattern, line)
         
         if match:
