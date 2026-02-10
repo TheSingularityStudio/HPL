@@ -181,7 +181,9 @@ class HPLBreakException(HPLError):
     
     注意：这是控制流异常，不是错误，不应被用户代码捕获。
     """
-    pass
+    def __init__(self, message=None, line=None, column=None, file=None, context=None):
+        # 控制流异常不需要消息，提供默认值
+        super().__init__(message or "Break statement", line, column, file, context)
 
 
 class HPLContinueException(HPLError):
@@ -190,7 +192,9 @@ class HPLContinueException(HPLError):
     
     注意：这是控制流异常，不是错误，不应被用户代码捕获。
     """
-    pass
+    def __init__(self, message=None, line=None, column=None, file=None, context=None):
+        # 控制流异常不需要消息，提供默认值
+        super().__init__(message or "Continue statement", line, column, file, context)
 
 
 class HPLReturnValue(HPLError):

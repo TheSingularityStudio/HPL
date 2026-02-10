@@ -289,7 +289,12 @@ def _parse_hpl_module(module_name, file_path):
             from hpl_runtime.core.parser import HPLParser
             from hpl_runtime.core.evaluator import HPLEvaluator
             from hpl_runtime.core.models import HPLObject
-        
+
+        # 检查文件是否存在
+        file_path = Path(file_path)
+        if not file_path.exists():
+            raise HPLImportError(f"Module file not found: {file_path}")
+
         # 解析 HPL 文件
         parser = HPLParser(str(file_path))
         classes, objects, functions, main_func, call_target, call_args, imports = parser.parse()
@@ -419,6 +424,8 @@ def _parse_hpl_module(module_name, file_path):
         
         return hpl_module
         
+    except FileNotFoundError as e:
+        raise HPLImportError(f"Module file not found: {file_path}") from e
     except Exception as e:
         logger.error(f"Failed to parse HPL module '{module_name}': {e}")
         import traceback
