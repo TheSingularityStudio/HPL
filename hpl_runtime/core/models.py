@@ -150,12 +150,12 @@ class IfStatement(Statement):
         self.else_block = else_block
 
 
-class ForStatement(Statement):
-    def __init__(self, init, condition, increment_expr, body):
-        self.init = init
-        self.condition = condition
-        self.increment_expr = increment_expr
-        self.body = body
+class ForInStatement(Statement):
+    def __init__(self, var_name, iterable_expr, body):
+        self.var_name = var_name      # 循环变量名
+        self.iterable_expr = iterable_expr  # 可迭代对象表达式
+        self.body = body              # 循环体
+
 
 
 class WhileStatement(Statement):

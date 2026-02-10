@@ -157,20 +157,50 @@ class HPLEvaluator:
                 result = self.execute_block(stmt.else_block, local_scope)
                 if isinstance(result, HPLReturnValue):
                     return result
-        elif isinstance(stmt, ForStatement):
-            # 初始化
-            self.execute_statement(stmt.init, local_scope)
-            while self.evaluate_expression(stmt.condition, local_scope):
-                try:
-                    result = self.execute_block(stmt.body, local_scope)
-                    # 如果是HPLReturnValue，立即终止循环并向上传播
-                    if isinstance(result, HPLReturnValue):
-                        return result
-                except HPLBreakException:
-                    break
-                except HPLContinueException:
-                    pass
-                self.evaluate_expression(stmt.increment_expr, local_scope)
+        elif isinstance(stmt, ForInStatement):
+            # 计算可迭代对象
+            iterable = self.evaluate_expression(stmt.iterable_expr, local_scope)
+            
+            # 根据类型进行迭代
+            if isinstance(iterable, list):
+                # 数组迭代
+                for item in iterable:
+                    local_scope[stmt.var_name] = item
+                    try:
+                        result = self.execute_block(stmt.body, local_scope)
+                        if isinstance(result, HPLReturnValue):
+                            return result
+                    except HPLBreakException:
+                        break
+                    except HPLContinueException:
+                        continue
+            elif isinstance(iterable, dict):
+                # 字典迭代（遍历键）
+                for key in iterable.keys():
+                    local_scope[stmt.var_name] = key
+                    try:
+                        result = self.execute_block(stmt.body, local_scope)
+                        if isinstance(result, HPLReturnValue):
+                            return result
+                    except HPLBreakException:
+                        break
+                    except HPLContinueException:
+                        continue
+            elif isinstance(iterable, str):
+                # 字符串迭代（遍历字符）
+                for char in iterable:
+                    local_scope[stmt.var_name] = char
+                    try:
+                        result = self.execute_block(stmt.body, local_scope)
+                        if isinstance(result, HPLReturnValue):
+                            return result
+                    except HPLBreakException:
+                        break
+                    except HPLContinueException:
+                        continue
+            else:
+                raise HPLTypeError(f"'{type(iterable).__name__}' object is not iterable")
+
 
         elif isinstance(stmt, WhileStatement):
             while self.evaluate_expression(stmt.condition, local_scope):
@@ -321,7 +351,30 @@ class HPLEvaluator:
                 args = [self.evaluate_expression(arg, local_scope) for arg in expr.args]
                 return min(args)
 
+            elif expr.func_name == 'range':
+                # range 函数实现
+                if len(expr.args) < 1 or len(expr.args) > 3:
+                    raise HPLValueError("range() requires 1 to 3 arguments")
+                
+                args = [self.evaluate_expression(arg, local_scope) for arg in expr.args]
+                
+                # 检查所有参数都是整数
+                for arg in args:
+                    if not isinstance(arg, int):
+                        raise HPLTypeError(f"range() arguments must be integers, got {type(arg).__name__}")
+                
+                if len(args) == 1:
+                    # range(stop) -> 0 到 stop-1
+                    return list(range(args[0]))
+                elif len(args) == 2:
+                    # range(start, stop) -> start 到 stop-1
+                    return list(range(args[0], args[1]))
+                else:
+                    # range(start, stop, step)
+                    return list(range(args[0], args[1], args[2]))
+
             elif expr.func_name == 'input':
+
                 # 获取用户输入
                 if len(expr.args) == 0:
                     # 无参数：直接读取输入

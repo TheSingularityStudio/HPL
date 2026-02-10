@@ -12,8 +12,9 @@ main: () => {
     echo "第三个元素: " + arr[2]
     
     # 测试在循环中修改数组
-    for (i = 0; i < 5; i++) :
+    for (i in range(5)) :
         arr[i] = i * 10
+
     
     echo "循环修改后: " + arr
 }

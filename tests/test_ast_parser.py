@@ -17,7 +17,7 @@ try:
         IntegerLiteral, FloatLiteral, StringLiteral, BooleanLiteral,
         Variable, BinaryOp, UnaryOp, FunctionCall, MethodCall,
         PostfixIncrement, ArrayLiteral, ArrayAccess,
-        AssignmentStatement, ReturnStatement, IfStatement, ForStatement,
+        AssignmentStatement, ReturnStatement, IfStatement, ForInStatement,
         WhileStatement, TryCatchStatement, EchoStatement, IncrementStatement,
         BreakStatement, ContinueStatement, ImportStatement, BlockStatement
     )
@@ -34,7 +34,7 @@ except ImportError:
         IntegerLiteral, FloatLiteral, StringLiteral, BooleanLiteral,
         Variable, BinaryOp, UnaryOp, FunctionCall, MethodCall,
         PostfixIncrement, ArrayLiteral, ArrayAccess,
-        AssignmentStatement, ReturnStatement, IfStatement, ForStatement,
+        AssignmentStatement, ReturnStatement, IfStatement, ForInStatement,
         WhileStatement, TryCatchStatement, EchoStatement, IncrementStatement,
         BreakStatement, ContinueStatement, ImportStatement, BlockStatement
     )
@@ -44,6 +44,7 @@ except ImportError:
     except ImportError:
         DictionaryLiteral = None
     from exceptions import HPLSyntaxError
+
 
 
 
@@ -685,19 +686,19 @@ class TestASTParserControlFlow(unittest.TestCase):
         self.assertIsNotNone(result.condition)
         self.assertIsNotNone(result.body)
 
-    def test_for_statement(self):
-        """测试for语句"""
-        code = "for (i = 0; i < 10; i++) : echo i"
+    def test_for_in_statement(self):
+        """测试for-in语句"""
+        code = "for (i in range(10)) : echo i"
         lexer = HPLLexer(code)
         tokens = lexer.tokenize()
         parser = HPLASTParser(tokens)
         result = parser.parse_statement()
         
-        self.assertIsInstance(result, ForStatement)
-        self.assertIsNotNone(result.init)
-        self.assertIsNotNone(result.condition)
-        self.assertIsNotNone(result.increment_expr)
+        self.assertIsInstance(result, ForInStatement)
+        self.assertEqual(result.var_name, "i")
+        self.assertIsNotNone(result.iterable_expr)
         self.assertIsNotNone(result.body)
+
 
     def test_try_catch_statement(self):
         """测试try-catch语句"""
