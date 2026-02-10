@@ -226,10 +226,8 @@ module = HPLModule('time', 'Date and time functions')
 # 注册函数
 module.register_function('now', now, 0, 'Get current timestamp in seconds')
 
-# 注册 now 为常量，使其可以作为 time.now 访问（函数本身可被调用）
-module.register_constant('now', now)
-
 module.register_function('now_ms', now_ms, 0, 'Get current timestamp in milliseconds')
+
 module.register_function('sleep', sleep, 1, 'Sleep for specified seconds')
 module.register_function('sleep_ms', sleep_ms, 1, 'Sleep for specified milliseconds')
 module.register_function('format', format_time, None, 'Format timestamp (optional format)')
