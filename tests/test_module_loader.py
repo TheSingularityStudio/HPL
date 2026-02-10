@@ -439,7 +439,8 @@ class TestPackageManagement(unittest.TestCase):
             package_dir = Path(temp_dir) / 'test_package'
             package_dir.mkdir()
             
-            with patch('hpl_runtime.module_loader.HPL_PACKAGES_DIR', Path(temp_dir)):
+            with patch('hpl_runtime.modules.loader.HPL_PACKAGES_DIR', Path(temp_dir)):
+
                 result = uninstall_package('test_package')
                 self.assertTrue(result)
                 mock_rmtree.assert_called_once_with(package_dir)

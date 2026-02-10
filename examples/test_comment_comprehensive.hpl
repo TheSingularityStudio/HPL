@@ -24,9 +24,10 @@ main: () => {
       echo "Positive result"
     
     # for循环前的注释
-    for (i = 0; i < 3; i++) :  # 循环注释
+    for (i in range(3)) :  # 循环注释
       # 循环体内的注释
       echo "Iteration: " + i
+
     
     # try-catch前的注释
     try :

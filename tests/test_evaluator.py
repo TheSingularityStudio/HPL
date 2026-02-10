@@ -8,14 +8,16 @@ import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'hpl_runtime'))
 
 import unittest
-from evaluator import HPLEvaluator
 
 try:
+    from hpl_runtime.core.evaluator import HPLEvaluator
     from hpl_runtime.core.models import *
     from hpl_runtime.utils.exceptions import HPLReturnValue, HPLNameError, HPLTypeError, HPLDivisionError
 except ImportError:
+    from evaluator import HPLEvaluator
     from models import *
     from exceptions import HPLReturnValue, HPLNameError, HPLTypeError, HPLDivisionError
+
 
 # 使用正确的 ReturnValue 别名
 ReturnValue = HPLReturnValue
@@ -403,16 +405,13 @@ class TestHPLEvaluator(unittest.TestCase):
         self.assertEqual(result, 6)  # 返回旧值
         self.assertEqual(local_scope['x'], 7)
     
-    def test_for_statement(self):
-        """测试 for 语句执行"""
+    def test_for_in_statement(self):
+        """测试 for-in 语句执行"""
         evaluator = HPLEvaluator(self.classes, self.objects, self.functions, self.main_func)
 
         local_scope = {}
         
-        # for (i = 0; i < 3; i++) { sum = sum + i }
-        init = AssignmentStatement('i', IntegerLiteral(0))
-        condition = BinaryOp(Variable('i'), '<', IntegerLiteral(3))
-        increment = PostfixIncrement(Variable('i'))
+        # for (i in range(3)) { sum = sum + i }
         body = BlockStatement([
             AssignmentStatement('sum', BinaryOp(Variable('sum'), '+', Variable('i')))
         ])
@@ -420,23 +419,21 @@ class TestHPLEvaluator(unittest.TestCase):
         # 初始化 sum
         local_scope['sum'] = 0
         
-        for_stmt = ForStatement(init, condition, increment, body)
+        for_stmt = ForInStatement('i', FunctionCall('range', [IntegerLiteral(3)]), body)
         evaluator.execute_statement(for_stmt, local_scope)
         
         # 验证结果: 0+1+2 = 3
         self.assertEqual(local_scope['sum'], 3)
-        self.assertEqual(local_scope['i'], 3)
+        self.assertEqual(local_scope['i'], 2)  # 最后一个值是 2
+
     
-    def test_for_statement_with_break(self):
-        """测试带 break 的 for 语句"""
+    def test_for_in_statement_with_break(self):
+        """测试带 break 的 for-in 语句"""
         evaluator = HPLEvaluator(self.classes, self.objects, self.functions, self.main_func)
 
         local_scope = {}
         
-        # for (i = 0; i < 10; i++) { if (i == 3) break; sum = sum + i }
-        init = AssignmentStatement('i', IntegerLiteral(0))
-        condition = BinaryOp(Variable('i'), '<', IntegerLiteral(10))
-        increment = PostfixIncrement(Variable('i'))
+        # for (i in range(10)) { if (i == 3) break; sum = sum + i }
         
         # 创建 if 语句包含 break
         break_if = IfStatement(
@@ -449,22 +446,21 @@ class TestHPLEvaluator(unittest.TestCase):
         ])
         
         local_scope['sum'] = 0
-        for_stmt = ForStatement(init, condition, increment, body)
+        for_stmt = ForInStatement('i', FunctionCall('range', [IntegerLiteral(10)]), body)
         evaluator.execute_statement(for_stmt, local_scope)
         
         # 验证结果: 0+1+2 = 3 (在 i=3 时 break)
         self.assertEqual(local_scope['sum'], 3)
+
     
-    def test_for_statement_with_continue(self):
-        """测试带 continue 的 for 语句"""
+    def test_for_in_statement_with_continue(self):
+        """测试带 continue 的 for-in 语句"""
         evaluator = HPLEvaluator(self.classes, self.objects, self.functions, self.main_func)
 
         local_scope = {}
         
-        # for (i = 0; i < 5; i++) { if (i == 2) continue; sum = sum + i }
-        init = AssignmentStatement('i', IntegerLiteral(0))
-        condition = BinaryOp(Variable('i'), '<', IntegerLiteral(5))
-        increment = PostfixIncrement(Variable('i'))
+        # for (i in range(5)) { if (i == 2) continue; sum = sum + i }
+        local_scope['sum'] = 0
         
         # 创建 if 语句包含 continue
         continue_if = IfStatement(
@@ -476,12 +472,12 @@ class TestHPLEvaluator(unittest.TestCase):
             AssignmentStatement('sum', BinaryOp(Variable('sum'), '+', Variable('i')))
         ])
         
-        local_scope['sum'] = 0
-        for_stmt = ForStatement(init, condition, increment, body)
+        for_stmt = ForInStatement('i', FunctionCall('range', [IntegerLiteral(5)]), body)
         evaluator.execute_statement(for_stmt, local_scope)
         
         # 验证结果: 0+1+3+4 = 8 (跳过了 i=2)
         self.assertEqual(local_scope['sum'], 8)
+
     
     def test_try_catch_statement(self):
         """测试 try-catch 语句"""

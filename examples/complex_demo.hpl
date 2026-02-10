@@ -105,11 +105,12 @@ classes:
           return 0
         
         maxVal = arr[0]
-        for (i = 1; i < len(arr); i++) :
-          if (arr[i] > maxVal) :
-            maxVal = arr[i]
+        for (item in arr) :
+          if (item > maxVal) :
+            maxVal = item
         return maxVal
       }
+
     
     # 计算数组平均值
     calculateAverage: (arr) => {
@@ -117,16 +118,17 @@ classes:
           return 0
         
         sum = 0
-        for (i = 0; i < len(arr); i++) :
-          sum = sum + arr[i]
+        for (item in arr) :
+          sum = sum + item
         return sum / len(arr)
       }
+
     
     # 数组排序（冒泡排序）
     bubbleSort: (arr) => {
         n = len(arr)
-        for (i = 0; i < n - 1; i++) :
-          for (j = 0; j < n - i - 1; j++) :
+        for (i in range(n - 1)) :
+          for (j in range(n - i - 1)) :
             if (arr[j] > arr[j + 1]) :
               # 交换元素
               temp = arr[j]
@@ -134,16 +136,18 @@ classes:
               arr[j + 1] = temp
         return arr
       }
+
     
     # 过滤数组中的偶数
     filterEven: (arr) => {
         result = []
-        for (i = 0; i < len(arr); i++) :
-          if (arr[i] % 2 == 0) :
+        for (item in arr) :
+          if (item % 2 == 0) :
             # 使用数组追加（通过创建新数组模拟）
-            result = result + [arr[i]]
+            result = result + [item]
         return result
       }
+
 
   # 文件管理器类
   FileManager:
@@ -195,10 +199,11 @@ classes:
           return 1
         
         result = 1
-        for (i = 2; i <= n; i++) :
+        for (i in range(2, n + 1)) :
           result = result * i
         return result
       }
+
     
     # 判断质数
     isPrime: (num) => {
@@ -226,11 +231,12 @@ classes:
           return [0]
         
         result = [0, 1]
-        for (i = 2; i < count; i++) :
+        for (i in range(2, count)) :
           nextVal = result[i - 1] + result[i - 2]
           result = result + [nextVal]
         return result
       }
+
     
     # 求解一元二次方程 ax² + bx + c = 0
     solveQuadratic: (a, b, c) => {
@@ -378,21 +384,22 @@ demoMath: () => {
     # 阶乘
     echo ""
     echo "--- 阶乘计算 ---"
-    for (n = 0; n <= 5; n++) :
+    for (n in range(6)) :
       fact = calc.factorial(n)
       echo n + "! = " + fact
+
     
     # 质数判断
     echo ""
     echo "--- 质数判断 ---"
     testNumbers = [2, 3, 4, 17, 18, 19, 20]
-    for (i = 0; i < len(testNumbers); i++) :
-      num = testNumbers[i]
+    for (num in testNumbers) :
       isPrime = calc.isPrime(num)
       if (isPrime) :
         echo num + " 是质数"
       else :
         echo num + " 不是质数"
+
     
     # 斐波那契数列
     echo ""
@@ -452,11 +459,12 @@ demoControlFlow: () => {
     echo ""
     echo "--- For 循环 ---"
     echo "乘法表 (1-5):"
-    for (i = 1; i <= 5; i++) :
+    for (i in range(1, 6)) :
       row = ""
-      for (j = 1; j <= 5; j++) :
+      for (j in range(1, 6)) :
         row = row + (i * j) + "\t"
       echo row
+
     
     # while 循环和 break/continue
     echo ""
@@ -470,10 +478,11 @@ demoControlFlow: () => {
         continue
       
       isPrime = true
-      for (i = 2; i * i <= num; i++) :
+      for (i in range(2, int(m.sqrt(num)) + 1)) :
         if (num % i == 0) :
           isPrime = false
           break
+
       
       if (!isPrime) :
         continue
@@ -602,9 +611,9 @@ demoBuiltInFunctions: () => {
     echo ""
     echo "--- 类型检查 ---"
     testValues = [42, 3.14, "hello", true, [1, 2, 3]]
-    for (i = 0; i < len(testValues); i++) :
-      val = testValues[i]
+    for (val in testValues) :
       echo "值: " + val + ", 类型: " + type(val)
+
     
     # 数值函数
     echo ""

@@ -24,6 +24,7 @@ except ImportError:
 
 
 
+
 class HPLASTParser:
     def __init__(self, tokens):
         self.tokens = tokens
@@ -146,9 +147,18 @@ class HPLASTParser:
             self.advance()
             return ContinueStatement()
         
+        # 处理 throw 语句
+        if self.current_token.type == 'KEYWORD' and self.current_token.value == 'throw':
+            self.advance()
+            expr = None
+            if self.current_token and self.current_token.type not in ['SEMICOLON', 'RBRACE', 'EOF', 'DEDENT']:
+                expr = self.parse_expression()
+            return ThrowStatement(expr)
+        
         # 处理 import 语句
         if self.current_token.type == 'KEYWORD' and self.current_token.value == 'import':
             return self.parse_import_statement()
+
         
         # 处理 if 语句
 
@@ -262,21 +272,15 @@ class HPLASTParser:
         self.expect_keyword('for')
         self.expect('LPAREN')
         
-        # 解析初始化
-        init = self.parse_statement()
-        self.expect('SEMICOLON')
-        
-        # 解析条件
-        condition = self.parse_expression()
-        self.expect('SEMICOLON')
-        
-        # 解析增量
-        increment_expr = self.parse_expression()
+        # for in 语法: for (var in iterable)
+        var_name = self.current_token.value
+        self.advance()  # 跳过变量名
+        self.expect_keyword('in')
+        iterable_expr = self.parse_expression()
         self.expect('RPAREN')
-        
         body = self.parse_block()
-        
-        return ForStatement(init, condition, increment_expr, body)
+        return ForInStatement(var_name, iterable_expr, body)
+
 
     def parse_while_statement(self):
         self.expect_keyword('while')

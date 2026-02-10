@@ -8,7 +8,18 @@ import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'hpl_runtime'))
 
 import unittest
-from parser import HPLParser
+
+try:
+    from hpl_runtime.core.parser import HPLParser
+    from hpl_runtime.core.lexer import HPLLexer
+    from hpl_runtime.core.ast_parser import HPLASTParser
+    from hpl_runtime.core.models import WhileStatement, BinaryOp, Variable, IntegerLiteral, ImportStatement, BreakStatement, ContinueStatement
+except ImportError:
+    from parser import HPLParser
+    from lexer import HPLLexer
+    from ast_parser import HPLASTParser
+    from models import WhileStatement, BinaryOp, Variable, IntegerLiteral, ImportStatement, BreakStatement, ContinueStatement
+
 
 
 class TestHPLParser(unittest.TestCase):
@@ -96,8 +107,6 @@ class TestPreprocessor(unittest.TestCase):
     
     def test_preprocess_functions(self):
         """测试函数预处理"""
-        from parser import HPLParser
-        
         # 创建临时测试内容
         content = """main: () => {
     x = 1
@@ -116,10 +125,6 @@ class TestNewParsingFeatures(unittest.TestCase):
     
     def test_parse_while_statement(self):
         """测试 while 语句解析"""
-        from lexer import HPLLexer
-        from ast_parser import HPLASTParser
-        from models import WhileStatement, BinaryOp, Variable, IntegerLiteral
-        
         # 解析 while (i < 10) { i++ }
         code = "while (i < 10) : i++"
         lexer = HPLLexer(code)
@@ -138,10 +143,6 @@ class TestNewParsingFeatures(unittest.TestCase):
     
     def test_parse_import_statement(self):
         """测试 import 语句解析"""
-        from lexer import HPLLexer
-        from ast_parser import HPLASTParser
-        from models import ImportStatement
-        
         # 测试简单导入: import math
         code = "import math"
         lexer = HPLLexer(code)
@@ -161,10 +162,6 @@ class TestNewParsingFeatures(unittest.TestCase):
     
     def test_parse_break_continue(self):
         """测试 break 和 continue 语句解析"""
-        from lexer import HPLLexer
-        from ast_parser import HPLASTParser
-        from models import BreakStatement, ContinueStatement
-        
         # 测试 break
         code_break = "break"
         lexer_break = HPLLexer(code_break)

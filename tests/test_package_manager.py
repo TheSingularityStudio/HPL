@@ -48,8 +48,9 @@ class TestPackageManagerCommands(unittest.TestCase):
         """清理"""
         sys.argv = self.original_argv
     
-    @patch('hpl_runtime.package_manager.install_package')
+    @patch('hpl_runtime.modules.package_manager.install_package')
     def test_cmd_install(self, mock_install):
+
         """测试安装命令"""
         mock_install.return_value = True
         
@@ -71,8 +72,9 @@ class TestPackageManagerCommands(unittest.TestCase):
         self.assertIn("Installing 'requests'", result)
         self.assertIn("installed successfully", result)
     
-    @patch('hpl_runtime.package_manager.install_package')
+    @patch('hpl_runtime.modules.package_manager.install_package')
     def test_cmd_install_with_version(self, mock_install):
+
         """测试带版本号的安装命令"""
         mock_install.return_value = True
         
@@ -86,8 +88,9 @@ class TestPackageManagerCommands(unittest.TestCase):
         
         mock_install.assert_called_once_with('numpy', '1.24.0')
     
-    @patch('hpl_runtime.package_manager.install_package')
+    @patch('hpl_runtime.modules.package_manager.install_package')
     def test_cmd_install_failure(self, mock_install):
+
         """测试安装失败"""
         mock_install.return_value = False
         
@@ -100,8 +103,9 @@ class TestPackageManagerCommands(unittest.TestCase):
         
         self.assertEqual(context.exception.code, 1)
     
-    @patch('hpl_runtime.package_manager.uninstall_package')
+    @patch('hpl_runtime.modules.package_manager.uninstall_package')
     def test_cmd_uninstall(self, mock_uninstall):
+
         """测试卸载命令"""
         mock_uninstall.return_value = True
         
@@ -118,8 +122,9 @@ class TestPackageManagerCommands(unittest.TestCase):
         self.assertIn("Uninstalling 'requests'", result)
         self.assertIn("uninstalled successfully", result)
     
-    @patch('hpl_runtime.package_manager.list_installed_packages')
+    @patch('hpl_runtime.modules.package_manager.list_installed_packages')
     def test_cmd_list(self, mock_list):
+
         """测试列表命令"""
         mock_list.return_value = ['requests', 'numpy', 'pandas']
         
@@ -136,8 +141,9 @@ class TestPackageManagerCommands(unittest.TestCase):
         self.assertIn("pandas", result)
         self.assertIn("Total: 3 packages", result)
     
-    @patch('hpl_runtime.package_manager.list_installed_packages')
+    @patch('hpl_runtime.modules.package_manager.list_installed_packages')
     def test_cmd_list_empty(self, mock_list):
+
         """测试空列表命令"""
         mock_list.return_value = []
         
@@ -181,9 +187,10 @@ class TestPackageManagerCommands(unittest.TestCase):
         result = output.getvalue()
         self.assertIn("Search failed", result)
     
-    @patch('hpl_runtime.package_manager.list_installed_packages')
-    @patch('hpl_runtime.package_manager.install_package')
+    @patch('hpl_runtime.modules.package_manager.list_installed_packages')
+    @patch('hpl_runtime.modules.package_manager.install_package')
     def test_cmd_update(self, mock_install, mock_list):
+
         """测试更新命令"""
         mock_list.return_value = ['requests', 'numpy']
         mock_install.return_value = True
@@ -198,15 +205,15 @@ class TestPackageManagerCommands(unittest.TestCase):
         self.assertEqual(mock_install.call_count, 2)
         self.assertIn("Updated: 2", output.getvalue())
     
-    @patch('hpl_runtime.package_manager.list_installed_packages')
+    @patch('hpl_runtime.modules.package_manager.list_installed_packages')
     def test_cmd_info_installed(self, mock_list):
-        """测试显示已安装包信息"""
         mock_list.return_value = ['requests']
 
         # 创建临时包目录
         temp_dir = tempfile.mkdtemp()
         try:
-            with patch('hpl_runtime.package_manager.HPL_PACKAGES_DIR', Path(temp_dir)):
+            with patch('hpl_runtime.modules.package_manager.HPL_PACKAGES_DIR', Path(temp_dir)):
+
                 # 创建包目录
                 pkg_dir = Path(temp_dir) / 'requests'
                 pkg_dir.mkdir()
@@ -225,8 +232,9 @@ class TestPackageManagerCommands(unittest.TestCase):
             shutil.rmtree(temp_dir)
 
     
-    @patch('hpl_runtime.package_manager.list_installed_packages')
+    @patch('hpl_runtime.modules.package_manager.list_installed_packages')
     def test_cmd_info_not_installed(self, mock_list):
+
         """测试显示未安装包信息"""
         mock_list.return_value = []
         
@@ -240,8 +248,9 @@ class TestPackageManagerCommands(unittest.TestCase):
         result = output.getvalue()
         self.assertIn("Not installed", result)
     
-    @patch('hpl_runtime.package_manager.add_module_path')
+    @patch('hpl_runtime.modules.package_manager.add_module_path')
     def test_cmd_path_add(self, mock_add):
+
         """测试添加模块路径"""
         args = MagicMock()
         args.add = '/new/path'
@@ -279,16 +288,18 @@ class TestPackageManagerMain(unittest.TestCase):
         """清理"""
         sys.argv = self.original_argv
     
-    @patch('hpl_runtime.package_manager.cmd_install')
+    @patch('hpl_runtime.modules.package_manager.cmd_install')
     def test_main_install_command(self, mock_cmd):
+
         """测试主函数安装命令"""
         with patch.object(sys, 'argv', ['hpl', 'install', 'requests']):
             main()
         
         mock_cmd.assert_called_once()
     
-    @patch('hpl_runtime.package_manager.cmd_list')
+    @patch('hpl_runtime.modules.package_manager.cmd_list')
     def test_main_list_command(self, mock_cmd):
+
         """测试主函数列表命令"""
         with patch.object(sys, 'argv', ['hpl', 'list']):
             main()
@@ -317,8 +328,9 @@ class TestPackageManagerMain(unittest.TestCase):
 class TestPackageManagerEdgeCases(unittest.TestCase):
     """测试包管理器边界情况"""
     
-    @patch('hpl_runtime.package_manager.install_package')
+    @patch('hpl_runtime.modules.package_manager.install_package')
     def test_install_with_complex_package_name(self, mock_install):
+
         """测试安装复杂包名"""
         mock_install.return_value = True
         
@@ -333,9 +345,10 @@ class TestPackageManagerEdgeCases(unittest.TestCase):
         
         mock_install.assert_called_once_with('requests[security]', None)
     
-    @patch('hpl_runtime.package_manager.list_installed_packages')
-    @patch('hpl_runtime.package_manager.install_package')
+    @patch('hpl_runtime.modules.package_manager.list_installed_packages')
+    @patch('hpl_runtime.modules.package_manager.install_package')
     def test_update_with_failed_package(self, mock_install, mock_list):
+
         """测试更新时部分包失败"""
         mock_list.return_value = ['pkg1', 'pkg2']
         mock_install.side_effect = [True, False]  # 第一个成功，第二个失败

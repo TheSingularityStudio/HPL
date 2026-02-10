@@ -61,7 +61,13 @@ def main():
 
         classes, objects, functions, main_func, call_target, call_args, imports = parser.parse()
 
+        # 检查是否有 main 函数
+        if main_func is None:
+            print("[ERROR] No main function found in the HPL file")
+            sys.exit(1)
+
         evaluator = HPLEvaluator(classes, objects, functions, main_func, call_target, call_args)
+
 
         # 处理顶层导入（必须在对象实例化之前，以便构造函数可以使用导入的模块）
         for imp in imports:
@@ -112,12 +118,14 @@ def main():
         print(format_error_for_user(e))
         sys.exit(1)
     except FileNotFoundError as e:
-        print(f"❌ File not found: {e.filename}")
+        print(f"[ERROR] File not found: {e.filename}")
+
         sys.exit(1)
     except Exception as e:
         # 未预期的内部错误，显示完整信息
         import traceback
-        print(f"❌ Internal Error: {e}")
+        print(f"[ERROR] Internal Error: {e}")
+
         print("\n--- Full traceback ---")
         traceback.print_exc()
         sys.exit(1)

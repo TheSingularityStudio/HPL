@@ -190,6 +190,37 @@ classes:
 - 使用 `parent: BaseClass` 指定继承关系。
 - 子类可以调用父类方法，使用 `this.methodName()`。
 
+### 构造函数
+
+HPL 支持使用 `init` 或 `__init__` 作为构造函数名（推荐使用简化的 `init`）：
+
+```yaml
+classes:
+  Shape:
+    # 使用简化的 init 作为构造函数名
+    init: (name) => {
+        this.name = name
+      }
+    
+    getName: () => {
+        return this.name
+      }
+
+  Rectangle:
+    parent: Shape
+    init: (width, height) => {
+        # 调用父类构造函数
+        this.parent.init("矩形")
+        this.width = width
+        this.height = height
+      }
+```
+
+- 构造函数在对象实例化时自动调用
+- 支持 `init` 和 `__init__` 两种形式（`init` 是 `__init__` 的别名）
+- 子类可以通过 `this.parent.init(...)` 调用父类构造函数
+
+
 ## 5. 对象实例化（objects）
 
 
@@ -220,15 +251,50 @@ else :
 - 条件：如 `i % 2 == 0`。
 - 使用冒号 `:` 表示代码块开始，后续代码缩进。
 
-### 循环语句（for）
+### 循环语句（for in）
+
+HPL 使用 `for in` 语法进行循环迭代，支持遍历范围、数组、字典和字符串。
 
 ```yaml
-for (initialization; condition; increment) :
+for (variable in iterable) :
   code
 ```
 
-- 示例：`for (i = 0; i < count; i++) :`
+- **基本语法**：`for (i in range(5)) :`
+- **遍历数组**：`for (item in arr) :`
+- **遍历字典**：`for (key in dict) :`（遍历字典的键）
+- **遍历字符串**：`for (char in str) :`（遍历字符串的每个字符）
 - 循环体使用缩进表示。
+
+#### 支持的迭代对象
+
+1. **range 函数**：`range(n)` 生成 0 到 n-1 的整数序列
+   ```yaml
+   for (i in range(5)) :
+     echo i  # 输出 0, 1, 2, 3, 4
+   ```
+
+2. **数组**：直接遍历数组元素
+   ```yaml
+   arr = [10, 20, 30]
+   for (item in arr) :
+     echo item  # 输出 10, 20, 30
+   ```
+
+3. **字典**：遍历字典的键
+   ```yaml
+   person = {"name": "Alice", "age": 30}
+   for (key in person) :
+     echo key  # 输出 "name", "age"
+   ```
+
+4. **字符串**：遍历每个字符
+   ```yaml
+   text = "Hello"
+   for (char in text) :
+     echo char  # 输出 H, e, l, l, o
+   ```
+
 
 ### while 循环
 
@@ -263,17 +329,20 @@ while (true) :
   i++
 
 # continue 示例
-for (i = 0; i < 5; i++) :
+for (i in range(5)) :
   if (i == 2) :
     continue  # 跳过 i == 2 的情况
   echo "i = " + i
+
 ```
 
 
-## 7. 异常处理（try-catch）
+## 7. 异常处理（try-catch 和 throw）
 
 
-使用 try-catch 块处理异常。
+使用 try-catch 块处理异常，使用 throw 语句抛出异常。
+
+### try-catch 基本用法
 
 ```yaml
 try :
@@ -284,6 +353,39 @@ catch (error) :
 
 - `error`：捕获的异常变量。
 - 使用冒号和缩进表示代码块。
+
+### throw 语句
+
+使用 `throw` 语句主动抛出异常：
+
+```yaml
+try :
+  if (x == 0) :
+    throw "除数不能为零"
+  result = 10 / x
+catch (error) :
+  echo "错误: " + error
+```
+
+- `throw` 后面可以跟任意表达式，表达式的值将被转换为字符串作为错误信息
+- 如果没有提供表达式，将抛出默认错误信息 "Exception thrown"
+- throw 语句只能在 try-catch 块中使用（或任何会被捕获的地方）
+
+### 嵌套异常处理
+
+```yaml
+try :
+  echo "外层 try 开始"
+  try :
+    echo "内层 try"
+    throw "内层错误"
+  catch (innerError) :
+    echo "内层捕获: " + innerError
+  echo "外层 try 继续"
+catch (outerError) :
+  echo "外层捕获: " + outerError
+```
+
 
 ## 8. 内置函数和操作符
 
@@ -325,13 +427,15 @@ catch (error) :
 
 ### 算术操作符
 
-- `+`：加法（支持数值加法和字符串拼接）
+- `+`：加法（支持数值加法、字符串拼接和**数组拼接**）
   - 如果两边都是数字，执行数值加法：`10 + 20` → `30`
+  - 如果两边都是数组，执行数组拼接：`[1, 2] + [3, 4]` → `[1, 2, 3, 4]`
   - 否则执行字符串拼接：`"Hello" + "World"` → `"HelloWorld"`
 - `-`：减法（仅支持数值）
 - `*`：乘法（仅支持数值）
 - `/`：除法（仅支持数值）
 - `%`：取模（仅支持数值）
+
 
 ### 比较操作符
 - `==`：等于
@@ -555,12 +659,13 @@ classes:
         this.print("Hello World")
       }
     showmessages: (count) => {
-        for (i = 0; i < count; i++) :
+        for (i in range(count)) :
           if (i % 2 == 0) :
             this.print("Even: Hello World " + i)
           else :
             this.print("Odd: Hello World " + i)
       }
+
 
 objects:
   printer: MessagePrinter()
@@ -599,20 +704,19 @@ call: main()
 ```yaml
 classes:
   FeatureDemo:
-    # 演示 while 循环和 break/continue
+    # 演示 for in 循环和 break/continue
     demo_loop: () => {
-        echo "=== While Loop Demo ==="
-        i = 0
+        echo "=== For In Loop Demo ==="
         sum = 0
-        while (i < 10) :
-          i++
+        for (i in range(10)) :
           if (i == 3) :
             continue  # 跳过 3
           if (i == 7) :
             break     # 在 7 时退出
           sum = sum + i
-        echo "Sum (1+2+4+5+6): " + sum
+        echo "Sum (0+1+2+4+5+6): " + sum
       }
+
     
     # 演示逻辑运算符
     demo_logic: () => {
