@@ -54,33 +54,250 @@ class HPLASTParser:
         # 使用工具函数，传入peek方法以便检查后续token
         return is_block_terminator(self.current_token, self.peek, self.indent_level)
 
+    def _skip_dedents(self):
+        """跳过所有连续的 DEDENT token"""
+        while self.current_token and self.current_token.type == 'DEDENT':
+            self.advance()
+
+    def _skip_indents(self):
+        """跳过所有连续的 INDENT token"""
+        while self.current_token and self.current_token.type == 'INDENT':
+            self.advance()
 
     def _consume_indent(self):
         """消费 INDENT token（如果存在）"""
         if self.current_token and self.current_token.type == 'INDENT':
             self.expect('INDENT')
 
+    # ==================== 语句处理方法 ====================
+    
+    def _parse_return_statement(self):
+        """解析 return 语句"""
+        self.advance()  # 跳过 'return'
+        self._skip_dedents()
+        expr = None
+        if self.current_token and self.current_token.type not in ['SEMICOLON', 'RBRACE', 'EOF']:
+            expr = self.parse_expression()
+        return ReturnStatement(expr)
+    
+    def _parse_break_statement(self):
+        """解析 break 语句"""
+        self.advance()  # 跳过 'break'
+        return BreakStatement()
+    
+    def _parse_continue_statement(self):
+        """解析 continue 语句"""
+        self.advance()  # 跳过 'continue'
+        return ContinueStatement()
+    
+    def _parse_throw_statement(self):
+        """解析 throw 语句"""
+        self.advance()  # 跳过 'throw'
+        expr = None
+        if self.current_token and self.current_token.type not in ['SEMICOLON', 'RBRACE', 'EOF', 'DEDENT']:
+            expr = self.parse_expression()
+        return ThrowStatement(expr)
+    
+    def _parse_echo_statement(self):
+        """解析 echo 语句"""
+        self.advance()  # 跳过 'echo'
+        expr = self.parse_expression()
+        return EchoStatement(expr)
+    
+    def _parse_simple_assignment(self, name):
+        """解析简单赋值：var = value"""
+        self.advance()  # 跳过 '='
+        expr = self.parse_expression()
+        return AssignmentStatement(name, expr)
+    
+    def _parse_array_assignment(self, name):
+        """解析数组赋值：arr[index] = value"""
+        self.advance()  # 跳过 '['
+        index_expr = self.parse_expression()
+        self.expect('RBRACKET')
+        self.advance()  # 跳过 '='
+        value_expr = self.parse_expression()
+        return ArrayAssignmentStatement(name, index_expr, value_expr)
+    
+    def _parse_property_assignment(self, name, prop_name):
+        """解析属性赋值：obj.prop = value 或 obj.prop[index] = value"""
+        self.advance()  # 跳过 '.'
+        prop_name = self.expect('IDENTIFIER').value
+        
+        # 检查是否是属性后的数组索引：obj.prop[index]
+        if self.current_token and self.current_token.type == 'LBRACKET':
+            self.advance()  # 跳过 '['
+            index_expr = self.parse_expression()
+            self.expect('RBRACKET')
+            self.advance()  # 跳过 '='
+            value_expr = self.parse_expression()
+            return ArrayAssignmentStatement(f"{name}.{prop_name}", index_expr, value_expr)
+        
+        # 简单属性赋值：obj.prop = value
+        self.advance()  # 跳过 '='
+        value_expr = self.parse_expression()
+        return AssignmentStatement(f"{name}.{prop_name}", value_expr)
+    
+    def _parse_identifier_statement(self):
+        """
+        解析标识符开头的语句（赋值、自增、表达式）
+        使用 lookahead 避免回溯
+        """
+        name = self.current_token.value
+        
+        # 使用 peek 进行 lookahead，避免保存/恢复位置
+        next_token = self.peek(1)
+        
+        # 检查是否是简单赋值：var = value
+        if next_token and next_token.type == 'ASSIGN':
+            self.advance()  # 跳过变量名
+            return self._parse_simple_assignment(name)
+        
+        # 检查是否是数组赋值：arr[index] = value
+        if next_token and next_token.type == 'LBRACKET':
+            # 需要进一步检查后面是否有 '='
+            # 先跳过 '[' 和索引表达式，检查是否有 ']='
+            # 简化处理：先解析，如果不是赋值再作为表达式
+            self.advance()  # 跳过变量名
+            self.advance()  # 跳过 '['
+            index_expr = self.parse_expression()
+            self.expect('RBRACKET')
+            
+            if self.current_token and self.current_token.type == 'ASSIGN':
+                self.advance()  # 跳过 '='
+                value_expr = self.parse_expression()
+                return ArrayAssignmentStatement(name, index_expr, value_expr)
+            else:
+                # 不是赋值，构造数组访问表达式
+                array_access = ArrayAccess(Variable(name), index_expr)
+                # 继续解析可能的后续操作（如方法调用）
+                return self._parse_expression_suffix(array_access)
+        
+        # 检查是否是属性访问：obj.prop...
+        if next_token and next_token.type == 'DOT':
+            self.advance()  # 跳过变量名
+            self.advance()  # 跳过 '.'
+            prop_name = self.expect('IDENTIFIER').value
+            
+            # 检查是否是属性后的数组索引：obj.prop[index]
+            if self.current_token and self.current_token.type == 'LBRACKET':
+                self.advance()  # 跳过 '['
+                index_expr = self.parse_expression()
+                self.expect('RBRACKET')
+                
+                if self.current_token and self.current_token.type == 'ASSIGN':
+                    self.advance()  # 跳过 '='
+                    value_expr = self.parse_expression()
+                    return ArrayAssignmentStatement(f"{name}.{prop_name}", index_expr, value_expr)
+                else:
+                    # 不是赋值，构造属性数组访问表达式
+                    prop_access = MethodCall(Variable(name), prop_name, [])
+                    array_access = ArrayAccess(prop_access, index_expr)
+                    return self._parse_expression_suffix(array_access)
+            
+            # 检查是否是属性赋值：obj.prop = value
+            if self.current_token and self.current_token.type == 'ASSIGN':
+                self.advance()  # 跳过 '='
+                value_expr = self.parse_expression()
+                return AssignmentStatement(f"{name}.{prop_name}", value_expr)
+            
+            # 构造属性访问表达式，继续解析可能的链式调用
+            prop_access = MethodCall(Variable(name), prop_name, [])
+            return self._parse_expression_suffix(prop_access)
+        
+        # 检查是否是自增：var++
+        if next_token and next_token.type == 'INCREMENT':
+            self.advance()  # 跳过变量名
+            self.advance()  # 跳过 '++'
+            return IncrementStatement(name)
+        
+        # 否则是表达式语句（函数调用、方法调用等）
+        return self.parse_expression()
+    
+    def _parse_expression_suffix(self, expr):
+        """解析表达式后缀（方法调用链、数组访问等）"""
+        current_expr = expr
+        
+        while self.current_token:
+            # 方法调用链：expr.method() 或 expr.method
+            if self.current_token.type == 'DOT':
+                self.advance()
+                member_name = self.expect('IDENTIFIER').value
+                
+                if self.current_token and self.current_token.type == 'LPAREN':
+                    # 方法调用
+                    self.advance()
+                    args = []
+                    if self.current_token and self.current_token.type != 'RPAREN':
+                        args.append(self.parse_expression())
+                        while self.current_token and self.current_token.type == 'COMMA':
+                            self.advance()
+                            args.append(self.parse_expression())
+                    self.expect('RPAREN')
+                    current_expr = MethodCall(current_expr, member_name, args)
+                else:
+                    # 属性访问
+                    current_expr = MethodCall(current_expr, member_name, [])
+            
+            # 数组访问：expr[index]
+            elif self.current_token.type == 'LBRACKET':
+                self.advance()
+                index_expr = self.parse_expression()
+                self.expect('RBRACKET')
+                current_expr = ArrayAccess(current_expr, index_expr)
+            
+            # 后缀自增：expr++
+            elif self.current_token.type == 'INCREMENT':
+                self.advance()
+                # 需要确保 expr 是变量或数组访问
+                if isinstance(current_expr, Variable):
+                    return PostfixIncrement(current_expr)
+                elif isinstance(current_expr, ArrayAccess):
+                    # 数组元素自增需要特殊处理
+                    return PostfixIncrement(current_expr)
+                else:
+                    # 其他表达式不支持自增，返回原表达式
+                    return current_expr
+            
+            else:
+                break
+        
+        return current_expr
+
+    # 关键字分发表：关键字 -> 处理方法
+    _STATEMENT_KEYWORDS = {
+        'return': '_parse_return_statement',
+        'break': '_parse_break_statement',
+        'continue': '_parse_continue_statement',
+        'throw': '_parse_throw_statement',
+        'import': 'parse_import_statement',
+        'if': 'parse_if_statement',
+        'for': 'parse_for_statement',
+        'while': 'parse_while_statement',
+        'try': 'parse_try_catch_statement',
+    }
+
+
     def _parse_statements_until_end(self):
         """解析语句直到遇到块结束标记"""
         statements = []
         while not self._is_block_terminator():
             # 跳过连续的 DEDENT token（处理空行后的缩进变化）
-            while self.current_token and self.current_token.type == 'DEDENT':
-                self.advance()
+            self._skip_dedents()
             
             self._consume_indent()
             if self._is_block_terminator():
                 break
             
             # 再次检查 DEDENT（消费缩进后可能遇到）
-            while self.current_token and self.current_token.type == 'DEDENT':
-                self.advance()
-                if self._is_block_terminator():
-                    return statements
+            self._skip_dedents()
+            if self._is_block_terminator():
+                return statements
             
             if self.current_token and self.current_token.type not in ['RBRACE', 'EOF', 'DEDENT']:
                 statements.append(self.parse_statement())
         return statements
+
 
 
     def parse_block(self):
@@ -98,23 +315,19 @@ class HPLASTParser:
         elif self.current_token and self.current_token.type == 'LBRACE':
             self.expect('LBRACE')
             # 跳过可能的 INDENT token（花括号内的缩进）
-            if self.current_token and self.current_token.type == 'INDENT':
-                self.advance()
+            self._skip_indents()
             while self.current_token and self.current_token.type not in ['RBRACE', 'EOF']:
                 # 跳过 DEDENT token（处理空行后的缩进变化）
                 if self.current_token and self.current_token.type == 'DEDENT':
                     self.advance()
                     continue
                 # 跳过 INDENT token
-                if self.current_token and self.current_token.type == 'INDENT':
-                    self.advance()
-                    continue
+                self._skip_indents()
                 if self.current_token and self.current_token.type in ['RBRACE', 'EOF']:
                     break
                 statements.append(self.parse_statement())
             # 跳过可能的 DEDENT token
-            while self.current_token and self.current_token.type == 'DEDENT':
-                self.advance()
+            self._skip_dedents()
             if self.current_token and self.current_token.type == 'RBRACE':
                 self.expect('RBRACE')
 
@@ -126,8 +339,7 @@ class HPLASTParser:
                 self.expect('INDENT')
                 statements = self._parse_statements_until_end()
                 # 跳过所有连续的 DEDENT token
-                while self.current_token and self.current_token.type == 'DEDENT':
-                    self.advance()
+                self._skip_dedents()
             else:
                 # 单行语句
                 while self.current_token and self.current_token.type not in ['RBRACE', 'EOF', 'KEYWORD']:
@@ -143,156 +355,31 @@ class HPLASTParser:
         return BlockStatement(statements)
 
 
+
     def parse_statement(self):
+        """解析语句 - 使用分发表优化关键字查找"""
         if not self.current_token:
             return None
         
-        # 处理 return 语句
-        if self.current_token.type == 'KEYWORD' and self.current_token.value == 'return':
-            self.advance()
-            expr = None
-            # 跳过DEDENT token，检查是否有返回值
-            while self.current_token and self.current_token.type == 'DEDENT':
-                self.advance()
-            if self.current_token and self.current_token.type not in ['SEMICOLON', 'RBRACE', 'EOF']:
-                expr = self.parse_expression()
-            return ReturnStatement(expr)
-
+        # 处理关键字语句（使用分发表 O(1) 查找）
+        if self.current_token.type == 'KEYWORD':
+            keyword = self.current_token.value
+            handler_name = self._STATEMENT_KEYWORDS.get(keyword)
+            if handler_name:
+                handler = getattr(self, handler_name)
+                return handler()
         
-        # 处理 break 语句
-        if self.current_token.type == 'KEYWORD' and self.current_token.value == 'break':
-            self.advance()
-            return BreakStatement()
-        
-        # 处理 continue 语句
-        if self.current_token.type == 'KEYWORD' and self.current_token.value == 'continue':
-            self.advance()
-            return ContinueStatement()
-        
-        # 处理 throw 语句
-        if self.current_token.type == 'KEYWORD' and self.current_token.value == 'throw':
-            self.advance()
-            expr = None
-            if self.current_token and self.current_token.type not in ['SEMICOLON', 'RBRACE', 'EOF', 'DEDENT']:
-                expr = self.parse_expression()
-            return ThrowStatement(expr)
-        
-        # 处理 import 语句
-        if self.current_token.type == 'KEYWORD' and self.current_token.value == 'import':
-            return self.parse_import_statement()
-
-        
-        # 处理 if 语句
-
-        if self.current_token.type == 'KEYWORD' and self.current_token.value == 'if':
-            return self.parse_if_statement()
-        
-        # 处理 for 语句
-        if self.current_token.type == 'KEYWORD' and self.current_token.value == 'for':
-            return self.parse_for_statement()
-        
-        # 处理 while 语句
-        if self.current_token.type == 'KEYWORD' and self.current_token.value == 'while':
-            return self.parse_while_statement()
-        
-        # 处理 try-catch 语句
-        if self.current_token.type == 'KEYWORD' and self.current_token.value == 'try':
-            return self.parse_try_catch_statement()
-        
-        # 处理 echo 语句
+        # 处理 echo 语句（特殊标识符）
         if self.current_token.type == 'IDENTIFIER' and self.current_token.value == 'echo':
-            self.advance()
-            expr = self.parse_expression()
-            return EchoStatement(expr)
+            return self._parse_echo_statement()
         
-        # 处理赋值或表达式语句
+        # 处理标识符开头的语句（赋值、自增、表达式）
         if self.current_token.type == 'IDENTIFIER':
-            # 先保存当前位置，以便需要时回退
-            start_pos = self.pos
-            
-            name = self.current_token.value
-            self.advance()
-            
-            # 检查是否是简单赋值：var = value（先检查这个，避免与数组/属性访问冲突）
-            if self.current_token and self.current_token.type == 'ASSIGN':
-                self.advance()
-                expr = self.parse_expression()
-                return AssignmentStatement(name, expr)
-            
-            # 检查是否是数组赋值：arr[index] = value
-            if self.current_token and self.current_token.type == 'LBRACKET':
-                # 解析数组索引
-                self.advance()  # 跳过 '['
-                index_expr = self.parse_expression()
-                self.expect('RBRACKET')  # 期望 ']'
-                
-                # 检查是否是赋值
-                if self.current_token and self.current_token.type == 'ASSIGN':
-                    self.advance()  # 跳过 '='
-                    value_expr = self.parse_expression()
-                    return ArrayAssignmentStatement(name, index_expr, value_expr)
-                else:
-                    # 不是赋值，回退并作为数组访问表达式处理
-                    self.pos = start_pos
-                    self.current_token = self.tokens[self.pos]
-                    expr = self.parse_expression()
-                    return expr
-            
-            # 检查是否是属性访问：obj.prop 或 obj.prop[index] 或 obj.prop = value
-            if self.current_token and self.current_token.type == 'DOT':
-                self.advance()  # 跳过 '.'
-                prop_name = self.expect('IDENTIFIER').value
-                
-                # 检查是否是属性后的数组索引：obj.prop[index]
-                if self.current_token and self.current_token.type == 'LBRACKET':
-                    self.advance()  # 跳过 '['
-                    index_expr = self.parse_expression()
-                    self.expect('RBRACKET')  # 期望 ']'
-                    
-                    # 检查是否是赋值：obj.prop[index] = value
-                    if self.current_token and self.current_token.type == 'ASSIGN':
-                        self.advance()  # 跳过 '='
-                        value_expr = self.parse_expression()
-                        # 使用复合名称表示属性数组访问
-                        return ArrayAssignmentStatement(f"{name}.{prop_name}", index_expr, value_expr)
-                    else:
-                        # 不是赋值，回退并作为表达式处理
-                        self.pos = start_pos
-                        self.current_token = self.tokens[self.pos]
-                        expr = self.parse_expression()
-                        return expr
-                
-                # 检查是否是属性赋值：obj.property = value
-                if self.current_token and self.current_token.type == 'ASSIGN':
-                    self.advance()  # 跳过 '='
-                    value_expr = self.parse_expression()
-                    # 创建属性赋值语句，使用特殊格式存储
-                    return AssignmentStatement(f"{name}.{prop_name}", value_expr)
-                else:
-                    # 不是赋值，回退并作为方法调用表达式处理
-                    self.pos = start_pos
-                    self.current_token = self.tokens[self.pos]
-                    expr = self.parse_expression()
-                    return expr
-            
-            # 检查是否是自增
-            if self.current_token and self.current_token.type == 'INCREMENT':
-                self.advance()
-                return IncrementStatement(name)
-            
-            # 否则是表达式（如方法调用）
-            # 回退并解析为表达式
-            self.pos = start_pos
-            self.current_token = self.tokens[self.pos]
-            expr = self.parse_expression()
-            return expr
-
-
-
-
+            return self._parse_identifier_statement()
         
         # 默认解析为表达式
         return self.parse_expression()
+
 
     def parse_if_statement(self):
         self.expect_keyword('if')
@@ -301,24 +388,22 @@ class HPLASTParser:
         self.expect('RPAREN')
         
         # 在解析if块之前，跳过任何DEDENT token（处理空行后的缩进变化）
-        while self.current_token and self.current_token.type == 'DEDENT':
-            self.advance()
+        self._skip_dedents()
         
         then_block = self.parse_block()
         
         else_block = None
         # 在检查else之前，跳过任何DEDENT token
-        while self.current_token and self.current_token.type == 'DEDENT':
-            self.advance()
+        self._skip_dedents()
         
         if self.current_token and self.current_token.type == 'KEYWORD' and self.current_token.value == 'else':
             self.advance()
             # 跳过else后的DEDENT
-            while self.current_token and self.current_token.type == 'DEDENT':
-                self.advance()
+            self._skip_dedents()
             else_block = self.parse_block()
         
         return IfStatement(condition, then_block, else_block)
+
 
 
     def parse_for_statement(self):
@@ -360,9 +445,9 @@ class HPLASTParser:
 
     def parse_expression(self):
         # 跳过任何DEDENT token（处理空行后的缩进变化）
-        while self.current_token and self.current_token.type == 'DEDENT':
-            self.advance()
+        self._skip_dedents()
         return self.parse_or()
+
 
 
     def parse_or(self):
@@ -428,9 +513,9 @@ class HPLASTParser:
 
     def parse_multiplicative(self):
         # 跳过任何DEDENT token
-        while self.current_token and self.current_token.type == 'DEDENT':
-            self.advance()
+        self._skip_dedents()
         left = self.parse_unary()
+
         
         while self.current_token and self.current_token.type in ['MUL', 'DIV', 'MOD']:
             op_map = {
@@ -448,8 +533,7 @@ class HPLASTParser:
 
     def parse_unary(self):
         # 跳过任何DEDENT token
-        while self.current_token and self.current_token.type == 'DEDENT':
-            self.advance()
+        self._skip_dedents()
         # 处理一元运算符：! 和 -
         if self.current_token and self.current_token.type == 'NOT':
             self.advance()
@@ -465,29 +549,18 @@ class HPLASTParser:
         return self.parse_primary()
 
 
-    def parse_primary(self):
-        # 跳过任何DEDENT token
-        while self.current_token and self.current_token.type == 'DEDENT':
-            self.advance()
+    # ==================== 主表达式解析辅助方法 ====================
+    
+    def _parse_literal(self):
+        """解析字面量：布尔值、数字、字符串"""
+        token_type = self.current_token.type
         
-        if not self.current_token:
-            line, column = self._get_position()
-            raise HPLSyntaxError(
-                "Unexpected end of input",
-                line=line,
-                column=column
-            )
-
-        
-        # 处理布尔值
-
-        if self.current_token.type == 'BOOLEAN':
+        if token_type == 'BOOLEAN':
             value = self.current_token.value
             self.advance()
             return BooleanLiteral(value)
         
-        # 处理数字（整数或浮点数）
-        if self.current_token.type == 'NUMBER':
+        if token_type == 'NUMBER':
             value = self.current_token.value
             self.advance()
             if isinstance(value, int):
@@ -495,19 +568,35 @@ class HPLASTParser:
             else:
                 return FloatLiteral(value)
         
-        # 处理字符串
-        if self.current_token.type == 'STRING':
+        if token_type == 'STRING':
             value = self.current_token.value
             self.advance()
             return StringLiteral(value)
         
-        # 处理标识符（变量、函数调用、方法调用）
-        if self.current_token.type == 'IDENTIFIER':
-            name = self.current_token.value
+        return None
+    
+    def _parse_function_call_expr(self, name):
+        """解析函数调用表达式"""
+        self.advance()  # 跳过 '('
+        args = []
+        if self.current_token and self.current_token.type != 'RPAREN':
+            args.append(self.parse_expression())
+            while self.current_token and self.current_token.type == 'COMMA':
+                self.advance()
+                args.append(self.parse_expression())
+        self.expect('RPAREN')
+        return FunctionCall(name, args)
+    
+    def _parse_method_chain_expr(self, name):
+        """解析方法调用链：obj.method() 或 obj.prop"""
+        current_expr = Variable(name)
+        
+        while self.current_token and self.current_token.type == 'DOT':
             self.advance()
+            member_name = self.expect('IDENTIFIER').value
             
             if self.current_token and self.current_token.type == 'LPAREN':
-                # 函数调用
+                # 方法调用
                 self.advance()
                 args = []
                 if self.current_token and self.current_token.type != 'RPAREN':
@@ -516,108 +605,123 @@ class HPLASTParser:
                         self.advance()
                         args.append(self.parse_expression())
                 self.expect('RPAREN')
-                return FunctionCall(name, args)
-            
-            elif self.current_token and self.current_token.type == 'DOT':
-                # 方法调用或模块函数调用
-                # 支持链式调用：this.parent.init("矩形")
-                current_expr = Variable(name)
-                
-                while self.current_token and self.current_token.type == 'DOT':
-                    self.advance()
-                    member_name = self.expect('IDENTIFIER').value
-                    
-                    # 检查是否是函数调用（带括号）
-                    if self.current_token and self.current_token.type == 'LPAREN':
-                        self.advance()
-                        args = []
-                        if self.current_token and self.current_token.type != 'RPAREN':
-                            args.append(self.parse_expression())
-                            while self.current_token and self.current_token.type == 'COMMA':
-                                self.advance()
-                                args.append(self.parse_expression())
-                        self.expect('RPAREN')
-                        current_expr = MethodCall(current_expr, member_name, args)
-                    else:
-                        # 模块常量访问或属性访问，如 math.PI
-                        # 作为属性访问处理，在运行时解析
-                        current_expr = MethodCall(current_expr, member_name, [])
-                
-                return current_expr
-
-
-            
-            elif self.current_token and self.current_token.type == 'INCREMENT':
-                # 后缀递增
-                self.advance()
-                return PostfixIncrement(Variable(name))
-            
-            elif self.current_token and self.current_token.type == 'LBRACKET':
-                # 数组访问
-                self.advance()
-                index = self.parse_expression()
-                self.expect('RBRACKET')
-                return ArrayAccess(Variable(name), index)
-            
+                current_expr = MethodCall(current_expr, member_name, args)
             else:
-                return Variable(name)
+                # 属性访问
+                current_expr = MethodCall(current_expr, member_name, [])
         
-        # 处理括号表达式
-        if self.current_token.type == 'LPAREN':
-            self.advance()
-            expr = self.parse_expression()
-            self.expect('RPAREN')
-            return expr
+        return current_expr
+    
+    def _parse_identifier_primary(self):
+        """解析标识符开头的主表达式"""
+        name = self.current_token.value
+        self.advance()
         
-        # 处理数组字面量
-        if self.current_token.type == 'LBRACKET':
+        if self.current_token and self.current_token.type == 'LPAREN':
+            return self._parse_function_call_expr(name)
+        
+        if self.current_token and self.current_token.type == 'DOT':
+            return self._parse_method_chain_expr(name)
+        
+        if self.current_token and self.current_token.type == 'INCREMENT':
             self.advance()
-            elements = []
-            if self.current_token and self.current_token.type != 'RBRACKET':
-                elements.append(self.parse_expression())
-                while self.current_token and self.current_token.type == 'COMMA':
-                    self.advance()
-                    elements.append(self.parse_expression())
+            return PostfixIncrement(Variable(name))
+        
+        if self.current_token and self.current_token.type == 'LBRACKET':
+            # 数组访问
+            self.advance()
+            index = self.parse_expression()
             self.expect('RBRACKET')
-            return ArrayLiteral(elements)
+            return ArrayAccess(Variable(name), index)
         
-        # 处理字典/对象字面量
-        if self.current_token.type == 'LBRACE':
-            self.advance()
-            # 跳过可能的 INDENT token
-            if self.current_token and self.current_token.type == 'INDENT':
+        return Variable(name)
+    
+    def _parse_paren_expression(self):
+        """解析括号表达式"""
+        self.advance()  # 跳过 '('
+        expr = self.parse_expression()
+        self.expect('RPAREN')
+        return expr
+    
+    def _parse_array_literal_expr(self):
+        """解析数组字面量"""
+        self.advance()  # 跳过 '['
+        elements = []
+        if self.current_token and self.current_token.type != 'RBRACKET':
+            elements.append(self.parse_expression())
+            while self.current_token and self.current_token.type == 'COMMA':
                 self.advance()
-            pairs = {}
-            if self.current_token and self.current_token.type != 'RBRACE':
-                # 解析第一个键值对
+                elements.append(self.parse_expression())
+        self.expect('RBRACKET')
+        return ArrayLiteral(elements)
+    
+    def _parse_dict_literal_expr(self):
+        """解析字典/对象字面量"""
+        self.advance()  # 跳过 '{'
+        self._skip_indents()  # 跳过可能的 INDENT token
+        pairs = {}
+        if self.current_token and self.current_token.type != 'RBRACE':
+            # 解析第一个键值对
+            key = self.expect('STRING').value
+            self.expect('COLON')
+            value = self.parse_expression()
+            pairs[key] = value
+            # 解析后续的键值对
+            while self.current_token and self.current_token.type == 'COMMA':
+                self.advance()
+                self._skip_indents()  # 跳过可能的 INDENT token
+                if self.current_token and self.current_token.type == 'RBRACE':
+                    break
                 key = self.expect('STRING').value
                 self.expect('COLON')
                 value = self.parse_expression()
                 pairs[key] = value
-                # 解析后续的键值对
-                while self.current_token and self.current_token.type == 'COMMA':
-                    self.advance()
-                    # 跳过可能的 INDENT token
-                    if self.current_token and self.current_token.type == 'INDENT':
-                        self.advance()
-                    if self.current_token and self.current_token.type == 'RBRACE':
-                        break
-                    key = self.expect('STRING').value
-                    self.expect('COLON')
-                    value = self.parse_expression()
-                    pairs[key] = value
-            # 跳过可能的 DEDENT token
-            if self.current_token and self.current_token.type == 'DEDENT':
-                self.advance()
-            self.expect('RBRACE')
-            return DictionaryLiteral(pairs)
+        self._skip_dedents()  # 跳过可能的 DEDENT token
+        self.expect('RBRACE')
+        return DictionaryLiteral(pairs)
+
+    # 主表达式分发表：token 类型 -> 处理方法
+    _PRIMARY_HANDLERS = {
+        'BOOLEAN': '_parse_literal',
+        'NUMBER': '_parse_literal',
+        'STRING': '_parse_literal',
+        'IDENTIFIER': '_parse_identifier_primary',
+        'LPAREN': '_parse_paren_expression',
+        'LBRACKET': '_parse_array_literal_expr',
+        'LBRACE': '_parse_dict_literal_expr',
+    }
+
+
+
+    def parse_primary(self):
+        """解析主表达式 - 使用分发表优化"""
+        # 跳过任何DEDENT token
+        self._skip_dedents()
         
+        if not self.current_token:
+            line, column = self._get_position()
+            raise HPLSyntaxError(
+                "Unexpected end of input",
+                line=line,
+                column=column
+            )
+        
+        # 使用分发表查找处理方法（O(1) 查找）
+        token_type = self.current_token.type
+        handler_name = self._PRIMARY_HANDLERS.get(token_type)
+        
+        if handler_name:
+            handler = getattr(self, handler_name)
+            return handler()
+        
+        # 未识别的 token 类型
         line, column = self._get_position()
         raise HPLSyntaxError(
             f"Unexpected token {self.current_token}",
             line=line,
             column=column
         )
+
 
 
 
