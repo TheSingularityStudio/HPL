@@ -360,8 +360,13 @@ class HPLASTParser:
         elif self.current_token and self.current_token.type == 'COLON':
             self.expect('COLON')
             if self.current_token and self.current_token.type == 'INDENT':
+                # 保存当前缩进级别并设置新的缩进级别
+                saved_indent_level = self.indent_level
+                self.indent_level = self.current_token.value
                 self.expect('INDENT')
                 statements = self._parse_statements_until_end()
+                # 恢复之前的缩进级别
+                self.indent_level = saved_indent_level
                 # 跳过所有连续的 DEDENT token
                 self._skip_dedents()
             else:

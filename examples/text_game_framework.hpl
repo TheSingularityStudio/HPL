@@ -72,6 +72,7 @@ classes:
       }
 
 
+
     # 检查是否有出口 - Check if exit exists
     hasExit: (direction) => {
         return this.exits[direction] != null
@@ -189,6 +190,7 @@ classes:
           words = words + [current]
         return words
       }
+
 
   # 游戏类 - Game Class
   # 管理整个游戏的状态和流程
