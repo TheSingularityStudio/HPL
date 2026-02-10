@@ -73,36 +73,41 @@ class HPLASTParser:
     
     def _parse_return_statement(self):
         """解析 return 语句"""
+        line, column = self._get_position()
         self.advance()  # 跳过 'return'
         self._skip_dedents()
         expr = None
         if self.current_token and self.current_token.type not in ['SEMICOLON', 'RBRACE', 'EOF']:
             expr = self.parse_expression()
-        return ReturnStatement(expr)
+        return ReturnStatement(expr, line, column)
     
     def _parse_break_statement(self):
         """解析 break 语句"""
+        line, column = self._get_position()
         self.advance()  # 跳过 'break'
-        return BreakStatement()
-    
+        return BreakStatement(line, column)
+
     def _parse_continue_statement(self):
         """解析 continue 语句"""
+        line, column = self._get_position()
         self.advance()  # 跳过 'continue'
-        return ContinueStatement()
-    
+        return ContinueStatement(line, column)
+
     def _parse_throw_statement(self):
         """解析 throw 语句"""
+        line, column = self._get_position()
         self.advance()  # 跳过 'throw'
         expr = None
         if self.current_token and self.current_token.type not in ['SEMICOLON', 'RBRACE', 'EOF', 'DEDENT']:
             expr = self.parse_expression()
-        return ThrowStatement(expr)
-    
+        return ThrowStatement(expr, line, column)
+
     def _parse_echo_statement(self):
         """解析 echo 语句"""
+        line, column = self._get_position()
         self.advance()  # 跳过 'echo'
         expr = self.parse_expression()
-        return EchoStatement(expr)
+        return EchoStatement(expr, line, column)
     
     def _parse_simple_assignment(self, name):
         """解析简单赋值：var = value"""
@@ -453,40 +458,44 @@ class HPLASTParser:
     def parse_or(self):
         """解析逻辑或 (||)"""
         left = self.parse_and()
-        
+
         while self.current_token and self.current_token.type == 'OR':
+            line, column = self._get_position()
             self.advance()
             right = self.parse_and()
-            left = BinaryOp(left, '||', right)
-        
+            left = BinaryOp(left, '||', right, line, column)
+
         return left
 
     def parse_and(self):
         """解析逻辑与 (&&)"""
         left = self.parse_equality()
-        
+
         while self.current_token and self.current_token.type == 'AND':
+            line, column = self._get_position()
             self.advance()
             right = self.parse_equality()
-            left = BinaryOp(left, '&&', right)
-        
+            left = BinaryOp(left, '&&', right, line, column)
+
         return left
 
     def parse_equality(self):
         left = self.parse_comparison()
-        
+
         while self.current_token and self.current_token.type in ['EQ', 'NE']:
+            line, column = self._get_position()
             op = '==' if self.current_token.type == 'EQ' else '!='
             self.advance()
             right = self.parse_comparison()
-            left = BinaryOp(left, op, right)
-        
+            left = BinaryOp(left, op, right, line, column)
+
         return left
 
     def parse_comparison(self):
         left = self.parse_additive()
-        
+
         while self.current_token and self.current_token.type in ['LT', 'LE', 'GT', 'GE']:
+            line, column = self._get_position()
             op_map = {
                 'LT': '<',
                 'LE': '<=',
@@ -496,19 +505,20 @@ class HPLASTParser:
             op = op_map[self.current_token.type]
             self.advance()
             right = self.parse_additive()
-            left = BinaryOp(left, op, right)
-        
+            left = BinaryOp(left, op, right, line, column)
+
         return left
 
     def parse_additive(self):
         left = self.parse_multiplicative()
-        
+
         while self.current_token and self.current_token.type in ['PLUS', 'MINUS']:
+            line, column = self._get_position()
             op = '+' if self.current_token.type == 'PLUS' else '-'
             self.advance()
             right = self.parse_multiplicative()
-            left = BinaryOp(left, op, right)
-        
+            left = BinaryOp(left, op, right, line, column)
+
         return left
 
     def parse_multiplicative(self):
@@ -516,8 +526,9 @@ class HPLASTParser:
         self._skip_dedents()
         left = self.parse_unary()
 
-        
+
         while self.current_token and self.current_token.type in ['MUL', 'DIV', 'MOD']:
+            line, column = self._get_position()
             op_map = {
                 'MUL': '*',
                 'DIV': '/',
@@ -526,8 +537,8 @@ class HPLASTParser:
             op = op_map[self.current_token.type]
             self.advance()
             right = self.parse_unary()
-            left = BinaryOp(left, op, right)
-        
+            left = BinaryOp(left, op, right, line, column)
+
         return left
 
 
@@ -554,25 +565,26 @@ class HPLASTParser:
     def _parse_literal(self):
         """解析字面量：布尔值、数字、字符串"""
         token_type = self.current_token.type
-        
+        line, column = self._get_position()
+
         if token_type == 'BOOLEAN':
             value = self.current_token.value
             self.advance()
-            return BooleanLiteral(value)
-        
+            return BooleanLiteral(value, line, column)
+
         if token_type == 'NUMBER':
             value = self.current_token.value
             self.advance()
             if isinstance(value, int):
-                return IntegerLiteral(value)
+                return IntegerLiteral(value, line, column)
             else:
-                return FloatLiteral(value)
-        
+                return FloatLiteral(value, line, column)
+
         if token_type == 'STRING':
             value = self.current_token.value
             self.advance()
-            return StringLiteral(value)
-        
+            return StringLiteral(value, line, column)
+
         return None
     
     def _parse_function_call_expr(self, name):
@@ -589,7 +601,8 @@ class HPLASTParser:
     
     def _parse_method_chain_expr(self, name):
         """解析方法调用链：obj.method() 或 obj.prop"""
-        current_expr = Variable(name)
+        line, column = self._get_position()
+        current_expr = Variable(name, line, column)
         
         while self.current_token and self.current_token.type == 'DOT':
             self.advance()
@@ -615,26 +628,27 @@ class HPLASTParser:
     def _parse_identifier_primary(self):
         """解析标识符开头的主表达式"""
         name = self.current_token.value
+        line, column = self._get_position()
         self.advance()
-        
+
         if self.current_token and self.current_token.type == 'LPAREN':
             return self._parse_function_call_expr(name)
-        
+
         if self.current_token and self.current_token.type == 'DOT':
             return self._parse_method_chain_expr(name)
-        
+
         if self.current_token and self.current_token.type == 'INCREMENT':
             self.advance()
             return PostfixIncrement(Variable(name))
-        
+
         if self.current_token and self.current_token.type == 'LBRACKET':
             # 数组访问
             self.advance()
             index = self.parse_expression()
             self.expect('RBRACKET')
             return ArrayAccess(Variable(name), index)
-        
-        return Variable(name)
+
+        return Variable(name, line, column)
     
     def _parse_paren_expression(self):
         """解析括号表达式"""

@@ -36,31 +36,39 @@ class HPLFunction:
 
 # 表达式和语句的基类
 class Expression:
-    pass
+    def __init__(self, line=None, column=None):
+        self.line = line
+        self.column = column
 
 
 class Statement:
-    pass
+    def __init__(self, line=None, column=None):
+        self.line = line
+        self.column = column
 
 
 # 字面量
 class IntegerLiteral(Expression):
-    def __init__(self, value):
+    def __init__(self, value, line=None, column=None):
+        super().__init__(line, column)
         self.value = value
 
 
 class FloatLiteral(Expression):
-    def __init__(self, value):
+    def __init__(self, value, line=None, column=None):
+        super().__init__(line, column)
         self.value = value
 
 
 class StringLiteral(Expression):
-    def __init__(self, value):
+    def __init__(self, value, line=None, column=None):
+        super().__init__(line, column)
         self.value = value
 
 
 class BooleanLiteral(Expression):
-    def __init__(self, value):
+    def __init__(self, value, line=None, column=None):
+        super().__init__(line, column)
         self.value = value
 
 
@@ -73,7 +81,8 @@ class BinaryOp(Expression):
 
 
 class Variable(Expression):
-    def __init__(self, name):
+    def __init__(self, name, line=None, column=None):
+        super().__init__(line, column)
         self.name = name
 
 
@@ -120,13 +129,15 @@ class DictionaryLiteral(Expression):
 # 语句
 
 class AssignmentStatement(Statement):
-    def __init__(self, var_name, expr):
+    def __init__(self, var_name, expr, line=None, column=None):
+        super().__init__(line, column)
         self.var_name = var_name
         self.expr = expr
 
 
 class ArrayAssignmentStatement(Statement):
-    def __init__(self, array_name, index_expr, value_expr):
+    def __init__(self, array_name, index_expr, value_expr, line=None, column=None):
+        super().__init__(line, column)
         self.array_name = array_name
         self.index_expr = index_expr
         self.value_expr = value_expr
@@ -134,24 +145,28 @@ class ArrayAssignmentStatement(Statement):
 
 
 class ReturnStatement(Statement):
-    def __init__(self, expr=None):
+    def __init__(self, expr=None, line=None, column=None):
+        super().__init__(line, column)
         self.expr = expr
 
 
 class BlockStatement(Statement):
-    def __init__(self, statements):
+    def __init__(self, statements, line=None, column=None):
+        super().__init__(line, column)
         self.statements = statements
 
 
 class IfStatement(Statement):
-    def __init__(self, condition, then_block, else_block=None):
+    def __init__(self, condition, then_block, else_block=None, line=None, column=None):
+        super().__init__(line, column)
         self.condition = condition
         self.then_block = then_block
         self.else_block = else_block
 
 
 class ForInStatement(Statement):
-    def __init__(self, var_name, iterable_expr, body):
+    def __init__(self, var_name, iterable_expr, body, line=None, column=None):
+        super().__init__(line, column)
         self.var_name = var_name      # 循环变量名
         self.iterable_expr = iterable_expr  # 可迭代对象表达式
         self.body = body              # 循环体
@@ -159,44 +174,52 @@ class ForInStatement(Statement):
 
 
 class WhileStatement(Statement):
-    def __init__(self, condition, body):
+    def __init__(self, condition, body, line=None, column=None):
+        super().__init__(line, column)
         self.condition = condition
         self.body = body
 
 
 
 class TryCatchStatement(Statement):
-    def __init__(self, try_block, catch_var, catch_block):
+    def __init__(self, try_block, catch_var, catch_block, line=None, column=None):
+        super().__init__(line, column)
         self.try_block = try_block
         self.catch_var = catch_var
         self.catch_block = catch_block
 
 
 class EchoStatement(Statement):
-    def __init__(self, expr):
+    def __init__(self, expr, line=None, column=None):
+        super().__init__(line, column)
         self.expr = expr
 
 
 class IncrementStatement(Statement):
-    def __init__(self, var_name):
+    def __init__(self, var_name, line=None, column=None):
+        super().__init__(line, column)
         self.var_name = var_name
 
 
 class ImportStatement(Statement):
-    def __init__(self, module_name, alias=None):
+    def __init__(self, module_name, alias=None, line=None, column=None):
+        super().__init__(line, column)
         self.module_name = module_name  # 模块名
         self.alias = alias  # 别名（可选）
 
 
 # BreakStatement 和 ContinueStatement 定义在这里，供 ast_parser 使用
 class BreakStatement(Statement):
-    pass
+    def __init__(self, line=None, column=None):
+        super().__init__(line, column)
 
 
 class ContinueStatement(Statement):
-    pass
+    def __init__(self, line=None, column=None):
+        super().__init__(line, column)
 
 
 class ThrowStatement(Statement):
-    def __init__(self, expr):
+    def __init__(self, expr, line=None, column=None):
+        super().__init__(line, column)
         self.expr = expr  # 要抛出的异常表达式

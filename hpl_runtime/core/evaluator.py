@@ -121,12 +121,12 @@ class HPLEvaluator:
                 if obj_name == 'this':
                     obj = local_scope.get('this') or self.current_obj
                 else:
-                    obj = self._lookup_variable(obj_name, local_scope)
-                
+                    obj = self._lookup_variable(obj_name, local_scope, stmt.line, stmt.column)
+
                 if isinstance(obj, HPLObject):
                     obj.attributes[prop_name] = value
                 else:
-                    raise HPLTypeError(f"Cannot set property on non-object value: {type(obj).__name__}")
+                    raise HPLTypeError(f"Cannot set property on non-object value: {type(obj).__name__}", stmt.line, stmt.column)
             else:
                 local_scope[stmt.var_name] = value
 
@@ -300,7 +300,7 @@ class HPLEvaluator:
             # 前缀自增
             value = self._lookup_variable(stmt.var_name, local_scope)
             if not isinstance(value, (int, float)):
-                raise HPLTypeError(f"Cannot increment non-numeric value: {type(value).__name__}")
+                raise HPLTypeError(f"Cannot increment non-numeric value: {type(value).__name__}", stmt.line, stmt.column)
             new_value = value + 1
             self._update_variable(stmt.var_name, new_value, local_scope)
         elif isinstance(stmt, BlockStatement):
@@ -325,7 +325,7 @@ class HPLEvaluator:
         elif isinstance(expr, BooleanLiteral):
             return expr.value
         elif isinstance(expr, Variable):
-            return self._lookup_variable(expr.name, local_scope)
+            return self._lookup_variable(expr.name, local_scope, expr.line, expr.column)
         elif isinstance(expr, BinaryOp):
             left = self.evaluate_expression(expr.left, local_scope)
             right = self.evaluate_expression(expr.right, local_scope)
@@ -334,10 +334,10 @@ class HPLEvaluator:
             operand = self.evaluate_expression(expr.operand, local_scope)
             if expr.op == '!':
                 if not isinstance(operand, bool):
-                    raise HPLTypeError(f"Logical NOT requires boolean operand, got {type(operand).__name__}")
+                    raise HPLTypeError(f"Logical NOT requires boolean operand, got {type(operand).__name__}", expr.line, expr.column)
                 return not operand
             else:
-                raise HPLRuntimeError(f"Unknown unary operator {expr.op}")
+                raise HPLRuntimeError(f"Unknown unary operator {expr.op}", expr.line, expr.column)
 
         elif isinstance(expr, FunctionCall):
             # 内置函数处理
@@ -582,14 +582,14 @@ class HPLEvaluator:
             raise HPLRuntimeError(f"Unknown operator {op}")
 
 
-    def _lookup_variable(self, name, local_scope):
+    def _lookup_variable(self, name, local_scope, line=None, column=None):
         """统一变量查找逻辑"""
         if name in local_scope:
             return local_scope[name]
         elif name in self.global_scope:
             return self.global_scope[name]
         else:
-            raise HPLNameError(f"Undefined variable: '{name}'")
+            raise HPLNameError(f"Undefined variable: '{name}'", line, column)
 
 
     def _update_variable(self, name, value, local_scope):
