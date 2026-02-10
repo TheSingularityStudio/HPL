@@ -97,6 +97,8 @@ class HPLLexer:
                     result += '\n'
                 elif self.current_char == 't':
                     result += '\t'
+                elif self.current_char == 'r':
+                    result += '\r'
                 elif self.current_char == '\\':
                     result += '\\'
                 elif self.current_char == '"':
