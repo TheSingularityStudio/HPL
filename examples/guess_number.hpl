@@ -1,0 +1,30 @@
+imports:
+  - time
+  - math
+
+main: () => {
+    # 生成一个1到100之间的随机数（使用时间戳作为种子）
+    secret = math.floor(time.now() % 100) + 1
+    attempts = 0
+
+    echo "欢迎来到猜数字游戏！"
+    echo "我已经想好了一个1到100之间的数字，请猜猜看。"
+
+    while (true) :
+      guess_str = input("请输入你的猜测（1-100）: ")
+      guess = int(guess_str)
+      attempts = attempts + 1
+
+      if (guess == secret) :
+        echo "恭喜你猜对了！数字是 " + str(secret) + "，你用了 " + str(attempts) + " 次尝试。"
+        break
+      else :
+        if (guess < secret) :
+          echo "太小了！再试试。"
+        else :
+          echo "太大了！再试试。"
+
+    echo "游戏结束！"
+  }
+
+call: main()
