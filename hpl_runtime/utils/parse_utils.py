@@ -41,7 +41,13 @@ def is_block_terminator(token, peek_func=None, indent_level=0):
     # DEDENT 只有在当前缩进级别小于块开始时的级别时才视为终止符
     if token.type == 'DEDENT':
         # 首先检查DEDENT的值是否小于当前缩进级别
-        if token.value < indent_level:
+        # 注意：DEDENT的value表示新的缩进级别
+        if hasattr(token, 'value') and token.value is not None:
+            if token.value < indent_level:
+                return True
+        else:
+            # 如果DEDENT没有value属性，保守地视为终止符
+            # 因为DEDENT表示缩进减少，可能已退出当前块
             return True
         
         # 检查下一个非DEDENT token是否是RBRACE
@@ -59,6 +65,7 @@ def is_block_terminator(token, peek_func=None, indent_level=0):
                 return True
         # 否则，DEDENT只是缩进变化，不是块终止符
         return False
+
 
     
     if token.type == 'KEYWORD' and token.value in ['else', 'catch']:

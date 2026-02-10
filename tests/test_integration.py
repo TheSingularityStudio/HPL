@@ -26,12 +26,19 @@ class TestHPLIntegration(unittest.TestCase):
     def setUp(self):
         """测试前准备"""
         self.examples_dir = os.path.join(os.path.dirname(__file__), '..', 'examples')
+        self.tests_dir = os.path.join(self.examples_dir, 'tests')
+
     
     def run_hpl_file(self, filename):
         """辅助方法：运行 HPL 文件并返回输出"""
-        filepath = os.path.join(self.examples_dir, filename)
+        # 首先检查 tests 子目录（测试文件已移动到此处）
+        filepath = os.path.join(self.tests_dir, filename)
         if not os.path.exists(filepath):
-            self.skipTest(f"文件不存在: {filepath}")
+            # 如果在 tests 目录找不到，再检查 examples 目录
+            filepath = os.path.join(self.examples_dir, filename)
+            if not os.path.exists(filepath):
+                self.skipTest(f"文件不存在: {filepath}")
+
         
         # 添加 examples 目录到模块搜索路径（用于第三方模块测试）
         try:
