@@ -518,6 +518,11 @@ classes:
 - `true` 或 `false`
 - 示例：`flag = true`, `if (false) :`
 
+### 空值（Null）
+- `null`
+- 表示空值或未定义值
+- 示例：`value = null`, `if (value == null) :`
+
 ### 数组（Array）
 - 使用方括号 `[]` 定义数组字面量
 - 支持存储任意类型的元素
