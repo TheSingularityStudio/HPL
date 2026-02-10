@@ -143,19 +143,60 @@ class HPLEvaluator:
 
         elif isinstance(stmt, ArrayAssignmentStatement):
             # 数组元素赋值：arr[index] = value
-            array = self._lookup_variable(stmt.array_name, local_scope)
-            if not isinstance(array, list):
-                raise HPLTypeError(f"Cannot assign to non-array value: {type(array).__name__}")
+            # 或者复合赋值：obj.prop[index] = value
             
-            index = self.evaluate_expression(stmt.index_expr, local_scope)
-            if not isinstance(index, int):
-                raise HPLTypeError(f"Array index must be integer, got {type(index).__name__}")
-            
-            if index < 0 or index >= len(array):
-                raise HPLIndexError(f"Array index {index} out of bounds (length: {len(array)})")
-            
-            value = self.evaluate_expression(stmt.value_expr, local_scope)
-            array[index] = value
+            # 检查是否是复合属性访问（如 this.exits[direction]）
+            if '.' in stmt.array_name:
+                # 复合属性数组赋值：obj.prop[index] = value
+                obj_name, prop_name = stmt.array_name.split('.', 1)
+                
+                # 获取对象
+                if obj_name == 'this':
+                    obj = local_scope.get('this') or self.current_obj
+                else:
+                    obj = self._lookup_variable(obj_name, local_scope)
+                
+                if not isinstance(obj, HPLObject):
+                    raise HPLTypeError(f"Cannot access property on non-object value: {type(obj).__name__}")
+                
+                # 获取属性（应该是数组/字典）
+                if prop_name not in obj.attributes:
+                    # 如果属性不存在，创建一个空字典
+                    obj.attributes[prop_name] = {}
+                
+                array = obj.attributes[prop_name]
+                
+                # 计算索引
+                index = self.evaluate_expression(stmt.index_expr, local_scope)
+                value = self.evaluate_expression(stmt.value_expr, local_scope)
+                
+                # 支持字典和数组
+                if isinstance(array, dict):
+                    array[index] = value
+                elif isinstance(array, list):
+                    if not isinstance(index, int):
+                        raise HPLTypeError(f"Array index must be integer, got {type(index).__name__}")
+                    if index < 0 or index >= len(array):
+                        raise HPLIndexError(f"Array index {index} out of bounds (length: {len(array)})")
+                    array[index] = value
+                else:
+                    raise HPLTypeError(f"Cannot index non-array and non-dict value: {type(array).__name__}")
+            else:
+                # 简单数组赋值
+                array = self._lookup_variable(stmt.array_name, local_scope)
+                if not isinstance(array, list):
+                    raise HPLTypeError(f"Cannot assign to non-array value: {type(array).__name__}")
+                
+                index = self.evaluate_expression(stmt.index_expr, local_scope)
+                if not isinstance(index, int):
+                    raise HPLTypeError(f"Array index must be integer, got {type(index).__name__}")
+                
+                if index < 0 or index >= len(array):
+                    raise HPLIndexError(f"Array index {index} out of bounds (length: {len(array)})")
+                
+                value = self.evaluate_expression(stmt.value_expr, local_scope)
+                array[index] = value
+
 
         elif isinstance(stmt, ReturnStatement):
             # 评估返回值并用HPLReturnValue包装，以便上层识别

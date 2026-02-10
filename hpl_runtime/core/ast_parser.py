@@ -56,11 +56,30 @@ class HPLASTParser:
         """检查当前 token 是否是块结束标记"""
         if not self.current_token:
             return True
-        if self.current_token.type in ['DEDENT', 'RBRACE', 'EOF']:
+        if self.current_token.type in ['RBRACE', 'EOF']:
             return True
+        # DEDENT 只有在当前缩进级别小于块开始时的级别时才视为终止符
+        # 注意：在花括号语法中，DEDENT 不应该作为终止符
+        if self.current_token.type == 'DEDENT':
+            # 检查下一个非DEDENT token是否是RBRACE
+            next_token = self.peek()
+            offset = 1
+            while next_token and next_token.type == 'DEDENT':
+                offset += 1
+                next_token = self.peek(offset)
+            # 如果DEDENT后面跟着RBRACE或EOF，则视为终止符
+            if next_token and next_token.type in ['RBRACE', 'EOF']:
+                return True
+            # 如果DEDENT后面跟着else/catch，则视为终止符
+            if next_token and next_token.type == 'KEYWORD' and next_token.value in ['else', 'catch']:
+                return True
+            # 否则，DEDENT只是缩进变化，不是块终止符
+            return False
         if self.current_token.type == 'KEYWORD' and self.current_token.value in ['else', 'catch']:
             return True
         return False
+
+
 
     def _consume_indent(self):
         """消费 INDENT token（如果存在）"""
@@ -71,11 +90,24 @@ class HPLASTParser:
         """解析语句直到遇到块结束标记"""
         statements = []
         while not self._is_block_terminator():
+            # 跳过连续的 DEDENT token（处理空行后的缩进变化）
+            while self.current_token and self.current_token.type == 'DEDENT':
+                self.advance()
+            
             self._consume_indent()
             if self._is_block_terminator():
                 break
-            statements.append(self.parse_statement())
+            
+            # 再次检查 DEDENT（消费缩进后可能遇到）
+            while self.current_token and self.current_token.type == 'DEDENT':
+                self.advance()
+                if self._is_block_terminator():
+                    return statements
+            
+            if self.current_token and self.current_token.type not in ['RBRACE', 'EOF', 'DEDENT']:
+                statements.append(self.parse_statement())
         return statements
+
 
     def parse_block(self):
         """解析语句块，支持多种语法格式"""
@@ -94,10 +126,20 @@ class HPLASTParser:
             # 跳过可能的 INDENT token（花括号内的缩进）
             if self.current_token and self.current_token.type == 'INDENT':
                 self.advance()
-            while self.current_token and self.current_token.type not in ['RBRACE', 'DEDENT', 'EOF']:
+            while self.current_token and self.current_token.type not in ['RBRACE', 'EOF']:
+                # 跳过 DEDENT token（处理空行后的缩进变化）
+                if self.current_token and self.current_token.type == 'DEDENT':
+                    self.advance()
+                    continue
+                # 跳过 INDENT token
+                if self.current_token and self.current_token.type == 'INDENT':
+                    self.advance()
+                    continue
+                if self.current_token and self.current_token.type in ['RBRACE', 'EOF']:
+                    break
                 statements.append(self.parse_statement())
             # 跳过可能的 DEDENT token
-            if self.current_token and self.current_token.type == 'DEDENT':
+            while self.current_token and self.current_token.type == 'DEDENT':
                 self.advance()
             if self.current_token and self.current_token.type == 'RBRACE':
                 self.expect('RBRACE')
@@ -110,20 +152,23 @@ class HPLASTParser:
             if self.current_token and self.current_token.type == 'INDENT':
                 self.expect('INDENT')
                 statements = self._parse_statements_until_end()
-                if self.current_token and self.current_token.type == 'DEDENT':
-                    self.expect('DEDENT')
+                # 跳过所有连续的 DEDENT token
+                while self.current_token and self.current_token.type == 'DEDENT':
+                    self.advance()
             else:
                 # 单行语句
                 while self.current_token and self.current_token.type not in ['RBRACE', 'EOF', 'KEYWORD']:
                     if self.current_token.type == 'KEYWORD' and self.current_token.value in ['else', 'catch']:
                         break
                     statements.append(self.parse_statement())
+
         
         # 情况4: 没有花括号也没有冒号，直接解析单个语句或语句序列
         else:
             statements = self._parse_statements_until_end()
         
         return BlockStatement(statements)
+
 
     def parse_statement(self):
         if not self.current_token:
@@ -133,9 +178,13 @@ class HPLASTParser:
         if self.current_token.type == 'KEYWORD' and self.current_token.value == 'return':
             self.advance()
             expr = None
+            # 跳过DEDENT token，检查是否有返回值
+            while self.current_token and self.current_token.type == 'DEDENT':
+                self.advance()
             if self.current_token and self.current_token.type not in ['SEMICOLON', 'RBRACE', 'EOF']:
                 expr = self.parse_expression()
             return ReturnStatement(expr)
+
         
         # 处理 break 语句
         if self.current_token.type == 'KEYWORD' and self.current_token.value == 'break':
@@ -191,6 +240,12 @@ class HPLASTParser:
             name = self.current_token.value
             self.advance()
             
+            # 检查是否是简单赋值：var = value（先检查这个，避免与数组/属性访问冲突）
+            if self.current_token and self.current_token.type == 'ASSIGN':
+                self.advance()
+                expr = self.parse_expression()
+                return AssignmentStatement(name, expr)
+            
             # 检查是否是数组赋值：arr[index] = value
             if self.current_token and self.current_token.type == 'LBRACKET':
                 # 解析数组索引
@@ -210,18 +265,35 @@ class HPLASTParser:
                     expr = self.parse_expression()
                     return expr
             
-            # 检查是否是属性赋值：obj.property = value
+            # 检查是否是属性访问：obj.prop 或 obj.prop[index] 或 obj.prop = value
             if self.current_token and self.current_token.type == 'DOT':
                 self.advance()  # 跳过 '.'
                 prop_name = self.expect('IDENTIFIER').value
                 
-                # 检查是否是赋值
+                # 检查是否是属性后的数组索引：obj.prop[index]
+                if self.current_token and self.current_token.type == 'LBRACKET':
+                    self.advance()  # 跳过 '['
+                    index_expr = self.parse_expression()
+                    self.expect('RBRACKET')  # 期望 ']'
+                    
+                    # 检查是否是赋值：obj.prop[index] = value
+                    if self.current_token and self.current_token.type == 'ASSIGN':
+                        self.advance()  # 跳过 '='
+                        value_expr = self.parse_expression()
+                        # 使用复合名称表示属性数组访问
+                        return ArrayAssignmentStatement(f"{name}.{prop_name}", index_expr, value_expr)
+                    else:
+                        # 不是赋值，回退并作为表达式处理
+                        self.pos = start_pos
+                        self.current_token = self.tokens[self.pos]
+                        expr = self.parse_expression()
+                        return expr
+                
+                # 检查是否是属性赋值：obj.property = value
                 if self.current_token and self.current_token.type == 'ASSIGN':
                     self.advance()  # 跳过 '='
                     value_expr = self.parse_expression()
                     # 创建属性赋值语句，使用特殊格式存储
-                    # 这里我们使用 ArrayAssignmentStatement 的变体，或者创建新的语句类型
-                    # 为了简单，我们使用 MethodCall 作为左值，但需要在 evaluator 中特殊处理
                     return AssignmentStatement(f"{name}.{prop_name}", value_expr)
                 else:
                     # 不是赋值，回退并作为方法调用表达式处理
@@ -235,18 +307,14 @@ class HPLASTParser:
                 self.advance()
                 return IncrementStatement(name)
             
-            # 检查是否是赋值
-            if self.current_token and self.current_token.type == 'ASSIGN':
-                self.advance()
-                expr = self.parse_expression()
-                return AssignmentStatement(name, expr)
-            
             # 否则是表达式（如方法调用）
             # 回退并解析为表达式
             self.pos = start_pos
             self.current_token = self.tokens[self.pos]
             expr = self.parse_expression()
             return expr
+
+
 
 
         
@@ -259,14 +327,26 @@ class HPLASTParser:
         condition = self.parse_expression()
         self.expect('RPAREN')
         
+        # 在解析if块之前，跳过任何DEDENT token（处理空行后的缩进变化）
+        while self.current_token and self.current_token.type == 'DEDENT':
+            self.advance()
+        
         then_block = self.parse_block()
         
         else_block = None
+        # 在检查else之前，跳过任何DEDENT token
+        while self.current_token and self.current_token.type == 'DEDENT':
+            self.advance()
+        
         if self.current_token and self.current_token.type == 'KEYWORD' and self.current_token.value == 'else':
             self.advance()
+            # 跳过else后的DEDENT
+            while self.current_token and self.current_token.type == 'DEDENT':
+                self.advance()
             else_block = self.parse_block()
         
         return IfStatement(condition, then_block, else_block)
+
 
     def parse_for_statement(self):
         self.expect_keyword('for')
@@ -306,7 +386,11 @@ class HPLASTParser:
         return TryCatchStatement(try_block, catch_var, catch_block)
 
     def parse_expression(self):
+        # 跳过任何DEDENT token（处理空行后的缩进变化）
+        while self.current_token and self.current_token.type == 'DEDENT':
+            self.advance()
         return self.parse_or()
+
 
     def parse_or(self):
         """解析逻辑或 (||)"""
@@ -370,6 +454,9 @@ class HPLASTParser:
         return left
 
     def parse_multiplicative(self):
+        # 跳过任何DEDENT token
+        while self.current_token and self.current_token.type == 'DEDENT':
+            self.advance()
         left = self.parse_unary()
         
         while self.current_token and self.current_token.type in ['MUL', 'DIV', 'MOD']:
@@ -385,7 +472,11 @@ class HPLASTParser:
         
         return left
 
+
     def parse_unary(self):
+        # 跳过任何DEDENT token
+        while self.current_token and self.current_token.type == 'DEDENT':
+            self.advance()
         # 处理一元运算符：! 和 -
         if self.current_token and self.current_token.type == 'NOT':
             self.advance()
@@ -400,7 +491,12 @@ class HPLASTParser:
         
         return self.parse_primary()
 
+
     def parse_primary(self):
+        # 跳过任何DEDENT token
+        while self.current_token and self.current_token.type == 'DEDENT':
+            self.advance()
+        
         if not self.current_token:
             line, column = self._get_position()
             raise HPLSyntaxError(
@@ -411,6 +507,7 @@ class HPLASTParser:
 
         
         # 处理布尔值
+
         if self.current_token.type == 'BOOLEAN':
             value = self.current_token.value
             self.advance()
