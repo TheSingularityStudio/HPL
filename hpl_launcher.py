@@ -6,7 +6,7 @@ HPL 文件启动器
 支持命令行参数和文件拖放。
 
 使用方法:
-    hpl_launcher.exe <hpl_file>
+    HPL.exe <hpl_file>
     或将.hpl文件拖放到exe上
 """
 
@@ -96,11 +96,11 @@ def show_usage():
     print("=" * 50)
     print()
     print("用法:")
-    print("  hpl_launcher.exe <hpl_file>")
+    print("  HPL.exe <hpl_file>")
     print()
     print("示例:")
-    print("  hpl_launcher.exe examples/example.hpl")
-    print("  hpl_launcher.exe C:\\path\\to\\your\\file.hpl")
+    print("  HPL.exe examples/example.hpl")
+    print("  HPL.exe C:\\path\\to\\your\\file.hpl")
     print()
     print("提示:")
     print("  - 可以将.hpl文件拖放到此exe上运行")
