@@ -38,34 +38,43 @@ def is_block_terminator(token, peek_func=None, indent_level=0):
     if token.type in ['RBRACE', 'EOF']:
         return True
     
-    # DEDENT 只有在当前缩进级别小于块开始时的级别时才视为终止符
+    # DEDENT 表示缩进减少，应该视为块终止符
+    # 因为缩进减少意味着退出了当前代码块
     if token.type == 'DEDENT':
-        # 首先检查DEDENT的值是否小于当前缩进级别
-        # 注意：DEDENT的value表示新的缩进级别
+        # 检查DEDENT的值是否小于当前缩进级别
+        # DEDENT的value表示新的缩进级别
         if hasattr(token, 'value') and token.value is not None:
             if token.value < indent_level:
                 return True
         else:
             # 如果DEDENT没有value属性，保守地视为终止符
-            # 因为DEDENT表示缩进减少，可能已退出当前块
             return True
         
-        # 检查下一个非DEDENT token是否是RBRACE
+        # 即使DEDENT的值等于当前级别，如果后面跟着非缩进语句
+        # 也应该视为终止符（防止循环体包含后续语句）
         if peek_func:
             offset = 1
             next_token = peek_func(offset)
+            # 跳过连续的DEDENT
             while next_token and next_token.type == 'DEDENT':
                 offset += 1
                 next_token = peek_func(offset)
-            # 如果DEDENT后面跟着RBRACE或EOF，则视为终止符
-            if next_token and next_token.type in ['RBRACE', 'EOF']:
-                return True
-            # 如果DEDENT后面跟着else/catch，则视为终止符
+            
+            # 如果DEDENT后面跟着else/catch/RBRACE/EOF，肯定是终止符
             if next_token and next_token.type == 'KEYWORD' and next_token.value in ['else', 'catch']:
                 return True
-        # 否则，DEDENT只是缩进变化，不是块终止符
+            if next_token and next_token.type in ['RBRACE', 'EOF']:
+                return True
+            
+            # 如果DEDENT后面跟着普通语句（非缩进），说明已退出当前块
+            # 这种情况下也应该视为终止符
+            if next_token and next_token.type not in ['INDENT', 'NEWLINE']:
+                # 检查是否是缩进级别的变化
+                # 如果当前token是DEDENT且后面是普通语句，说明块已结束
+                return True
+        
+        # 其他情况，DEDENT可能只是缩进调整，不是块终止符
         return False
-
 
     
     if token.type == 'KEYWORD' and token.value in ['else', 'catch']:
