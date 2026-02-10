@@ -10,14 +10,18 @@ import platform as _platform
 
 try:
     from hpl_runtime.modules.base import HPLModule
+    from hpl_runtime.utils.exceptions import HPLTypeError, HPLValueError, HPLIOError, HPLRuntimeError
 except ImportError:
     try:
         from hpl_runtime.modules.base import HPLModule
+        from hpl_runtime.utils.exceptions import HPLTypeError, HPLValueError, HPLIOError, HPLRuntimeError
     except ImportError:
         import sys
         import os
         sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
         from hpl_runtime.modules.base import HPLModule
+        from hpl_runtime.utils.exceptions import HPLTypeError, HPLValueError, HPLIOError, HPLRuntimeError
+
 
 
 
@@ -25,23 +29,25 @@ except ImportError:
 def get_env(name, default=None):
     """获取环境变量"""
     if not isinstance(name, str):
-        raise TypeError(f"get_env() requires string name, got {type(name).__name__}")
+        raise HPLTypeError(f"get_env() requires string name, got {type(name).__name__}")
     
     if default is not None and not isinstance(default, str):
-        raise TypeError(f"get_env() requires string default, got {type(default).__name__}")
+        raise HPLTypeError(f"get_env() requires string default, got {type(default).__name__}")
     
     return _os.environ.get(name, default)
+
 
 
 def set_env(name, value):
     """设置环境变量"""
     if not isinstance(name, str):
-        raise TypeError(f"set_env() requires string name, got {type(name).__name__}")
+        raise HPLTypeError(f"set_env() requires string name, got {type(name).__name__}")
     if not isinstance(value, str):
-        raise TypeError(f"set_env() requires string value, got {type(value).__name__}")
+        raise HPLTypeError(f"set_env() requires string value, got {type(value).__name__}")
     
     _os.environ[name] = value
     return True
+
 
 
 def get_cwd():
@@ -52,13 +58,14 @@ def get_cwd():
 def change_dir(path):
     """改变当前工作目录"""
     if not isinstance(path, str):
-        raise TypeError(f"change_dir() requires string path, got {type(path).__name__}")
+        raise HPLTypeError(f"change_dir() requires string path, got {type(path).__name__}")
     
     if not _os.path.exists(path):
-        raise FileNotFoundError(f"Directory not found: {path}")
+        raise HPLIOError(f"Directory not found: {path}")
     
     _os.chdir(path)
     return True
+
 
 
 def get_platform():
@@ -79,7 +86,7 @@ def get_hpl_version():
 def execute_command(command):
     """执行系统命令（谨慎使用）"""
     if not isinstance(command, str):
-        raise TypeError(f"execute_command() requires string command, got {type(command).__name__}")
+        raise HPLTypeError(f"execute_command() requires string command, got {type(command).__name__}")
     
     import subprocess
     try:
@@ -90,15 +97,17 @@ def execute_command(command):
             'stderr': result.stderr
         }
     except Exception as e:
-        raise RuntimeError(f"Command execution failed: {e}")
+        raise HPLRuntimeError(f"Command execution failed: {e}")
+
 
 
 def exit_code(code=0):
     """退出程序"""
     if not isinstance(code, int):
-        raise TypeError(f"exit() requires int code, got {type(code).__name__}")
+        raise HPLTypeError(f"exit() requires int code, got {type(code).__name__}")
     
     _sys.exit(code)
+
 
 
 def get_args():
@@ -119,48 +128,54 @@ def get_line_sep():
 def path_join(*paths):
     """连接路径"""
     if len(paths) == 0:
-        raise ValueError("path_join() requires at least one path")
+        raise HPLValueError("path_join() requires at least one path")
     
     for i, p in enumerate(paths):
         if not isinstance(p, str):
-            raise TypeError(f"path_join() requires string paths, got {type(p).__name__} at position {i}")
+            raise HPLTypeError(f"path_join() requires string paths, got {type(p).__name__} at position {i}")
     
     return _os.path.join(*paths)
+
 
 
 def path_abs(path):
     """获取绝对路径"""
     if not isinstance(path, str):
-        raise TypeError(f"path_abs() requires string path, got {type(path).__name__}")
+        raise HPLTypeError(f"path_abs() requires string path, got {type(path).__name__}")
     return _os.path.abspath(path)
+
 
 
 def path_dir(path):
     """获取目录名"""
     if not isinstance(path, str):
-        raise TypeError(f"path_dir() requires string path, got {type(path).__name__}")
+        raise HPLTypeError(f"path_dir() requires string path, got {type(path).__name__}")
     return _os.path.dirname(path)
+
 
 
 def path_base(path):
     """获取文件名"""
     if not isinstance(path, str):
-        raise TypeError(f"path_base() requires string path, got {type(path).__name__}")
+        raise HPLTypeError(f"path_base() requires string path, got {type(path).__name__}")
     return _os.path.basename(path)
+
 
 
 def path_ext(path):
     """获取文件扩展名"""
     if not isinstance(path, str):
-        raise TypeError(f"path_ext() requires string path, got {type(path).__name__}")
+        raise HPLTypeError(f"path_ext() requires string path, got {type(path).__name__}")
     return _os.path.splitext(path)[1]
+
 
 
 def path_norm(path):
     """规范化路径"""
     if not isinstance(path, str):
-        raise TypeError(f"path_norm() requires string path, got {type(path).__name__}")
+        raise HPLTypeError(f"path_norm() requires string path, got {type(path).__name__}")
     return _os.path.normpath(path)
+
 
 
 def cpu_count():

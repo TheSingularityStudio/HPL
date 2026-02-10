@@ -21,10 +21,12 @@ from pathlib import Path
 # 从 module_base 导入 HPLModule 基类
 try:
     from hpl_runtime.modules.base import HPLModule
-    from hpl_runtime.utils.exceptions import HPLImportError
+    from hpl_runtime.utils.exceptions import HPLImportError, HPLValueError, HPLRuntimeError
 except ImportError:
     from hpl_runtime.modules.base import HPLModule
-    from hpl_runtime.utils.exceptions import HPLImportError
+    from hpl_runtime.utils.exceptions import HPLImportError, HPLValueError, HPLRuntimeError
+
+
 
 # 配置日志
 logger = logging.getLogger('hpl.module_loader')
@@ -201,7 +203,8 @@ def _load_python_package(module_name):
         return None
     except Exception as e:
         logger.warning(f"Failed to load Python package '{module_name}': {e}")
-        return None
+        raise HPLImportError(f"Failed to load Python package '{module_name}': {e}") from e
+
 
 
 
@@ -288,7 +291,12 @@ def _parse_hpl_module(module_name, file_path):
             from hpl_runtime.core.parser import HPLParser
             from hpl_runtime.core.evaluator import HPLEvaluator
             from hpl_runtime.core.models import HPLObject
-        
+
+        # 检查文件是否存在
+        file_path = Path(file_path)
+        if not file_path.exists():
+            raise HPLImportError(f"Module file not found: {file_path}")
+
         # 解析 HPL 文件
         parser = HPLParser(str(file_path))
         classes, objects, functions, main_func, call_target, call_args, imports = parser.parse()
@@ -324,10 +332,11 @@ def _parse_hpl_module(module_name, file_path):
                         init_func = cls.methods[constructor_name]
                         # 验证参数数量
                         if len(args) != len(init_func.params):
-                            raise ValueError(
+                            raise HPLValueError(
                                 f"Constructor '{cls.name}' expects {len(init_func.params)} "
                                 f"arguments, got {len(args)}"
                             )
+
                         # 构建参数作用域
                         func_scope = {'this': obj}
                         for i, param in enumerate(init_func.params):
@@ -380,10 +389,11 @@ def _parse_hpl_module(module_name, file_path):
                 def wrapper(*args):
                     # 验证参数数量
                     if len(args) != len(fn.params):
-                        raise ValueError(
+                        raise HPLValueError(
                             f"Function '{name}' expects {len(fn.params)} "
                             f"arguments, got {len(args)}"
                         )
+
                     # 构建参数作用域
                     func_scope = {}
                     for i, param in enumerate(fn.params):
@@ -413,14 +423,19 @@ def _parse_hpl_module(module_name, file_path):
                 hpl_module.register_constant(register_name, imported_module, f"Imported module: {module_name_to_import}")
             except ImportError as e:
                 print(f"Warning: Failed to import '{module_name_to_import}' in module '{module_name}': {e}")
+                raise HPLImportError(f"Failed to import '{module_name_to_import}' in module '{module_name}': {e}") from e
+
         
         return hpl_module
         
+    except FileNotFoundError as e:
+        raise HPLImportError(f"Module file not found: {file_path}") from e
     except Exception as e:
         logger.error(f"Failed to parse HPL module '{module_name}': {e}")
         import traceback
         traceback.print_exc()
         raise HPLImportError(f"Failed to parse HPL module '{module_name}': {e}") from e
+
 
 
 
@@ -462,7 +477,8 @@ def _parse_python_module_file(module_name, file_path):
         
     except Exception as e:
         logger.warning(f"Failed to load Python module '{module_name}': {e}")
-        return None
+        raise HPLImportError(f"Failed to load Python module '{module_name}': {e}") from e
+
 
 
 
@@ -494,7 +510,8 @@ def install_package(package_name, version=None):
             
     except Exception as e:
         logger.error(f"Error installing package: {e}")
-        return False
+        raise HPLRuntimeError(f"Error installing package '{package_name}': {e}") from e
+
 
 
 
@@ -524,7 +541,8 @@ def uninstall_package(package_name):
             
     except Exception as e:
         logger.error(f"Error uninstalling package: {e}")
-        return False
+        raise HPLRuntimeError(f"Error uninstalling package '{package_name}': {e}") from e
+
 
 
 

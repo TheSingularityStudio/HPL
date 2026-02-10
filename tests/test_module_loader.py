@@ -31,7 +31,7 @@ try:
     )
     from hpl_runtime.core.models import HPLObject, HPLClass, HPLFunction
     from hpl_runtime.modules.base import HPLModule
-    from hpl_runtime.utils.exceptions import HPLImportError
+    from hpl_runtime.utils.exceptions import HPLImportError, HPLValueError
 except ImportError:
     from module_loader import (
         _parse_hpl_module, load_module, clear_cache, add_module_path,
@@ -40,7 +40,8 @@ except ImportError:
     )
     from models import HPLObject, HPLClass, HPLFunction
     from module_base import HPLModule
-    from exceptions import HPLImportError
+    from exceptions import HPLImportError, HPLValueError
+
 
 
 
@@ -115,7 +116,7 @@ class TestParseHPLModule(unittest.TestCase):
         self.assertIsNotNone(module)
         
         # 尝试用错误数量的参数调用
-        with self.assertRaises(ValueError) as context:
+        with self.assertRaises(HPLValueError) as context:
             module.call_function("Point", [1])  # 只传1个参数，需要2个
         
         self.assertIn("expects 2 arguments, got 1", str(context.exception))
@@ -153,10 +154,11 @@ main: () => {
         self.assertEqual(result, 28, f"multiply(4, 7) 应返回 28，实际返回 {result}")
         
         # 测试参数数量错误
-        with self.assertRaises(ValueError) as context:
+        with self.assertRaises(HPLValueError) as context:
             module.call_function("add", [1])
         
         self.assertIn("expects 2 arguments, got 1", str(context.exception))
+
     
     def test_object_with_init_args(self):
         """测试带 __init_args__ 的对象实例化"""

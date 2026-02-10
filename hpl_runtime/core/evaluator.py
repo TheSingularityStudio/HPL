@@ -434,9 +434,11 @@ class HPLEvaluator:
                     # 可能是模块常量访问，如 math.PI
                     try:
                         return self.get_module_constant(obj, expr.method_name)
-                    except ValueError:
+                    except HPLAttributeError:
                         # 不是常量，可能是无参函数调用
                         return self.call_module_function(obj, expr.method_name, [])
+
+
                 else:
                     # 模块函数调用，如 math.sqrt(16)
                     args = [self.evaluate_expression(arg, local_scope) for arg in expr.args]
@@ -601,7 +603,10 @@ class HPLEvaluator:
         method_scope['this'] = obj
         
         # 添加到调用栈
-        self.call_stack.append(f"{obj.name}.{method_name}()")
+        # 获取对象名称：HPLObject使用hpl_class.name，HPLClass使用name
+        obj_name = obj.hpl_class.name if isinstance(obj, HPLObject) else obj.name
+        self.call_stack.append(f"{obj_name}.{method_name}()")
+
         
         try:
             result = self.execute_function(method, method_scope)
@@ -642,7 +647,10 @@ class HPLEvaluator:
                 method_scope = {param: args[i] for i, param in enumerate(method.params) if i < len(args)}
                 method_scope['this'] = obj
                 
-                self.call_stack.append(f"{obj.name}.{parent_constructor_name}()")
+                # 获取对象名称
+                obj_name = obj.hpl_class.name if isinstance(obj, HPLObject) else obj.name
+                self.call_stack.append(f"{obj_name}.{parent_constructor_name}()")
+
 
                 try:
                     self.execute_function(method, method_scope)
