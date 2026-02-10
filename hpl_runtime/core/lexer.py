@@ -18,8 +18,6 @@ except ImportError:
     from hpl_runtime.utils.text_utils import skip_whitespace, skip_comment
 
 
-
-
 class Token:
     def __init__(self, type, value, line=0, column=0):
         self.type = type
@@ -29,7 +27,6 @@ class Token:
 
     def __repr__(self):
         return f'Token({self.type}, {self.value}, line={self.line}, col={self.column})'
-
 
 
 class HPLLexer:

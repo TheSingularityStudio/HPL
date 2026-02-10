@@ -24,10 +24,6 @@ except ImportError:
     from hpl_runtime.utils.parse_utils import get_token_position, is_block_terminator, skip_dedents
 
 
-
-
-
-
 class HPLASTParser:
     def __init__(self, tokens):
         self.tokens = tokens
@@ -53,13 +49,10 @@ class HPLASTParser:
         return get_token_position(self.current_token)
 
 
-
     def _is_block_terminator(self):
         """检查当前 token 是否是块结束标记"""
         # 使用工具函数，传入peek方法以便检查后续token
         return is_block_terminator(self.current_token, self.peek, self.indent_level)
-
-
 
 
     def _consume_indent(self):
@@ -88,7 +81,6 @@ class HPLASTParser:
             if self.current_token and self.current_token.type not in ['RBRACE', 'EOF', 'DEDENT']:
                 statements.append(self.parse_statement())
         return statements
-
 
 
     def parse_block(self):
@@ -125,7 +117,6 @@ class HPLASTParser:
                 self.advance()
             if self.current_token and self.current_token.type == 'RBRACE':
                 self.expect('RBRACE')
-
 
         
         # 情况3: 以冒号开始（缩进敏感语法）

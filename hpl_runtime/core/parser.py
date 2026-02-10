@@ -39,9 +39,6 @@ except ImportError:
     from hpl_runtime.utils.text_utils import preprocess_functions, parse_call_expression
 
 
-
-
-
 class HPLParser:
     def __init__(self, hpl_file):
         self.hpl_file = hpl_file
@@ -53,8 +50,6 @@ class HPLParser:
         self.imports = []  # 存储导入语句
         self.source_code = None  # 存储源代码用于错误显示
         self.data = self.load_and_parse()
-
-
 
 
     def load_and_parse(self):
@@ -142,9 +137,6 @@ class HPLParser:
                 main_data['imports'].extend(include_data['imports'])
 
 
-
-
-
     def parse(self):
         # 处理顶层 import 语句
         if 'imports' in self.data:
@@ -165,10 +157,7 @@ class HPLParser:
             # 解析函数名和参数，如 add(5, 3) -> 函数名: add, 参数: [5, 3]
             self.call_target, self.call_args = parse_call_expression(call_str)
 
-        
         return self.classes, self.objects, self.functions, self.main_func, self.call_target, self.call_args, self.imports
-
-
 
 
     def parse_top_level_functions(self):
@@ -190,8 +179,6 @@ class HPLParser:
                     self.main_func = func
 
 
-
-
     def parse_imports(self):
         """解析顶层 import 语句"""
         imports_data = self.data['imports']
@@ -204,7 +191,6 @@ class HPLParser:
                     # 复杂格式: {module: alias}
                     for module, alias in imp.items():
                         self.imports.append({'module': module, 'alias': alias})
-
 
 
     def parse_classes(self):
@@ -260,7 +246,6 @@ class HPLParser:
                 "Arrow function syntax error: braces not found",
                 file=self.hpl_file
             )
-
 
         body_str = func_str[body_start+1:body_end].strip()
         

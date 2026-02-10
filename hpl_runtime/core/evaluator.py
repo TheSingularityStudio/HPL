@@ -18,27 +18,15 @@ HPL 代码执行器模块
 try:
     from hpl_runtime.core.models import *
     from hpl_runtime.modules.loader import load_module, HPLModule
-    from hpl_runtime.utils.exceptions import (
-        HPLRuntimeError, HPLTypeError, HPLNameError, HPLAttributeError,
-        HPLIndexError, HPLDivisionError, HPLValueError, HPLIOError,
-        HPLImportError, HPLBreakException, HPLContinueException, HPLReturnValue
-    )
+    from hpl_runtime.utils.exceptions import *
     from hpl_runtime.utils.type_utils import check_numeric_operands, is_hpl_module
     from hpl_runtime.utils.io_utils import echo
 except ImportError:
     from hpl_runtime.core.models import *
     from hpl_runtime.modules.loader import load_module, HPLModule
-    from hpl_runtime.utils.exceptions import (
-        HPLRuntimeError, HPLTypeError, HPLNameError, HPLAttributeError,
-        HPLIndexError, HPLDivisionError, HPLValueError, HPLIOError,
-        HPLImportError, HPLBreakException, HPLContinueException, HPLReturnValue
-    )
+    from hpl_runtime.utils.exceptions import *
     from hpl_runtime.utils.type_utils import check_numeric_operands, is_hpl_module
     from hpl_runtime.utils.io_utils import echo
-
-
-
-
 
 
 # 注意：ReturnValue, BreakException, ContinueException 现在从 exceptions 模块导入
@@ -46,7 +34,6 @@ except ImportError:
 ReturnValue = HPLReturnValue
 BreakException = HPLBreakException
 ContinueException = HPLContinueException
-
 
 
 class HPLEvaluator:
@@ -62,8 +49,6 @@ class HPLEvaluator:
         self.current_obj = None  # 用于方法中的'this'
         self.call_stack = []  # 调用栈，用于错误跟踪
         self.imported_modules = {}  # 导入的模块 {alias/name: module}
-
-
 
 
     def run(self):
@@ -111,7 +96,6 @@ class HPLEvaluator:
             # 从调用栈移除
             if func_name:
                 self.call_stack.pop()
-
 
 
     def execute_block(self, block, local_scope):
@@ -722,7 +706,6 @@ class HPLEvaluator:
                 finally:
                     self.call_stack.pop()
                     self.current_obj = prev_obj
-
 
 
     def instantiate_object(self, class_name, obj_name, init_args=None):
