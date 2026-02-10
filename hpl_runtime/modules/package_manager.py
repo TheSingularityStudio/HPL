@@ -38,31 +38,34 @@ def cmd_install(args):
     package_name = args.package
     version = args.version
     
-    print(f"📦 Installing '{package_name}'...")
+    print(f"[PKG] Installing '{package_name}'...")
     success = install_package(package_name, version)
     
     if success:
-        print(f"\n✅ Package '{package_name}' installed successfully!")
+        print(f"\n[OK] Package '{package_name}' installed successfully!")
+
         print(f"   Location: {HPL_PACKAGES_DIR / package_name}")
         print(f"\n   Usage in HPL:")
         print(f"   imports:")
         print(f"     - {package_name.split('[')[0].split('==')[0].split('>=')[0]}")
     else:
-        print(f"\n❌ Failed to install '{package_name}'")
+        print(f"\n[FAIL] Failed to install '{package_name}'")
         sys.exit(1)
+
 
 
 def cmd_uninstall(args):
     """卸载包"""
     package_name = args.package
     
-    print(f"🗑️  Uninstalling '{package_name}'...")
+    print(f"[DEL] Uninstalling '{package_name}'...")
     success = uninstall_package(package_name)
     
     if success:
-        print(f"\n✅ Package '{package_name}' uninstalled successfully!")
+        print(f"\n[OK] Package '{package_name}' uninstalled successfully!")
     else:
-        print(f"\n❌ Failed to uninstall '{package_name}'")
+        print(f"\n[FAIL] Failed to uninstall '{package_name}'")
+
         sys.exit(1)
 
 
@@ -70,11 +73,13 @@ def cmd_list(args):
     """列出已安装包"""
     packages = list_installed_packages()
     
-    print("📦 Installed HPL Packages:")
+    print("[PKG] Installed HPL Packages:")
+
     print("=" * 50)
     
     if not packages:
         print("   No packages installed.")
+
     else:
         for i, pkg in enumerate(packages, 1):
             print(f"   {i}. {pkg}")
@@ -88,7 +93,8 @@ def cmd_search(args):
     """搜索 PyPI 包"""
     query = args.query
     
-    print(f"🔍 Searching for '{query}' on PyPI...")
+    print(f"[SEARCH] Searching for '{query}' on PyPI...")
+
     
     try:
         # 使用 pip search 或 pip index
@@ -105,17 +111,20 @@ def cmd_search(args):
             if result.returncode == 0:
                 print(result.stdout)
             else:
-                print("⚠️  Search failed. You can manually search at:")
+                print("[WARN] Search failed. You can manually search at:")
+
                 print(f"   https://pypi.org/search/?q={query}")
                 
     except Exception as e:
-        print(f"❌ Search error: {e}")
+        print(f"[FAIL] Search error: {e}")
+
         print(f"   You can manually search at: https://pypi.org/search/?q={query}")
 
 
 def cmd_update(args):
     """更新所有包"""
-    print("🔄 Updating all packages...")
+    print("[UPDATE] Updating all packages...")
+
     
     packages = list_installed_packages()
     
@@ -136,22 +145,25 @@ def cmd_update(args):
             failed += 1
     
     print(f"\n{'=' * 50}")
-    print(f"✅ Updated: {updated}")
+    print(f"[OK] Updated: {updated}")
     if failed > 0:
-        print(f"❌ Failed: {failed}")
+        print(f"[FAIL] Failed: {failed}")
+
 
 
 def cmd_info(args):
     """显示包信息"""
     package_name = args.package
     
-    print(f"ℹ️  Package information for '{package_name}':")
+    print(f"[INFO] Package information for '{package_name}':")
+
     print("=" * 50)
     
     # 检查是否已安装
     packages = list_installed_packages()
     if package_name in packages:
-        print(f"   Status: ✅ Installed")
+        print(f"   Status: [OK] Installed")
+
         pkg_path = HPL_PACKAGES_DIR / package_name
         print(f"   Location: {pkg_path}")
         
@@ -164,7 +176,8 @@ def cmd_info(args):
             if len(list(pkg_path.iterdir())) > 10:
                 print(f"      ... and more")
     else:
-        print(f"   Status: ❌ Not installed")
+        print(f"   Status: [FAIL] Not installed")
+
         print(f"   Install with: hpl install {package_name}")
 
 
@@ -172,14 +185,16 @@ def cmd_path(args):
     """管理模块搜索路径"""
     if args.add:
         add_module_path(args.add)
-        print(f"✅ Added module path: {args.add}")
+        print(f"[OK] Added module path: {args.add}")
     elif args.list:
         from hpl_runtime.modules.loader import HPL_MODULE_PATHS
-        print("📂 Module Search Paths:")
+        print("[PATH] Module Search Paths:")
+
         print("=" * 50)
         for i, path in enumerate(HPL_MODULE_PATHS, 1):
-            exists = "✅" if Path(path).exists() else "❌"
+            exists = "[OK]" if Path(path).exists() else "[MISSING]"
             print(f"   {i}. {exists} {path}")
+
     else:
         print("Usage:")
         print("   hpl path --add <path>     Add a module search path")

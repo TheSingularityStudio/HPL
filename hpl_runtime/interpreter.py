@@ -112,12 +112,14 @@ def main():
         print(format_error_for_user(e))
         sys.exit(1)
     except FileNotFoundError as e:
-        print(f"❌ File not found: {e.filename}")
+        print(f"[ERROR] File not found: {e.filename}")
+
         sys.exit(1)
     except Exception as e:
         # 未预期的内部错误，显示完整信息
         import traceback
-        print(f"❌ Internal Error: {e}")
+        print(f"[ERROR] Internal Error: {e}")
+
         print("\n--- Full traceback ---")
         traceback.print_exc()
         sys.exit(1)

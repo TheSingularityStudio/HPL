@@ -220,7 +220,8 @@ def format_error_for_user(error, source_code=None):
         return f"Error: {error}"
     
     lines = []
-    lines.append(f"❌ {error.__class__.__name__}: {str(error).split('] ', 1)[-1]}")
+    lines.append(f"[ERROR] {error.__class__.__name__}: {str(error).split('] ', 1)[-1]}")
+
     
     if error.file:
         lines.append(f"   File: {error.file}")
