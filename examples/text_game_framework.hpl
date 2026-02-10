@@ -60,15 +60,17 @@ classes:
         desc = this.name + "\n" + this.description + "\n"
         if (len(this.items) > 0) :
           desc = desc + "你看到这里有: "
-          for (i in range(len(this.items))) :
-            item = this.items[i]
-            desc = desc + item.getName()
-            if (i < len(this.items) - 1) :
+          first = true
+          for (item in this.items) :
+            if (!first) :
               desc = desc + ", "
+            desc = desc + item.getName()
+            first = false
           desc = desc + "\n"
         desc = desc + "出口: " + str(this.exits)
         return desc
       }
+
 
     # 检查是否有出口 - Check if exit exists
     hasExit: (direction) => {
@@ -123,13 +125,15 @@ classes:
           return "你的背包是空的。"
         else :
           inv = "你的背包里有: "
-          for (i in range(len(this.inventory))) :
-            item = this.inventory[i]
-            inv = inv + item.getName()
-            if (i < len(this.inventory) - 1) :
+          first = true
+          for (item in this.inventory) :
+            if (!first) :
               inv = inv + ", "
+            inv = inv + item.getName()
+            first = false
           return inv
       }
+
 
   # 命令解析器类 - Command Parser Class
   # 解析用户输入的命令
@@ -192,11 +196,12 @@ classes:
     # 初始化游戏 - Initialize game
     init: () => {
         this.player = null
-        this.rooms = {}  # 所有房间的字典 - Dictionary of all rooms
+        this.rooms = []  # 所有房间的列表 - List of all rooms
         this.currentRoom = null
         this.parser = CommandParser()
         this.isRunning = false
       }
+
 
     # 设置玩家 - Set player
     setPlayer: (player) => {
@@ -205,14 +210,18 @@ classes:
 
     # 添加房间 - Add room
     addRoom: (room) => {
-        this.rooms[room.name] = room
+        this.rooms = this.rooms + [room]
       }
 
     # 设置起始房间 - Set starting room
     setStartingRoom: (roomName) => {
-        this.currentRoom = this.rooms[roomName]
-        this.player.setLocation(this.currentRoom)
+        for (r in this.rooms) :
+          if (r.name == roomName) :
+            this.currentRoom = r
+            this.player.setLocation(this.currentRoom)
+            break
       }
+
 
     # 开始游戏 - Start game
     start: () => {
@@ -267,12 +276,17 @@ classes:
         direction = args[0]
         if (this.currentRoom.hasExit(direction)) :
           nextRoomName = this.currentRoom.getExit(direction)
-          this.currentRoom = this.rooms[nextRoomName]
-          this.player.setLocation(this.currentRoom)
-          this.showCurrentRoom()
+          # 在房间列表中查找目标房间
+          for (r in this.rooms) :
+            if (r.name == nextRoomName) :
+              this.currentRoom = r
+              this.player.setLocation(this.currentRoom)
+              this.showCurrentRoom()
+              break
         else :
           echo "那个方向没有出口。"
       }
+
 
     # 执行拿取命令 - Execute take command
     doTake: (args) => {
