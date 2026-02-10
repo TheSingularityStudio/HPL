@@ -27,12 +27,17 @@ try:
     from hpl_runtime.core.ast_parser import HPLASTParser
     from hpl_runtime.modules.loader import HPL_MODULE_PATHS
     from hpl_runtime.utils.exceptions import HPLSyntaxError, HPLImportError
+    from hpl_runtime.utils.path_utils import resolve_include_path
+    from hpl_runtime.utils.text_utils import preprocess_functions, parse_call_expression
 except ImportError:
     from hpl_runtime.core.models import HPLClass, HPLObject, HPLFunction
     from hpl_runtime.core.lexer import HPLLexer
     from hpl_runtime.core.ast_parser import HPLASTParser
     from hpl_runtime.modules.loader import HPL_MODULE_PATHS
     from hpl_runtime.utils.exceptions import HPLSyntaxError, HPLImportError
+    from hpl_runtime.utils.path_utils import resolve_include_path
+    from hpl_runtime.utils.text_utils import preprocess_functions, parse_call_expression
+
 
 
 
@@ -61,11 +66,12 @@ class HPLParser:
         self.source_code = content
         
         # 预处理：将函数定义转换为 YAML 字面量块格式
-        content = self.preprocess_functions(content)
+        content = preprocess_functions(content)
 
         
         # 使用自定义 YAML 解析器
         data = yaml.safe_load(content)
+
         
         # 如果 YAML 解析返回 None（空文件或只有注释），使用空字典
         if data is None:
@@ -74,12 +80,13 @@ class HPLParser:
         # 处理 includes（支持多路径搜索和嵌套include）
         if 'includes' in data:
             for include_file in data['includes']:
-                include_path = self._resolve_include_path(include_file)
+                include_path = resolve_include_path(include_file, self.hpl_file, HPL_MODULE_PATHS)
                 if include_path:
                     try:
                         with open(include_path, 'r', encoding='utf-8') as f:
                             include_content = f.read()
-                        include_content = self.preprocess_functions(include_content)
+                        include_content = preprocess_functions(include_content)
+
                         include_data = yaml.safe_load(include_content)
                         self.merge_data(data, include_data)
                     except yaml.YAMLError as e:
@@ -104,98 +111,6 @@ class HPLParser:
         
         return data
 
-
-    def _resolve_include_path(self, include_file):
-        """
-        解析include文件路径，支持多种路径格式：
-        1. 绝对路径（Unix: /path, Windows: C:\path）
-        2. 相对当前文件目录
-        3. 相对当前工作目录
-        4. HPL_MODULE_PATHS中的路径
-        """
-        include_path = Path(include_file)
-        
-        # 1. 检查是否为绝对路径
-        if include_path.is_absolute():
-            if include_path.exists():
-                return str(include_path)
-            return None
-        
-        # 获取当前HPL文件所在目录
-        current_dir = Path(self.hpl_file).parent.resolve()
-        
-        # 2. 相对当前文件目录
-        resolved_path = current_dir / include_path
-        if resolved_path.exists():
-            return str(resolved_path)
-        
-        # 3. 相对当前工作目录
-        cwd_path = Path.cwd() / include_path
-        if cwd_path.exists():
-            return str(cwd_path)
-        
-        # 4. HPL_MODULE_PATHS中的路径
-        for search_path in HPL_MODULE_PATHS:
-            module_path = Path(search_path) / include_path
-            if module_path.exists():
-                return str(module_path)
-        
-        return None
-
-
-    def preprocess_functions(self, content):
-        """
-        预处理函数定义，将其转换为 YAML 字面量块格式
-        这样 YAML 就不会解析函数体内部的语法
-        """
-        lines = content.split('\n')
-        result = []
-        i = 0
-        
-        while i < len(lines):
-            line = lines[i]
-            
-            # 检测函数定义行（包含 =>）
-            # 匹配模式：methodName: (params) => {
-            func_pattern = r'^(\s*)(\w+):\s*\(.*\)\s*=>.*\{'
-            match = re.match(func_pattern, line)
-            
-            if match:
-                indent = match.group(1)
-                key = match.group(2)
-                
-                # 收集完整的函数体
-                func_lines = [line]
-                brace_count = line.count('{') - line.count('}')
-                j = i + 1
-                
-                while brace_count > 0 and j < len(lines):
-                    next_line = lines[j]
-                    func_lines.append(next_line)
-                    brace_count += next_line.count('{') - next_line.count('}')
-                    j += 1
-                
-                # 合并函数定义
-                full_func = '\n'.join(func_lines)
-                
-                # 提取 key 和 value
-                colon_pos = full_func.find(':')
-                key_part = full_func[:colon_pos].rstrip()
-                value_part = full_func[colon_pos+1:].strip()
-                
-                # 转换为 YAML 字面量块格式
-                # 使用 | 表示保留换行符的字面量块
-                # 注意：| 后面要直接跟内容，不能有空行
-                result.append(f'{key_part}: |')
-                for func_line in value_part.split('\n'):
-                    result.append(f'{indent}  {func_line}')
-                
-                i = j
-            else:
-                result.append(line)
-                i += 1
-        
-        return '\n'.join(result)
 
     def merge_data(self, main_data, include_data):
         """合并include数据到主数据，支持classes、objects、functions、imports"""
@@ -248,44 +163,12 @@ class HPLParser:
         if 'call' in self.data:
             call_str = self.data['call']
             # 解析函数名和参数，如 add(5, 3) -> 函数名: add, 参数: [5, 3]
-            self.call_target, self.call_args = self._parse_call_expression(call_str)
+            self.call_target, self.call_args = parse_call_expression(call_str)
+
         
         return self.classes, self.objects, self.functions, self.main_func, self.call_target, self.call_args, self.imports
 
-    def _parse_call_expression(self, call_str):
-        """解析 call 表达式，提取函数名和参数"""
-        call_str = call_str.strip()
-        
-        # 查找左括号
-        if '(' in call_str:
-            func_name = call_str[:call_str.find('(')].strip()
-            args_str = call_str[call_str.find('(')+1:call_str.rfind(')')].strip()
-            
-            # 解析参数
-            args = []
-            if args_str:
-                # 按逗号分割参数
-                for arg in args_str.split(','):
-                    arg = arg.strip()
-                    # 尝试解析为整数
-                    try:
-                        args.append(int(arg))
-                    except ValueError:
-                        # 尝试解析为浮点数
-                        try:
-                            args.append(float(arg))
-                        except ValueError:
-                            # 作为字符串处理（去掉引号）
-                            if (arg.startswith('"') and arg.endswith('"')) or \
-                               (arg.startswith("'") and arg.endswith("'")):
-                                args.append(arg[1:-1])
-                            else:
-                                args.append(arg)  # 变量名或其他
-            
-            return func_name, args
-        else:
-            # 没有括号，如 call: main
-            return call_str, []
+
 
 
     def parse_top_level_functions(self):

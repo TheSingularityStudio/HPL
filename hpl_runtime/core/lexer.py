@@ -12,8 +12,11 @@ HPL 词法分析器模块
 
 try:
     from hpl_runtime.utils.exceptions import HPLSyntaxError
+    from hpl_runtime.utils.text_utils import skip_whitespace, skip_comment
 except ImportError:
     from hpl_runtime.utils.exceptions import HPLSyntaxError
+    from hpl_runtime.utils.text_utils import skip_whitespace, skip_comment
+
 
 
 

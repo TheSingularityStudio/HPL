@@ -17,9 +17,12 @@ HPL AST 解析器模块
 try:
     from hpl_runtime.core.models import *
     from hpl_runtime.utils.exceptions import HPLSyntaxError
+    from hpl_runtime.utils.parse_utils import get_token_position, is_block_terminator, skip_dedents
 except ImportError:
     from hpl_runtime.core.models import *
     from hpl_runtime.utils.exceptions import HPLSyntaxError
+    from hpl_runtime.utils.parse_utils import get_token_position, is_block_terminator, skip_dedents
+
 
 
 
@@ -47,37 +50,15 @@ class HPLASTParser:
 
     def _get_position(self):
         """获取当前 token 的位置信息"""
-        if self.current_token:
-            return self.current_token.line, self.current_token.column
-        return None, None
+        return get_token_position(self.current_token)
+
 
 
     def _is_block_terminator(self):
         """检查当前 token 是否是块结束标记"""
-        if not self.current_token:
-            return True
-        if self.current_token.type in ['RBRACE', 'EOF']:
-            return True
-        # DEDENT 只有在当前缩进级别小于块开始时的级别时才视为终止符
-        # 注意：在花括号语法中，DEDENT 不应该作为终止符
-        if self.current_token.type == 'DEDENT':
-            # 检查下一个非DEDENT token是否是RBRACE
-            next_token = self.peek()
-            offset = 1
-            while next_token and next_token.type == 'DEDENT':
-                offset += 1
-                next_token = self.peek(offset)
-            # 如果DEDENT后面跟着RBRACE或EOF，则视为终止符
-            if next_token and next_token.type in ['RBRACE', 'EOF']:
-                return True
-            # 如果DEDENT后面跟着else/catch，则视为终止符
-            if next_token and next_token.type == 'KEYWORD' and next_token.value in ['else', 'catch']:
-                return True
-            # 否则，DEDENT只是缩进变化，不是块终止符
-            return False
-        if self.current_token.type == 'KEYWORD' and self.current_token.value in ['else', 'catch']:
-            return True
-        return False
+        # 使用工具函数，传入peek方法以便检查后续token
+        return is_block_terminator(self.current_token, self.peek, self.indent_level)
+
 
 
 
@@ -107,6 +88,7 @@ class HPLASTParser:
             if self.current_token and self.current_token.type not in ['RBRACE', 'EOF', 'DEDENT']:
                 statements.append(self.parse_statement())
         return statements
+
 
 
     def parse_block(self):

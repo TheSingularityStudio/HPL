@@ -23,6 +23,8 @@ try:
         HPLIndexError, HPLDivisionError, HPLValueError, HPLIOError,
         HPLImportError, HPLBreakException, HPLContinueException, HPLReturnValue
     )
+    from hpl_runtime.utils.type_utils import check_numeric_operands, is_hpl_module
+    from hpl_runtime.utils.io_utils import echo
 except ImportError:
     from hpl_runtime.core.models import *
     from hpl_runtime.modules.loader import load_module, HPLModule
@@ -31,6 +33,9 @@ except ImportError:
         HPLIndexError, HPLDivisionError, HPLValueError, HPLIOError,
         HPLImportError, HPLBreakException, HPLContinueException, HPLReturnValue
     )
+    from hpl_runtime.utils.type_utils import check_numeric_operands, is_hpl_module
+    from hpl_runtime.utils.io_utils import echo
+
 
 
 
@@ -303,7 +308,8 @@ class HPLEvaluator:
 
         elif isinstance(stmt, EchoStatement):
             message = self.evaluate_expression(stmt.expr, local_scope)
-            self.echo(message)
+            echo(message)
+
         elif isinstance(stmt, ImportStatement):
             self.execute_import(stmt, local_scope)
         elif isinstance(stmt, IncrementStatement):
@@ -322,10 +328,7 @@ class HPLEvaluator:
 
 
 
-    def _is_hpl_module(self, obj):
-        """检查对象是否是HPLModule"""
-        # 使用鸭子类型检查，避免不同导入路径导致的类身份问题
-        return hasattr(obj, 'call_function') and hasattr(obj, 'get_constant') and hasattr(obj, 'name')
+
 
 
     def evaluate_expression(self, expr, local_scope):
@@ -357,8 +360,9 @@ class HPLEvaluator:
             if expr.func_name == 'echo':
 
                 message = self.evaluate_expression(expr.args[0], local_scope)
-                self.echo(message)
+                echo(message)
                 return None
+
             elif expr.func_name == 'len':
                 arg = self.evaluate_expression(expr.args[0], local_scope)
                 if isinstance(arg, (list, str)):
@@ -487,7 +491,8 @@ class HPLEvaluator:
                 # 处理类方法调用（如父类方法）
                 args = [self.evaluate_expression(arg, local_scope) for arg in expr.args]
                 return self._call_method(obj, expr.method_name, args)
-            elif self._is_hpl_module(obj):
+            elif is_hpl_module(obj):
+
                 # 模块函数调用或常量访问
                 if len(expr.args) == 0:
                     # 可能是模块常量访问，如 math.PI
@@ -561,7 +566,8 @@ class HPLEvaluator:
 
         
         # 其他算术运算符需要数值操作数
-        self._check_numeric_operands(left, right, op)
+        check_numeric_operands(left, right, op)
+
         
         if op == '-':
             return left - right
@@ -735,12 +741,7 @@ class HPLEvaluator:
         
         return obj
 
-    def _check_numeric_operands(self, left, right, op):
-        """检查操作数是否为数值类型"""
-        if not isinstance(left, (int, float)):
-            raise HPLTypeError(f"Unsupported operand type for {op}: '{type(left).__name__}' (expected number)")
-        if not isinstance(right, (int, float)):
-            raise HPLTypeError(f"Unsupported operand type for {op}: '{type(right).__name__}' (expected number)")
+
 
 
     def execute_import(self, stmt, local_scope):
@@ -764,19 +765,13 @@ class HPLEvaluator:
 
     def call_module_function(self, module, func_name, args):
         """调用模块函数"""
-        if self._is_hpl_module(module):
+        if is_hpl_module(module):
             return module.call_function(func_name, args)
         raise HPLTypeError(f"Cannot call function on non-module object")
 
 
     def get_module_constant(self, module, const_name):
         """获取模块常量"""
-        if self._is_hpl_module(module):
+        if is_hpl_module(module):
             return module.get_constant(const_name)
         raise HPLTypeError(f"Cannot get constant from non-module object")
-
-
-
-    # 内置函数
-    def echo(self, message):
-        print(message)
