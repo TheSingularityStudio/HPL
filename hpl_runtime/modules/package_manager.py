@@ -23,6 +23,7 @@ try:
         HPL_PACKAGES_DIR,
         add_module_path
     )
+    from hpl_runtime.utils.exceptions import HPLRuntimeError
 except ImportError:
     from hpl_runtime.modules.loader import (
         install_package, 
@@ -31,6 +32,8 @@ except ImportError:
         HPL_PACKAGES_DIR,
         add_module_path
     )
+    from hpl_runtime.utils.exceptions import HPLRuntimeError
+
 
 
 def cmd_install(args):
@@ -117,8 +120,9 @@ def cmd_search(args):
                 
     except Exception as e:
         print(f"[FAIL] Search error: {e}")
-
         print(f"   You can manually search at: https://pypi.org/search/?q={query}")
+        raise HPLRuntimeError(f"Search error: {e}") from e
+
 
 
 def cmd_update(args):

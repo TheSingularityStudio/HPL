@@ -434,9 +434,11 @@ class HPLEvaluator:
                     # 可能是模块常量访问，如 math.PI
                     try:
                         return self.get_module_constant(obj, expr.method_name)
-                    except ValueError:
+                    except HPLAttributeError:
                         # 不是常量，可能是无参函数调用
                         return self.call_module_function(obj, expr.method_name, [])
+
+
                 else:
                     # 模块函数调用，如 math.sqrt(16)
                     args = [self.evaluate_expression(arg, local_scope) for arg in expr.args]
