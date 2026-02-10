@@ -350,10 +350,13 @@ class HPLASTParser:
 
             else:
                 # 单行语句
-                while self.current_token and self.current_token.type not in ['RBRACE', 'EOF', 'KEYWORD']:
-                    if self.current_token.type == 'KEYWORD' and self.current_token.value in ['else', 'catch']:
+                # 只在这些特定关键字处停止（块终止符）
+                block_terminators = ['else', 'catch', 'elif', 'finally']
+                while self.current_token and self.current_token.type not in ['RBRACE', 'EOF']:
+                    if self.current_token.type == 'KEYWORD' and self.current_token.value in block_terminators:
                         break
                     statements.append(self.parse_statement())
+
 
         
         # 情况2: 以花括号开始
