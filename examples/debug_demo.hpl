@@ -1,0 +1,27 @@
+# 调试工具演示脚本
+# 这个脚本包含一些错误，用于演示调试工具的功能
+
+main: () => {
+    # 正常执行
+    echo("开始执行调试演示")
+    
+    # 创建一个数组
+    items = [1, 2, 3, 4, 5]
+    echo("数组创建成功")
+    
+    # 调用一个会出错的函数
+    result = risky_function(items)
+    
+    echo("结果: " + result)
+    echo("执行完成")
+}
+
+risky_function: (arr) => {
+    echo("进入 risky_function")
+    
+    # 这里故意访问越界的索引
+    # 这将触发 HPLIndexError
+    value = arr[10]  # 错误：索引越界
+    
+    return value
+}

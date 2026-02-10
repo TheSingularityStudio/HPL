@@ -553,8 +553,9 @@ class HPLEvaluator:
             return str(left) + str(right)
 
         
-        # 其他算术运算符需要数值操作数
-        check_numeric_operands(left, right, op)
+        # 算术运算符需要数值操作数
+        if op in ('-', '*', '/', '%'):
+            check_numeric_operands(left, right, op)
         
         if op == '-':
             return left - right
@@ -568,21 +569,25 @@ class HPLEvaluator:
             if right == 0:
                 raise HPLDivisionError("Modulo by zero")
             return left % right
-
         elif op == '==':
             return left == right
         elif op == '!=':
             return left != right
         elif op == '<':
+            check_numeric_operands(left, right, op)
             return left < right
         elif op == '<=':
+            check_numeric_operands(left, right, op)
             return left <= right
         elif op == '>':
+            check_numeric_operands(left, right, op)
             return left > right
         elif op == '>=':
+            check_numeric_operands(left, right, op)
             return left >= right
         else:
             raise HPLRuntimeError(f"Unknown operator {op}")
+
 
 
     def _lookup_variable(self, name, local_scope, line=None, column=None):
