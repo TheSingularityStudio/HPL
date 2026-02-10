@@ -74,7 +74,8 @@ class BooleanLiteral(Expression):
 
 # 表达式
 class BinaryOp(Expression):
-    def __init__(self, left, op, right):
+    def __init__(self, left, op, right, line=None, column=None):
+        super().__init__(line, column)
         self.left = left
         self.op = op
         self.right = right
