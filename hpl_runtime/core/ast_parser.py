@@ -244,6 +244,25 @@ class HPLASTParser:
                     # 属性访问
                     current_expr = MethodCall(current_expr, member_name, [])
             
+            # 直接方法调用：expr()
+            elif self.current_token.type == 'LPAREN':
+                # 方法调用（无点号，直接调用）
+                self.advance()
+                args = []
+                if self.current_token and self.current_token.type != 'RPAREN':
+                    args.append(self.parse_expression())
+                    while self.current_token and self.current_token.type == 'COMMA':
+                        self.advance()
+                        args.append(self.parse_expression())
+                self.expect('RPAREN')
+                # 如果 current_expr 是 MethodCall（属性访问），转换为带参数的方法调用
+                if isinstance(current_expr, MethodCall):
+                    current_expr = MethodCall(current_expr.obj_name, current_expr.method_name, args)
+
+                else:
+                    # 函数调用
+                    current_expr = FunctionCall(current_expr, args)
+            
             # 数组访问：expr[index]
             elif self.current_token.type == 'LBRACKET':
                 self.advance()
@@ -363,10 +382,14 @@ class HPLASTParser:
 
     def parse_statement(self):
         """解析语句 - 使用分发表优化关键字查找"""
+        # 跳过行首的 INDENT token
+        self._skip_indents()
+        
         if not self.current_token:
             return None
         
         # 处理关键字语句（使用分发表 O(1) 查找）
+
         if self.current_token.type == 'KEYWORD':
             keyword = self.current_token.value
             handler_name = self._STATEMENT_KEYWORDS.get(keyword)
