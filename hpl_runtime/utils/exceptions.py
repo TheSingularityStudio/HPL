@@ -17,14 +17,19 @@ class HPLError(Exception):
         column: 源代码列号（可选）
         file: 源文件名（可选）
         context: 上下文代码片段（可选）
+        error_code: 错误代码（可选）
     """
     
-    def __init__(self, message, line=None, column=None, file=None, context=None):
+    # 错误代码前缀
+    ERROR_CODE_PREFIX = "HPL"
+    
+    def __init__(self, message, line=None, column=None, file=None, context=None, error_code=None):
         super().__init__(message)
         self.line = line
         self.column = column
         self.file = file
         self.context = context
+        self.error_code = error_code
     
     def __str__(self):
         parts = [self.__class__.__name__]
@@ -54,6 +59,18 @@ class HPLError(Exception):
                 f"line={self.line!r}, "
                 f"column={self.column!r}, "
                 f"file={self.file!r})")
+    
+    @property
+    def error_message(self):
+        """获取纯错误消息，不包含位置信息"""
+        return super().__str__()
+    
+    def get_error_code(self):
+        """获取错误代码，子类可以覆盖此方法"""
+        if self.error_code:
+            return self.error_code
+        return f"{self.ERROR_CODE_PREFIX}-GENERAL"
+
 
 
 class HPLSyntaxError(HPLError):
@@ -63,7 +80,13 @@ class HPLSyntaxError(HPLError):
     在词法分析或语法分析阶段发现的错误。
     例如：意外的 token、缺少括号等。
     """
-    pass
+    
+    def get_error_code(self):
+        """语法错误代码"""
+        if self.error_code:
+            return self.error_code
+        return f"{self.ERROR_CODE_PREFIX}-SYNTAX-001"
+
 
 
 class HPLRuntimeError(HPLError):
@@ -75,8 +98,8 @@ class HPLRuntimeError(HPLError):
     """
     
     def __init__(self, message, line=None, column=None, file=None, context=None, 
-                 call_stack=None):
-        super().__init__(message, line, column, file, context)
+                 call_stack=None, error_code=None):
+        super().__init__(message, line, column, file, context, error_code)
         self.call_stack = call_stack or []
     
     def __str__(self):
@@ -84,10 +107,17 @@ class HPLRuntimeError(HPLError):
         
         if self.call_stack:
             result += "\n  Call stack:"
-            for i, frame in enumerate(reversed(self.call_stack), 1):
+            for i, frame in enumerate(self.call_stack, 1):
                 result += f"\n    {i}. {frame}"
         
         return result
+    
+    def get_error_code(self):
+        """运行时错误代码"""
+        if self.error_code:
+            return self.error_code
+        return f"{self.ERROR_CODE_PREFIX}-RUNTIME-001"
+
 
 
 class HPLTypeError(HPLRuntimeError):
@@ -97,7 +127,13 @@ class HPLTypeError(HPLRuntimeError):
     操作数类型不匹配或类型转换失败。
     例如：对字符串进行算术运算。
     """
-    pass
+    
+    def get_error_code(self):
+        """类型错误代码"""
+        if self.error_code:
+            return self.error_code
+        return f"{self.ERROR_CODE_PREFIX}-TYPE-001"
+
 
 
 class HPLNameError(HPLRuntimeError):
@@ -106,7 +142,13 @@ class HPLNameError(HPLRuntimeError):
     
     引用了未定义的变量、函数或类。
     """
-    pass
+    
+    def get_error_code(self):
+        """名称错误代码"""
+        if self.error_code:
+            return self.error_code
+        return f"{self.ERROR_CODE_PREFIX}-NAME-001"
+
 
 
 class HPLAttributeError(HPLRuntimeError):
@@ -175,7 +217,23 @@ class HPLRecursionError(HPLRuntimeError):
     pass
 
 
-class HPLBreakException(HPLError):
+class HPLControlFlowException(HPLError):
+    """
+    控制流异常的基类
+    
+    用于break、continue、return等控制流，不是真正的错误。
+    这些异常不应该被错误格式化器处理。
+    """
+    
+    def __init__(self, message=None, line=None, column=None, file=None, context=None):
+        super().__init__(message or "Control flow", line, column, file, context)
+    
+    def get_error_code(self):
+        """控制流异常没有错误代码"""
+        return None
+
+
+class HPLBreakException(HPLControlFlowException):
     """
     用于跳出循环的内部异常
     
@@ -186,7 +244,7 @@ class HPLBreakException(HPLError):
         super().__init__(message or "Break statement", line, column, file, context)
 
 
-class HPLContinueException(HPLError):
+class HPLContinueException(HPLControlFlowException):
     """
     用于继续下一次循环的内部异常
     
@@ -197,15 +255,16 @@ class HPLContinueException(HPLError):
         super().__init__(message or "Continue statement", line, column, file, context)
 
 
-class HPLReturnValue(HPLError):
+class HPLReturnValue(HPLControlFlowException):
     """
     用于传递返回值的内部异常
     
     注意：这是控制流异常，不是错误，不应被用户代码捕获。
     """
-    def __init__(self, value):
+    def __init__(self, value, line=None, column=None, file=None, context=None):
         self.value = value
-        super().__init__("Return value wrapper")
+        super().__init__("Return value wrapper", line, column, file, context)
+
 
 
 
@@ -220,12 +279,36 @@ def format_error_for_user(error, source_code=None):
     Returns:
         格式化后的错误字符串
     """
+    # 控制流异常不应该被格式化
+    if isinstance(error, HPLControlFlowException):
+        raise error  # 重新抛出，让上层处理
+    
     if not isinstance(error, HPLError):
         # 非 HPL 异常，返回标准格式
         return f"Error: {error}"
     
     lines = []
-    lines.append(f"[ERROR] {error.__class__.__name__}: {str(error).split('] ', 1)[-1]}")
+    
+    # 错误类型标签
+    if isinstance(error, HPLSyntaxError):
+        error_label = "[SYNTAX_ERROR]"
+    elif isinstance(error, HPLImportError):
+        error_label = "[IMPORT_ERROR]"
+    elif isinstance(error, HPLRuntimeError):
+        error_label = "[RUNTIME_ERROR]"
+    else:
+        error_label = "[ERROR]"
+    
+    # 使用 error_message 属性获取纯消息，避免解析问题
+    message = getattr(error, 'error_message', str(error).split('] ', 1)[-1])
+    
+    # 添加错误代码（如果有）
+    error_code = error.get_error_code()
+    if error_code:
+        lines.append(f"{error_label} [{error_code}] {error.__class__.__name__}: {message}")
+    else:
+        lines.append(f"{error_label} {error.__class__.__name__}: {message}")
+
 
     
     if error.file:
@@ -251,15 +334,17 @@ def format_error_for_user(error, source_code=None):
                 prefix = ">>> " if line_num == error.line else "    "
                 lines.append(f"{prefix}{line_num:4d} | {source_lines[i]}")
             
-            # 显示错误位置指示器
+            # 显示错误位置指示器（动态计算位置）
             if error.column is not None:
-                indicator = " " * (8 + error.column) + "^"
+                # 计算前缀长度：4位行号 + 3位分隔符 = 7，再加上前缀"    "或">>> "
+                base_offset = 7 + 4  # 7 for "    " + "4d | ", 4 for prefix
+                indicator = " " * (base_offset + error.column) + "^"
                 lines.append(indicator)
     
-    # 显示调用栈
+    # 显示调用栈（改为 most recent first）
     if isinstance(error, HPLRuntimeError) and error.call_stack:
-        lines.append("\n   Call stack (most recent last):")
-        for i, frame in enumerate(reversed(error.call_stack), 1):
+        lines.append("\n   Call stack (most recent first):")
+        for i, frame in enumerate(error.call_stack, 1):
             lines.append(f"      {i}. {frame}")
     
     return '\n'.join(lines)

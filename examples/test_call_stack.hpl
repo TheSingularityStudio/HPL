@@ -1,0 +1,13 @@
+function_a: () => {
+  echo undefined_var_in_a
+}
+
+function_b: () => {
+  function_a()
+}
+
+main: () => {
+  function_b()
+}
+
+call: main()

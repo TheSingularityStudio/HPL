@@ -46,7 +46,9 @@ class HPLParser:
         self.main_func = None
         self.call_target = None
         self.imports = []  # 存储导入语句
+        self.source_code = None  # 存储源代码用于错误显示
         self.data = self.load_and_parse()
+
 
 
 
@@ -55,8 +57,12 @@ class HPLParser:
         with open(self.hpl_file, 'r', encoding='utf-8') as f:
             content = f.read()
         
+        # 保存原始源代码用于错误显示
+        self.source_code = content
+        
         # 预处理：将函数定义转换为 YAML 字面量块格式
         content = self.preprocess_functions(content)
+
         
         # 使用自定义 YAML 解析器
         data = yaml.safe_load(content)
@@ -67,7 +73,6 @@ class HPLParser:
         
         # 处理 includes（支持多路径搜索和嵌套include）
         if 'includes' in data:
-
             for include_file in data['includes']:
                 include_path = self._resolve_include_path(include_file)
                 if include_path:
@@ -78,8 +83,12 @@ class HPLParser:
                         include_data = yaml.safe_load(include_content)
                         self.merge_data(data, include_data)
                     except yaml.YAMLError as e:
+                        # 尝试获取错误行号
+                        line = getattr(e, 'problem_mark', None)
+                        line_num = line.line + 1 if line else None
                         raise HPLSyntaxError(
                             f"YAML syntax error in included file '{include_file}': {e}",
+                            line=line_num,
                             file=include_path
                         ) from e
                     except Exception as e:
@@ -92,9 +101,9 @@ class HPLParser:
                         f"Include file '{include_file}' not found in any search path",
                         file=self.hpl_file
                     )
-
         
         return data
+
 
     def _resolve_include_path(self, include_file):
         """
@@ -368,6 +377,7 @@ class HPLParser:
                 "Arrow function syntax error: braces not found",
                 file=self.hpl_file
             )
+
 
         body_str = func_str[body_start+1:body_end].strip()
         
