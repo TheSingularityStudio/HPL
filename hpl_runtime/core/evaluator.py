@@ -727,35 +727,37 @@ class HPLEvaluator:
         elif isinstance(expr, ArrayAccess):
             array = self.evaluate_expression(expr.array, local_scope)
             index = self.evaluate_expression(expr.index, local_scope)
-            
+
             # 处理字典访问
             if isinstance(array, dict):
                 # 字典键检查 - 使用新的 HPLKeyError
                 if index not in array:
-                    available_keys = list(array.keys())[:5]  # 显示前5个可用键
+                    available_keys = list(array.keys())[:10]  # 显示前10个可用键
                     key_type = type(index).__name__
-                    
+
                     # 查找相似键
                     similar_keys = []
                     if available_keys:
                         key_strs = [str(k) for k in available_keys]
                         target_str = str(index)
-                        similar = difflib.get_close_matches(target_str, key_strs, n=2, cutoff=0.6)
+                        similar = difflib.get_close_matches(target_str, key_strs, n=3, cutoff=0.6)
                         if similar:
                             similar_keys = similar
-                    
+
                     # 构建错误消息
                     parts = [f"Key {index!r} (type: {key_type}) not found in dictionary"]
-                    
+
                     if available_keys:
                         parts.append(f"Available keys: {available_keys}")
-                    
+                    else:
+                        parts.append("Dictionary is empty")
+
                     if similar_keys:
                         if len(similar_keys) == 1:
                             parts.append(f"Did you mean: '{similar_keys[0]}'?")
                         else:
                             parts.append(f"Similar keys: {', '.join(similar_keys)}")
-                    
+
                     # 键类型建议
                     if isinstance(index, int):
                         str_keys = [k for k in available_keys if isinstance(k, str) and str(index) == k]
@@ -765,29 +767,112 @@ class HPLEvaluator:
                         int_keys = [k for k in available_keys if isinstance(k, int) and str(k) == index]
                         if int_keys:
                             parts.append(f"Try using integer key: {int(index)}")
-                    
+
+                    # 检查是否是字符串数字的整数键
+                    if isinstance(index, str) and index.isdigit():
+                        int_key = int(index)
+                        if int_key in array:
+                            parts.append(f"Key exists as integer: {int_key}")
+
+                    # 检查是否是整数的字符串键
+                    if isinstance(index, int):
+                        str_key = str(index)
+                        if str_key in array:
+                            parts.append(f"Key exists as string: '{str_key}'")
+
                     hint = ". ".join(parts)
-                    
+
                     raise HPLKeyError(
                         hint,
                         line=expr.line,
                         column=expr.column,
                         error_key='RUNTIME_KEY_NOT_FOUND'
                     )
-                
+
                 return array[index]
-            
+
+            # 处理字符串索引访问
+            elif isinstance(array, str):
+                # 字符串索引类型检查
+                if not isinstance(index, int):
+                    index_type = type(index).__name__
+                    suggestions = []
+
+                    # 智能类型转换建议
+                    if isinstance(index, str) and index.isdigit():
+                        suggestions.append(f"使用 int() 转换: int('{index}')")
+                    elif isinstance(index, float) and index.is_integer():
+                        suggestions.append(f"使用 int() 转换: int({index})")
+                    elif index is None:
+                        suggestions.append("索引不能为 null")
+                    else:
+                        suggestions.append(f"字符串索引必须是整数，得到的是 {index_type}")
+
+                    hint = f" ({'; '.join(suggestions)})" if suggestions else ""
+
+                    raise self._create_error(
+                        HPLTypeError,
+                        f"String index must be integer, got {index_type} (value: {index!r}){hint}",
+                        expr.line, expr.column,
+                        local_scope,
+                        error_key='TYPE_INVALID_OPERATION'
+                    )
+
+                # 字符串边界检查
+                length = len(array)
+                if index < 0 or index >= length:
+                    suggestions = []
+
+                    if index < 0 and length > 0:
+                        reverse_idx = length + index
+                        if 0 <= reverse_idx < length:
+                            suggestions.append(f"使用正向索引 {reverse_idx} 访问第 {abs(index)} 个字符")
+
+                    if index >= length:
+                        suggestions.append(f"字符串长度为 {length}，最大索引是 {length - 1}")
+
+                    if length > 0:
+                        suggestions.append(f"有效索引范围: 0 到 {length - 1}")
+                    else:
+                        suggestions.append("字符串为空")
+
+                    # 字符显示建议
+                    if length > 0 and index >= 0:
+                        if index < length:
+                            char = array[index]
+                            suggestions.append(f"该位置的字符是: '{char}'")
+                        elif index < length + 5:  # 显示超出范围的字符
+                            suggestions.append(f"超出范围，字符串内容: '{array}'")
+
+                    hint = f" ({'; '.join(suggestions)})" if suggestions else ""
+
+                    raise self._create_error(
+                        HPLIndexError,
+                        f"String index {index} out of bounds (length: {length}){hint}",
+                        expr.line, expr.column,
+                        local_scope,
+                        error_key='RUNTIME_INDEX_OUT_OF_BOUNDS'
+                    )
+
+                return array[index]
+
             # 增强类型检查和错误信息
-            if not isinstance(array, (list, str)):
+            if not isinstance(array, list):
                 actual_type = type(array).__name__
                 hint = ""
                 if actual_type == 'dict':
                     hint = " (字典使用键访问，如: dict[key])"
                 elif actual_type == 'int':
                     hint = " (数字不可索引)"
+                elif actual_type == 'float':
+                    hint = " (浮点数不可索引)"
                 elif actual_type == 'NoneType':
-                    hint = " (变量可能未初始化)"
-                
+                    hint = " (变量可能未初始化，为 null)"
+                elif actual_type == 'HPLObject':
+                    hint = " (对象使用属性访问，如: obj.property)"
+                else:
+                    hint = f" (类型 {actual_type} 不支持索引操作)"
+
                 raise self._create_error(
                     HPLTypeError,
                     f"Cannot index {actual_type} value{hint}",
@@ -796,38 +881,64 @@ class HPLEvaluator:
                     error_key='TYPE_INVALID_OPERATION'
                 )
 
-            
-            # 索引类型检查
+            # 数组索引类型检查
             if not isinstance(index, int):
+                index_type = type(index).__name__
+                suggestions = []
+
+                # 智能类型转换建议
+                if isinstance(index, str) and index.isdigit():
+                    suggestions.append(f"使用 int() 转换: int('{index}')")
+                elif isinstance(index, float) and index.is_integer():
+                    suggestions.append(f"使用 int() 转换: int({index})")
+                elif index is None:
+                    suggestions.append("索引不能为 null")
+                else:
+                    suggestions.append(f"数组索引必须是整数，得到的是 {index_type}")
+
+                hint = f" ({'; '.join(suggestions)})" if suggestions else ""
+
                 raise self._create_error(
                     HPLTypeError,
-                    f"Array index must be integer, got {type(index).__name__} (value: {index!r})",
+                    f"Array index must be integer, got {index_type} (value: {index!r}){hint}",
                     expr.line, expr.column,
                     local_scope,
                     error_key='TYPE_INVALID_OPERATION'
                 )
 
-            
             # 增强边界检查
             length = len(array)
             if index < 0 or index >= length:
                 suggestions = []
-                
+
                 if index < 0 and length > 0:
                     reverse_idx = length + index
                     if 0 <= reverse_idx < length:
-                        suggestions.append(f"使用反向索引 {reverse_idx} 访问倒数第 {abs(index)} 个元素")
-                
+                        suggestions.append(f"使用正向索引 {reverse_idx} 访问倒数第 {abs(index)} 个元素")
+
                 if index >= length:
-                    suggestions.append(f"最大有效索引是 {length - 1}")
-                
+                    suggestions.append(f"数组长度为 {length}，最大有效索引是 {length - 1}")
+
                 if length > 0:
                     suggestions.append(f"有效索引范围: 0 到 {length - 1}")
                 else:
                     suggestions.append("数组为空，无法访问任何索引")
-                
+
+                # 数组内容显示建议
+                if length > 0 and index >= 0 and index < length + 3:
+                    if index < length:
+                        element = array[index]
+                        element_type = type(element).__name__
+                        suggestions.append(f"该位置的元素是: {element!r} (类型: {element_type})")
+                    else:
+                        # 显示数组内容
+                        if length <= 5:
+                            suggestions.append(f"数组内容: {array}")
+                        else:
+                            suggestions.append(f"数组前5个元素: {array[:5]}")
+
                 hint = f" ({'; '.join(suggestions)})" if suggestions else ""
-                
+
                 raise self._create_error(
                     HPLIndexError,
                     f"Array index {index} out of bounds (length: {length}){hint}",
@@ -836,7 +947,6 @@ class HPLEvaluator:
                     error_key='RUNTIME_INDEX_OUT_OF_BOUNDS'
                 )
 
-            
             return array[index]
 
 

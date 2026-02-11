@@ -218,44 +218,79 @@ class ErrorSuggestionEngine:
         
         return suggestions
     
-    def suggest_for_index_error(self, index: int, length: int, 
-                               array_type: str = "array") -> List[str]:
+    def suggest_for_index_error(self, index: int, length: int,
+                               array_type: str = "array", array_content: Optional[List] = None) -> List[str]:
         """
         为索引错误提供建议
-        
+
         Args:
             index: 越界的索引值
             length: 数组长度
-            array_type: 数组类型描述
-        
+            array_type: 数组类型描述 ("array", "string")
+            array_content: 数组内容（用于提供更具体的建议）
+
         Returns:
             建议列表
         """
         suggestions = []
-        
+
         if length == 0:
             suggestions.append(f"{array_type} 为空，无法访问任何索引")
             return suggestions
-        
+
         # 负索引建议
         if index < 0:
             reverse_index = length + index
             if 0 <= reverse_index < length:
-                suggestions.append(
-                    f"使用反向索引 {reverse_index} 可以访问倒数第 {abs(index)} 个元素"
-                )
+                if array_type == "string":
+                    suggestions.append(
+                        f"使用正向索引 {reverse_index} 访问第 {abs(index)} 个字符"
+                    )
+                else:
+                    suggestions.append(
+                        f"使用正向索引 {reverse_index} 访问倒数第 {abs(index)} 个元素"
+                    )
             else:
                 suggestions.append(f"索引 {index} 太小，最小有效索引为 {-length}")
-        
+
         # 超出范围建议
         if index >= length:
-            suggestions.append(f"最大有效索引是 {length - 1}（数组长度为 {length}）")
+            suggestions.append(f"最大有效索引是 {length - 1}（{array_type}长度为 {length}）")
             suggestions.append(f"有效索引范围: 0 到 {length - 1}")
-        
+
+        # 字符串特定建议
+        if array_type == "string" and array_content and isinstance(array_content, str):
+            if index >= 0 and index < length + 5:
+                if index < length:
+                    char = array_content[index]
+                    suggestions.append(f"该位置的字符是: '{char}'")
+                elif index < length + 5:
+                    suggestions.append(f"超出范围，字符串内容: '{array_content}'")
+
+        # 数组特定建议
+        elif array_type == "array" and array_content and isinstance(array_content, list):
+            if index >= 0 and index < length + 3:
+                if index < length:
+                    element = array_content[index]
+                    element_type = type(element).__name__
+                    suggestions.append(f"该位置的元素是: {element!r} (类型: {element_type})")
+                else:
+                    # 显示数组内容
+                    if length <= 5:
+                        suggestions.append(f"数组内容: {array_content}")
+                    else:
+                        suggestions.append(f"数组前5个元素: {array_content[:5]}")
+
         # 动态计算建议
         if index > length:
             suggestions.append(f"考虑使用动态索引计算: index % {length}")
-        
+
+        # 类型转换建议
+        if isinstance(index, str) and index.isdigit():
+            suggestions.append(f"使用 int() 转换字符串索引: int('{index}')")
+        elif isinstance(index, float) and index.is_integer():
+            suggestions.append(f"使用 int() 转换浮点数索引: int({index})")
+
         return suggestions
     
     def suggest_for_key_error(self, key: Any, available_keys: List[Any]) -> List[str]:
@@ -508,11 +543,12 @@ class ErrorSuggestionEngine:
 
         elif error_type == 'HPLIndexError':
             # 尝试提取索引和长度
-            match = re.search(r'index\s+(-?\d+)\s+out of bounds.*length\s+(\d+)', message)
+            match = re.search(r'(String|Array) index\s+(-?\d+)\s+out of bounds.*length\s+(\d+)', message)
             if match:
-                index = int(match.group(1))
-                length = int(match.group(2))
-                result['suggestions'] = self.suggest_for_index_error(index, length)
+                array_type = match.group(1).lower()  # "string" or "array"
+                index = int(match.group(2))
+                length = int(match.group(3))
+                result['suggestions'] = self.suggest_for_index_error(index, length, array_type)
 
         elif error_type == 'HPLKeyError':
             # 字典键错误
