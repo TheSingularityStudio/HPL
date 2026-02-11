@@ -209,9 +209,41 @@ class HPLErrorHandler:
         if self.parser and self.parser.source_code:
             return self.parser.source_code
         return self.source_code
+    
+    def _format_error_with_analysis(self, error, source, analysis):
+        """
+        格式化错误信息并整合智能建议分析结果
+        
+        Args:
+            error: 错误对象
+            source: 源代码字符串
+            analysis: 建议引擎的分析结果字典
+        
+        Returns:
+            格式化后的错误字符串
+        """
+        # 获取基础错误信息
+        result = format_error_for_user(error, source)
+        
+        # 添加智能建议
+        if analysis.get('suggestions'):
+            result += "\n\n   💡 智能建议:"
+            for i, suggestion in enumerate(analysis['suggestions'], 1):
+                # 处理多行建议
+                lines = suggestion.split('\n')
+                result += f"\n      {i}. {lines[0]}"
+                for line in lines[1:]:
+                    result += f"\n         {line}"
+        
+        # 添加快速修复代码
+        if analysis.get('quick_fix'):
+            result += f"\n\n   🛠️  快速修复:\n   ```\n   {analysis['quick_fix']}\n   ```"
+        
+        return result
 
 
 def create_error_handler(hpl_file, debug_mode=False, enable_suggestions=True):
+
     """
     创建错误处理器的工厂函数
     

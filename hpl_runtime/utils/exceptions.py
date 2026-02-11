@@ -113,7 +113,7 @@ class HPLError(Exception):
         """获取帮助文档链接"""
         error_code = self.get_error_code()
         if error_code and error_code != f"{self.ERROR_CODE_PREFIX}-GENERAL":
-            base_url = "https://hpl-lang.org/docs/errors"
+            base_url = "https://github.com/TheSingularityStudio/HPL/wiki/docs/errors"
             return f"{base_url}/{error_code.lower().replace('_', '-')}"
         return None
 
