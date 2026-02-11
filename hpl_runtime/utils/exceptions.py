@@ -113,7 +113,7 @@ class HPLError(Exception):
         """获取帮助文档链接"""
         error_code = self.get_error_code()
         if error_code and error_code != f"{self.ERROR_CODE_PREFIX}-GENERAL":
-            base_url = "https://github.com/TheSingularityStudio/HPL/wiki/docs/errors"
+            base_url = "https://github.com/TheSingularityStudio/HPL/wiki/errors"
             return f"{base_url}/{error_code.lower().replace('_', '-')}"
         return None
 
@@ -435,12 +435,14 @@ def format_error_for_user(error, source_code=None):
     # 显示帮助链接
     help_url = error.get_help_url()
     if help_url:
-        lines.append(f"\n   📖 帮助文档: {help_url}")
+        lines.append(f"\n   [DOC] 帮助文档: {help_url}")
+
     
     # 显示错误解决建议
     suggestion = get_error_suggestion(error)
     if suggestion:
-        lines.append(f"\n   💡 建议: {suggestion}")
+        lines.append(f"\n   [TIP] 建议: {suggestion}")
+
     
     return '\n'.join(lines)
 
@@ -484,7 +486,8 @@ def format_error_with_suggestions(error, source_code=None, suggestion_engine=Non
         
         # 添加智能建议
         if analysis.get('suggestions'):
-            result += "\n\n   💡 智能建议:"
+            result += "\n\n   [TIP] 智能建议:"
+
             for i, suggestion in enumerate(analysis['suggestions'], 1):
                 # 处理多行建议
                 lines = suggestion.split('\n')
@@ -494,7 +497,8 @@ def format_error_with_suggestions(error, source_code=None, suggestion_engine=Non
         
         # 添加快速修复代码
         if analysis.get('quick_fix'):
-            result += f"\n\n   🛠️  快速修复:\n   ```\n   {analysis['quick_fix']}\n   ```"
+            result += f"\n\n   [FIX] 快速修复:\n   ```\n   {analysis['quick_fix']}\n   ```"
+
         
     except Exception:
         # 如果建议引擎出错，不影响错误显示
