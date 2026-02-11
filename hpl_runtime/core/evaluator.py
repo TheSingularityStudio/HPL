@@ -270,23 +270,43 @@ class HPLEvaluator:
                 value = self.evaluate_expression(stmt.expr, local_scope)
             raise HPLRuntimeError(str(value) if value is not None else "Exception thrown")
         elif isinstance(stmt, TryCatchStatement):
-
+            caught = False
+            error_obj = None
+            result = None
+            
             try:
                 result = self.execute_block(stmt.try_block, local_scope)
                 # 如果是HPLReturnValue，向上传播
                 if isinstance(result, HPLReturnValue):
                     return result
             except HPLRuntimeError as e:
-                # 只捕获 HPL 运行时错误，不捕获系统异常
-                local_scope[stmt.catch_var] = str(e)
-                result = self.execute_block(stmt.catch_block, local_scope)
-                # 如果是HPLReturnValue，向上传播
-                if isinstance(result, HPLReturnValue):
-                    return result
+                error_obj = e
+                
+                # 尝试匹配特定的 catch 子句
+                for catch in stmt.catch_clauses:
+                    if self._matches_error_type(e, catch.error_type):
+                        # 传递完整错误对象（而不仅是字符串）
+                        local_scope[catch.var_name] = error_obj
+                        result = self.execute_block(catch.block, local_scope)
+                        caught = True
+                        if isinstance(result, HPLReturnValue):
+                            return result
+                        break
+                
+                if not caught:
+                    raise  # 重新抛出未捕获的错误
             except HPLBreakException:
                 raise  # 控制流异常需要继续传播
             except HPLContinueException:
                 raise  # 控制流异常需要继续传播
+            finally:
+                # 执行 finally 块（如果有）
+                if stmt.finally_block:
+                    finally_result = self.execute_block(stmt.finally_block, local_scope)
+                    # finally 中的 return 会覆盖 try/catch 中的 return
+                    if isinstance(finally_result, HPLReturnValue):
+                        return finally_result
+
 
         elif isinstance(stmt, EchoStatement):
             message = self.evaluate_expression(stmt.expr, local_scope)
@@ -763,3 +783,41 @@ class HPLEvaluator:
         if is_hpl_module(module):
             return module.get_constant(const_name)
         raise HPLTypeError(f"Cannot get constant from non-module object")
+
+    def _matches_error_type(self, error, error_type):
+        """检查错误是否匹配指定的错误类型"""
+        if error_type is None:
+            return True  # 捕获所有错误
+        
+        # 获取错误类型的类名
+        error_class_name = error.__class__.__name__
+        
+        # 直接匹配类名
+        if error_type == error_class_name:
+            return True
+        
+        # 支持不带 HPL 前缀的匹配
+        if error_type == error_class_name.replace('HPL', ''):
+            return True
+        
+        # 检查继承关系
+        error_type_map = {
+            'Error': HPLError,
+            'SyntaxError': HPLSyntaxError,
+            'RuntimeError': HPLRuntimeError,
+            'TypeError': HPLTypeError,
+            'NameError': HPLNameError,
+            'AttributeError': HPLAttributeError,
+            'IndexError': HPLIndexError,
+            'ImportError': HPLImportError,
+            'DivisionError': HPLDivisionError,
+            'ValueError': HPLValueError,
+            'IOError': HPLIOError,
+            'RecursionError': HPLRecursionError,
+        }
+        
+        target_class = error_type_map.get(error_type)
+        if target_class:
+            return isinstance(error, target_class)
+        
+        return False

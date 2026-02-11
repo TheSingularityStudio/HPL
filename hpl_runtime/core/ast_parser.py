@@ -24,6 +24,7 @@ except ImportError:
     from hpl_runtime.utils.parse_utils import get_token_position, is_block_terminator, skip_dedents
 
 
+
 class HPLASTParser:
     def __init__(self, tokens):
         self.tokens = tokens
@@ -570,37 +571,53 @@ class HPLASTParser:
         return WhileStatement(condition, body)
 
     def parse_try_catch_statement(self):
+        line, column = self._get_position()
         self.expect_keyword('try')
         try_block = self.parse_block()
         
-        # 在检查catch之前，可能需要跳过多个DEDENT token
-        # 持续检查：如果当前是DEDENT，且后面跟着catch，则跳过DEDENT
-        while self.current_token and self.current_token.type == 'DEDENT':
-            # 查看DEDENT后的token
-            next_token = self.peek(1)
-            if next_token and next_token.type == 'KEYWORD' and next_token.value == 'catch':
-                # 这是当前try的catch，跳过这个DEDENT并停止
-                self.advance()
-                break
-            # 如果不是通向catch的DEDENT，检查是否应该终止
-            # 如果DEDENT的value小于当前缩进级别，说明块已结束
-            if hasattr(self.current_token, 'value') and self.current_token.value is not None:
-                if self.current_token.value < self.indent_level:
-                    # 块已结束，停止查找catch
+        # 解析多个 catch 子句
+        catch_clauses = []
+        
+        while True:
+            # 在检查catch之前，可能需要跳过多个DEDENT token
+            while self.current_token and self.current_token.type == 'DEDENT':
+                next_token = self.peek(1)
+                if next_token and next_token.type == 'KEYWORD' and next_token.value in ['catch', 'finally']:
+                    self.advance()
                     break
+                if hasattr(self.current_token, 'value') and self.current_token.value is not None:
+                    if self.current_token.value < self.indent_level:
+                        break
+                self.advance()
+            
+            # 检查是否有 catch
+            if not (self.current_token and self.current_token.type == 'KEYWORD' and self.current_token.value == 'catch'):
+                break
+            
+            self.advance()  # 跳过 'catch'
+            
+            # 解析可选的错误类型
+            error_type = None
+            if self.current_token and self.current_token.type == 'IDENTIFIER':
+                error_type = self.current_token.value
+                self.advance()
+            
+            self.expect('LPAREN')
+            catch_var = self.expect('IDENTIFIER').value
+            self.expect('RPAREN')
+            
+            catch_block = self.parse_block()
+            
+            catch_clauses.append(CatchClause(error_type, catch_var, catch_block))
+        
+        # 解析可选的 finally 块
+        finally_block = None
+        if self.current_token and self.current_token.type == 'KEYWORD' and self.current_token.value == 'finally':
+            self.advance()  # 跳过 'finally'
+            finally_block = self.parse_block()
+        
+        return TryCatchStatement(try_block, catch_clauses, finally_block, line, column)
 
-            # 否则跳过这个DEDENT继续检查
-            self.advance()
-        
-        self.expect_keyword('catch')
-
-        self.expect('LPAREN')
-        catch_var = self.expect('IDENTIFIER').value
-        self.expect('RPAREN')
-        
-        catch_block = self.parse_block()
-        
-        return TryCatchStatement(try_block, catch_var, catch_block)
 
 
     def parse_expression(self):

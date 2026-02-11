@@ -1,0 +1,58 @@
+# 测试新的 try-catch-finally 语法
+
+main: () => {
+    echo "=== 测试 1: 基本 try-catch ==="
+    try :
+      x = 10 / 0
+    catch (err) :
+      echo "捕获错误: " + err
+    
+    echo ""
+    echo "=== 测试 2: 多 catch 子句 ==="
+    try :
+      # 这里会抛出类型错误
+      arr = [1, 2, 3]
+      val = arr["invalid"]  # 类型错误：索引必须是整数
+    catch HPLTypeError (type_err) :
+      echo "类型错误: " + type_err
+    catch (other_err) :
+      echo "其他错误: " + other_err
+    
+    echo ""
+    echo "=== 测试 3: finally 块 ==="
+    resource = "opened"
+    try :
+      echo "使用资源: " + resource
+      # 模拟错误 - 使用除零错误
+      bad = 10 / 0
+    catch (err) :
+      echo "捕获: " + err
+    finally :
+      resource = "closed"
+      echo "资源已关闭: " + resource
+
+    
+    echo ""
+    echo "=== 测试 4: finally 中的 return ==="
+    result = test_finally_return()
+    echo "结果: " + result
+    
+    echo ""
+    echo "所有测试完成!"
+  }
+
+test_finally_return: () => {
+    try :
+      echo "在 try 中"
+      result = "try 返回值"
+    catch (err) :
+      echo "在 catch 中"
+      result = "catch 返回值"
+    finally :
+      echo "在 finally 中"
+      result = "finally 返回值"  # 这会覆盖之前的返回值
+    return result
+  }
+
+
+call: main()
