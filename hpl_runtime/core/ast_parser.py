@@ -323,8 +323,15 @@ class HPLASTParser:
     def _parse_statements_until_end(self):
         """解析语句直到遇到块结束标记"""
         statements = []
+        # 块终止关键字
+        block_terminators = ['else', 'catch', 'elif', 'finally']
+        
         while self.current_token and self.current_token.type not in ['RBRACE', 'EOF']:
-            # 首先检查是否是DEDENT（缩进减少表示块结束）
+            # 首先检查是否是块终止关键字
+            if self.current_token.type == 'KEYWORD' and self.current_token.value in block_terminators:
+                return statements
+            
+            # 检查是否是DEDENT（缩进减少表示块结束）
             # 使用缩进级别比较，只有当DEDENT的value小于等于当前缩进级别时才终止
             if self.current_token.type == 'DEDENT':
                 if hasattr(self.current_token, 'value') and self.current_token.value is not None:
@@ -355,6 +362,10 @@ class HPLASTParser:
                         break
                 else:
                     break
+            
+            # 再次检查块终止关键字
+            if self.current_token and self.current_token.type == 'KEYWORD' and self.current_token.value in block_terminators:
+                break
             
             if self.current_token:
                 statements.append(self.parse_statement())
@@ -409,8 +420,12 @@ class HPLASTParser:
                         else:
                             break
                     statements.append(self.parse_statement())
+                    # 如果已经解析了一个语句，就退出（单行语句块只包含一个语句）
+                    if len(statements) >= 1:
+                        break
                 # 跳过块结束后的DEDENT
                 self._skip_dedents(self.indent_level)
+
 
 
 
