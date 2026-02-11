@@ -321,7 +321,8 @@ class HPLLexer:
         # 文件结束时，弹出所有缩进级别
         while len(self.indent_stack) > 1:
             self.indent_stack.pop()
-            tokens.append(Token('DEDENT', 0, self.line, self.column))
+            tokens.append(Token('DEDENT', self.indent_stack[-1], self.line, self.column))
+
         
         tokens.append(Token('EOF', None, self.line, self.column))
         return tokens

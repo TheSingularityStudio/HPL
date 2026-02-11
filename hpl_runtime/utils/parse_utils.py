@@ -39,12 +39,13 @@ def is_block_terminator(token, peek_func=None, indent_level=0):
         return True
     
     # DEDENT 表示缩进减少
-    # 如果新的缩进级别小于当前块的级别，说明块已结束
+    # 如果新的缩进级别小于或等于父级块的级别，说明块已结束
     if token.type == 'DEDENT':
         if hasattr(token, 'value') and token.value is not None:
-            return token.value < indent_level
+            return token.value <= indent_level
         # 如果没有value属性，保守地视为终止符
         return True
+
     
     # else 和 catch 是明确的块终止符
     if token.type == 'KEYWORD' and token.value in ['else', 'catch']:
