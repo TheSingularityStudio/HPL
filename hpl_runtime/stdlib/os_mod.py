@@ -80,7 +80,7 @@ def get_python_version():
 
 def get_hpl_version():
     """获取 HPL 版本"""
-    return "1.1.0"
+    return "1.1.1"
 
 
 def execute_command(command):
