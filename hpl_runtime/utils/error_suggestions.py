@@ -466,27 +466,31 @@ class ErrorSuggestionEngine:
     def analyze_error(self, error, local_scope: Optional[Dict] = None) -> Dict[str, Any]:
         """
         全面分析错误并返回所有相关建议
-        
+
         Args:
             error: 错误对象
             local_scope: 当前局部作用域
-        
+
         Returns:
             包含所有建议的字典
         """
         if local_scope:
             self.local_scope = local_scope
-        
+
         result = {
             'error_type': error.__class__.__name__,
             'message': str(error),
             'suggestions': [],
             'quick_fix': None,
+            'context_info': {},
         }
-        
+
         error_type = error.__class__.__name__
         message = str(error)
-        
+
+        # 提取上下文信息
+        result['context_info'] = self._extract_context_info(error, message)
+
         # 根据错误类型获取建议
         if error_type == 'HPLNameError':
             # 提取变量名
@@ -494,12 +498,14 @@ class ErrorSuggestionEngine:
             if match:
                 var_name = match.group(1) or match.group(2)
                 result['suggestions'] = self.suggest_for_name_error(var_name)
-        
+
         elif error_type == 'HPLTypeError':
+            # 更智能的类型错误分析
+            operation, left_type, right_type = self._analyze_type_error(message)
             result['suggestions'] = self.suggest_for_type_error(
-                'operation', 'unknown', 'unknown', message
+                operation, left_type, right_type, message
             )
-        
+
         elif error_type == 'HPLIndexError':
             # 尝试提取索引和长度
             match = re.search(r'index\s+(-?\d+)\s+out of bounds.*length\s+(\d+)', message)
@@ -507,21 +513,119 @@ class ErrorSuggestionEngine:
                 index = int(match.group(1))
                 length = int(match.group(2))
                 result['suggestions'] = self.suggest_for_index_error(index, length)
-        
+
+        elif error_type == 'HPLKeyError':
+            # 字典键错误
+            match = re.search(r"Key\s+([^']+)\s+\(type:\s+(\w+)\)\s+not found", message)
+            if match:
+                key = match.group(1)
+                key_type = match.group(2)
+                available_keys = self._extract_available_keys(message)
+                result['suggestions'] = self.suggest_for_key_error(key, available_keys)
+
         elif error_type == 'HPLDivisionError':
             result['suggestions'] = self.suggest_for_division_error()
-        
+
         elif error_type == 'HPLImportError':
             # 提取模块名
             match = re.search(r"module\s+'(\w+)'|Cannot import module\s+'(\w+)'", message)
             if match:
                 module_name = match.group(1) or match.group(2)
                 result['suggestions'] = self.suggest_for_import_error(module_name, message)
-        
+
+        elif error_type == 'HPLAttributeError':
+            # 属性错误
+            match = re.search(r"Method or attribute\s+'(\w+)'\s+not found", message)
+            if match:
+                attr_name = match.group(1)
+                available_attrs = self._get_available_attributes(error)
+                result['suggestions'] = self.suggest_for_attribute_error(
+                    'object', attr_name, available_attrs
+                )
+
         # 获取快速修复
         result['quick_fix'] = self.get_quick_fix(error_type, message)
-        
+
         return result
+
+    def _extract_context_info(self, error, message: str) -> Dict[str, Any]:
+        """从错误消息中提取上下文信息"""
+        context = {}
+
+        # 提取行号和列号
+        if hasattr(error, 'line') and error.line:
+            context['line'] = error.line
+        if hasattr(error, 'column') and error.column:
+            context['column'] = error.column
+
+        # 提取文件名
+        if hasattr(error, 'file') and error.file:
+            context['file'] = error.file
+
+        # 提取操作类型
+        if 'Cannot index' in message:
+            context['operation'] = 'indexing'
+        elif 'Cannot convert' in message:
+            context['operation'] = 'conversion'
+        elif 'Undefined variable' in message:
+            context['operation'] = 'variable_lookup'
+        elif 'not found in dictionary' in message:
+            context['operation'] = 'dict_access'
+
+        return context
+
+    def _analyze_type_error(self, message: str) -> tuple:
+        """分析类型错误，提取操作和类型信息"""
+        operation = 'unknown'
+        left_type = 'unknown'
+        right_type = 'unknown'
+
+        # 分析常见的类型错误模式
+        if 'Cannot add' in message or 'Cannot concatenate' in message:
+            operation = '+'
+            # 尝试提取类型
+            match = re.search(r'int.*str|str.*int|float.*str|str.*float', message)
+            if match:
+                types = match.group(0).split()
+                left_type, right_type = types[0], types[2]
+
+        elif 'Array index must be integer' in message:
+            operation = 'indexing'
+            match = re.search(r'got\s+(\w+)', message)
+            if match:
+                right_type = match.group(1)
+
+        elif 'Logical NOT requires boolean' in message:
+            operation = 'logical_not'
+            match = re.search(r'got\s+(\w+)', message)
+            if match:
+                right_type = match.group(1)
+
+        elif 'requires number' in message:
+            operation = 'arithmetic'
+            match = re.search(r'got\s+(\w+)', message)
+            if match:
+                right_type = match.group(1)
+
+        return operation, left_type, right_type
+
+    def _extract_available_keys(self, message: str) -> List[Any]:
+        """从错误消息中提取可用的键"""
+        match = re.search(r'Available keys:\s*\[([^\]]+)\]', message)
+        if match:
+            keys_str = match.group(1)
+            # 简单解析，实际可能需要更复杂的解析
+            try:
+                return eval(f'[{keys_str}]')
+            except:
+                return []
+        return []
+
+    def _get_available_attributes(self, error) -> List[str]:
+        """获取对象可用的属性（需要从错误上下文中获取）"""
+        # 这里可以扩展为从错误对象中获取更多上下文
+        # 目前返回空列表，实际实现需要更多上下文信息
+        return []
 
 
 # 便捷函数

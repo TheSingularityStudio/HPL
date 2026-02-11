@@ -92,12 +92,12 @@ class HPLErrorHandler:
     def handle(self, error, exit_on_error=True, local_scope=None):
         """
         统一处理错误
-        
+
         Args:
             error: 异常对象
             exit_on_error: 是否退出程序（默认为 True）
             local_scope: 当前局部作用域（用于智能建议）
-        
+
         Returns:
             格式化的错误字符串（如果不退出）
         """
@@ -105,20 +105,22 @@ class HPLErrorHandler:
         if isinstance(error, HPLRuntimeError) and self.evaluator:
             if not error.call_stack:
                 error.call_stack = self.evaluator.call_stack.copy()
-        
+
         # 获取源代码
         source = self._get_source_code()
-        
+
         # 更新作用域信息（如果提供）
         if local_scope and self.suggestion_engine:
             self.suggestion_engine.local_scope = local_scope
-        
+
         # 生成错误报告（使用智能建议）
         if self.enable_suggestions and self.suggestion_engine:
-            report = format_error_with_suggestions(error, source, self.suggestion_engine)
+            # 使用增强的建议引擎分析
+            analysis = self.suggestion_engine.analyze_error(error, local_scope)
+            report = self._format_error_with_analysis(error, source, analysis)
         else:
             report = format_error_for_user(error, source)
-        
+
         if exit_on_error:
             print(report)
             sys.exit(1)

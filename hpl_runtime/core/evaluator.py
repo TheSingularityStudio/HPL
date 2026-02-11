@@ -71,7 +71,12 @@ class HPLEvaluator:
             elif self.call_target == 'main' and self.main_func:
                 self.execute_function(self.main_func, {}, 'main')
             else:
-                raise HPLNameError(f"Unknown call target: '{self.call_target}'")
+                raise self._create_error(
+                    HPLNameError,
+                    f"Unknown call target: '{self.call_target}'",
+                    error_key='RUNTIME_UNDEFINED_VAR'
+                )
+
         elif self.main_func:
             self.execute_function(self.main_func, {}, 'main')
 
@@ -127,7 +132,14 @@ class HPLEvaluator:
                 if isinstance(obj, HPLObject):
                     obj.attributes[prop_name] = value
                 else:
-                    raise HPLTypeError(f"Cannot set property on non-object value: {type(obj).__name__}", stmt.line, stmt.column)
+                    raise self._create_error(
+                        HPLTypeError,
+                        f"Cannot set property on non-object value: {type(obj).__name__}",
+                        stmt.line, stmt.column,
+                        local_scope,
+                        error_key='TYPE_MISSING_PROPERTY'
+                    )
+
             else:
                 local_scope[stmt.var_name] = value
 
@@ -147,7 +159,12 @@ class HPLEvaluator:
                     obj = self._lookup_variable(obj_name, local_scope)
                 
                 if not isinstance(obj, HPLObject):
-                    raise HPLTypeError(f"Cannot access property on non-object value: {type(obj).__name__}")
+                    raise self._create_error(
+                        HPLTypeError,
+                        f"Cannot access property on non-object value: {type(obj).__name__}",
+                        error_key='TYPE_MISSING_PROPERTY'
+                    )
+
                 
                 # 获取属性（应该是数组/字典）
                 if prop_name not in obj.attributes:
@@ -165,24 +182,53 @@ class HPLEvaluator:
                     array[index] = value
                 elif isinstance(array, list):
                     if not isinstance(index, int):
-                        raise HPLTypeError(f"Array index must be integer, got {type(index).__name__}")
+                        raise self._create_error(
+                            HPLTypeError,
+                            f"Array index must be integer, got {type(index).__name__}",
+                            error_key='TYPE_INVALID_OPERATION'
+                        )
                     if index < 0 or index >= len(array):
-                        raise HPLIndexError(f"Array index {index} out of bounds (length: {len(array)})")
+                        raise self._create_error(
+                            HPLIndexError,
+                            f"Array index {index} out of bounds (length: {len(array)})",
+                            error_key='RUNTIME_INDEX_OUT_OF_BOUNDS'
+                        )
+
                     array[index] = value
                 else:
-                    raise HPLTypeError(f"Cannot index non-array and non-dict value: {type(array).__name__}")
+                    raise self._create_error(
+                        HPLTypeError,
+                        f"Cannot index non-array and non-dict value: {type(array).__name__}",
+                        error_key='TYPE_INVALID_OPERATION'
+                    )
+
             else:
                 # 简单数组赋值
                 array = self._lookup_variable(stmt.array_name, local_scope)
                 if not isinstance(array, list):
-                    raise HPLTypeError(f"Cannot assign to non-array value: {type(array).__name__}")
+                    raise self._create_error(
+                        HPLTypeError,
+                        f"Cannot assign to non-array value: {type(array).__name__}",
+                        error_key='TYPE_INVALID_OPERATION'
+                    )
+
                 
                 index = self.evaluate_expression(stmt.index_expr, local_scope)
                 if not isinstance(index, int):
-                    raise HPLTypeError(f"Array index must be integer, got {type(index).__name__}")
+                    raise self._create_error(
+                        HPLTypeError,
+                        f"Array index must be integer, got {type(index).__name__}",
+                        error_key='TYPE_INVALID_OPERATION'
+                    )
+
                 
                 if index < 0 or index >= len(array):
-                    raise HPLIndexError(f"Array index {index} out of bounds (length: {len(array)})")
+                    raise self._create_error(
+                        HPLIndexError,
+                        f"Array index {index} out of bounds (length: {len(array)})",
+                        error_key='RUNTIME_INDEX_OUT_OF_BOUNDS'
+                    )
+
                 
                 value = self.evaluate_expression(stmt.value_expr, local_scope)
                 array[index] = value
@@ -247,7 +293,12 @@ class HPLEvaluator:
                     except HPLContinueException:
                         continue
             else:
-                raise HPLTypeError(f"'{type(iterable).__name__}' object is not iterable")
+                raise self._create_error(
+                    HPLTypeError,
+                    f"'{type(iterable).__name__}' object is not iterable",
+                    error_key='TYPE_INVALID_OPERATION'
+                )
+
 
 
         elif isinstance(stmt, WhileStatement):
@@ -271,7 +322,12 @@ class HPLEvaluator:
             value = None
             if stmt.expr:
                 value = self.evaluate_expression(stmt.expr, local_scope)
-            raise HPLRuntimeError(str(value) if value is not None else "Exception thrown")
+            raise self._create_error(
+                HPLRuntimeError,
+                str(value) if value is not None else "Exception thrown",
+                error_key='RUNTIME_GENERAL'
+            )
+
         elif isinstance(stmt, TryCatchStatement):
             caught = False
             error_obj = None
@@ -321,7 +377,14 @@ class HPLEvaluator:
             # 前缀自增
             value = self._lookup_variable(stmt.var_name, local_scope)
             if not isinstance(value, (int, float)):
-                raise HPLTypeError(f"Cannot increment non-numeric value: {type(value).__name__}", stmt.line, stmt.column)
+                raise self._create_error(
+                    HPLTypeError,
+                    f"Cannot increment non-numeric value: {type(value).__name__}",
+                    stmt.line, stmt.column,
+                    local_scope,
+                    error_key='TYPE_INVALID_OPERATION'
+                )
+
             new_value = value + 1
             self._update_variable(stmt.var_name, new_value, local_scope)
         elif isinstance(stmt, BlockStatement):
@@ -355,10 +418,24 @@ class HPLEvaluator:
             operand = self.evaluate_expression(expr.operand, local_scope)
             if expr.op == '!':
                 if not isinstance(operand, bool):
-                    raise HPLTypeError(f"Logical NOT requires boolean operand, got {type(operand).__name__}", expr.line, expr.column)
+                    raise self._create_error(
+                        HPLTypeError,
+                        f"Logical NOT requires boolean operand, got {type(operand).__name__}",
+                        expr.line, expr.column,
+                        local_scope,
+                        error_key='TYPE_INVALID_OPERATION'
+                    )
+
                 return not operand
             else:
-                raise HPLRuntimeError(f"Unknown unary operator {expr.op}", expr.line, expr.column)
+                raise self._create_error(
+                    HPLRuntimeError,
+                    f"Unknown unary operator {expr.op}",
+                    expr.line, expr.column,
+                    local_scope,
+                    error_key='RUNTIME_GENERAL'
+                )
+
 
         elif isinstance(expr, FunctionCall):
             # 检查是否是类实例化（类名存在于 self.classes 中）
@@ -382,7 +459,12 @@ class HPLEvaluator:
                 if isinstance(arg, (list, str)):
                     return len(arg)
                 else:
-                    raise HPLTypeError(f"len() requires list or string, got {type(arg).__name__}")
+                    raise self._create_error(
+                        HPLTypeError,
+                        f"len() requires list or string, got {type(arg).__name__}",
+                        error_key='TYPE_INVALID_OPERATION'
+                    )
+
 
             elif expr.func_name == 'int':
                 arg = self.evaluate_expression(expr.args[0], local_scope)
@@ -400,12 +482,14 @@ class HPLEvaluator:
                     elif arg_type == 'NoneType':
                         suggestion = " (变量未初始化，值为 null)"
                     
-                    raise HPLTypeError(
+                    raise self._create_error(
+                        HPLTypeError,
                         f"Cannot convert {arg_type} (value: {arg!r}) to int{suggestion}",
-                        line=expr.line,
-                        column=expr.column,
+                        expr.line, expr.column,
+                        local_scope,
                         error_key='TYPE_CONVERSION_FAILED'
                     )
+
 
 
             elif expr.func_name == 'float':
@@ -420,12 +504,14 @@ class HPLEvaluator:
                     elif arg_type == 'NoneType':
                         suggestion = " (变量未初始化，值为 null)"
                     
-                    raise HPLTypeError(
+                    raise self._create_error(
+                        HPLTypeError,
                         f"Cannot convert {arg_type} (value: {arg!r}) to float{suggestion}",
-                        line=expr.line,
-                        column=expr.column,
+                        expr.line, expr.column,
+                        local_scope,
                         error_key='TYPE_CONVERSION_FAILED'
                     )
+
 
             elif expr.func_name == 'str':
                 arg = self.evaluate_expression(expr.args[0], local_scope)
@@ -450,31 +536,56 @@ class HPLEvaluator:
             elif expr.func_name == 'abs':
                 arg = self.evaluate_expression(expr.args[0], local_scope)
                 if not isinstance(arg, (int, float)):
-                    raise HPLTypeError(f"abs() requires number, got {type(arg).__name__}")
+                    raise self._create_error(
+                        HPLTypeError,
+                        f"abs() requires number, got {type(arg).__name__}",
+                        error_key='TYPE_INVALID_OPERATION'
+                    )
+
                 return abs(arg)
 
             elif expr.func_name == 'max':
                 if len(expr.args) < 1:
-                    raise HPLValueError("max() requires at least one argument")
+                    raise self._create_error(
+                        HPLValueError,
+                        "max() requires at least one argument",
+                        error_key='RUNTIME_GENERAL'
+                    )
+
                 args = [self.evaluate_expression(arg, local_scope) for arg in expr.args]
                 return max(args)
             elif expr.func_name == 'min':
                 if len(expr.args) < 1:
-                    raise HPLValueError("min() requires at least one argument")
+                    raise self._create_error(
+                        HPLValueError,
+                        "min() requires at least one argument",
+                        error_key='RUNTIME_GENERAL'
+                    )
+
                 args = [self.evaluate_expression(arg, local_scope) for arg in expr.args]
                 return min(args)
 
             elif expr.func_name == 'range':
                 # range 函数实现
                 if len(expr.args) < 1 or len(expr.args) > 3:
-                    raise HPLValueError("range() requires 1 to 3 arguments")
+                    raise self._create_error(
+                        HPLValueError,
+                        "range() requires 1 to 3 arguments",
+                        error_key='RUNTIME_GENERAL'
+                    )
+
                 
                 args = [self.evaluate_expression(arg, local_scope) for arg in expr.args]
                 
                 # 检查所有参数都是整数
                 for arg in args:
                     if not isinstance(arg, int):
-                        raise HPLTypeError(f"range() arguments must be integers, got {type(arg).__name__}")
+                        raise self._create_error(
+                            HPLTypeError,
+                            f"range() arguments must be integers, got {type(arg).__name__}",
+                            error_key='TYPE_INVALID_OPERATION'
+                        )
+
                 
                 if len(args) == 1:
                     # range(stop) -> 0 到 stop-1
@@ -494,18 +605,38 @@ class HPLEvaluator:
                     try:
                         return input()
                     except EOFError:
-                        raise HPLIOError("End of file reached while waiting for input")
+                        raise self._create_error(
+                            HPLIOError,
+                            "End of file reached while waiting for input",
+                            error_key='IO_READ_ERROR'
+                        )
+
                 elif len(expr.args) == 1:
                     # 一个参数：显示提示信息后读取输入
                     prompt = self.evaluate_expression(expr.args[0], local_scope)
                     if not isinstance(prompt, str):
-                        raise HPLTypeError(f"input() requires string prompt, got {type(prompt).__name__}")
+                        raise self._create_error(
+                            HPLTypeError,
+                            f"input() requires string prompt, got {type(prompt).__name__}",
+                            error_key='TYPE_INVALID_OPERATION'
+                        )
+
                     try:
                         return input(prompt)
                     except EOFError:
-                        raise HPLIOError("End of file reached while waiting for input")
+                        raise self._create_error(
+                            HPLIOError,
+                            "End of file reached while waiting for input",
+                            error_key='IO_READ_ERROR'
+                        )
+
                 else:
-                    raise HPLValueError(f"input() requires 0 or 1 arguments, got {len(expr.args)}")
+                    raise self._create_error(
+                        HPLValueError,
+                        f"input() requires 0 or 1 arguments, got {len(expr.args)}",
+                        error_key='RUNTIME_GENERAL'
+                    )
+
 
             else:
                 # 检查是否是用户定义的函数（从include或其他方式导入）
@@ -522,7 +653,12 @@ class HPLEvaluator:
                             func_scope[param] = None  # 默认值为 None
                     return self.execute_function(target_func, func_scope, expr.func_name)
                 else:
-                    raise HPLNameError(f"Unknown function '{expr.func_name}'")
+                    raise self._create_error(
+                        HPLNameError,
+                        f"Unknown function '{expr.func_name}'",
+                        error_key='RUNTIME_UNDEFINED_VAR'
+                    )
+
 
 
         elif isinstance(expr, MethodCall):
@@ -535,7 +671,12 @@ class HPLEvaluator:
                         # 如果后面还有调用（如 this.parent.init()），继续处理
                         return parent_class
                     else:
-                        raise HPLAttributeError(f"Class '{obj.hpl_class.name}' has no parent class")
+                        raise self._create_error(
+                            HPLAttributeError,
+                            f"Class '{obj.hpl_class.name}' has no parent class",
+                            error_key='TYPE_MISSING_PROPERTY'
+                        )
+
                 args = [self.evaluate_expression(arg, local_scope) for arg in expr.args]
                 return self._call_method(obj, expr.method_name, args)
             elif isinstance(obj, HPLClass):
@@ -559,13 +700,23 @@ class HPLEvaluator:
                     args = [self.evaluate_expression(arg, local_scope) for arg in expr.args]
                     return self.call_module_function(obj, expr.method_name, args)
             else:
-                raise HPLTypeError(f"Cannot call method on {type(obj).__name__}")
+                raise self._create_error(
+                    HPLTypeError,
+                    f"Cannot call method on {type(obj).__name__}",
+                    error_key='TYPE_INVALID_OPERATION'
+                )
+
 
         elif isinstance(expr, PostfixIncrement):
             var_name = expr.var.name
             value = self._lookup_variable(var_name, local_scope)
             if not isinstance(value, (int, float)):
-                raise HPLTypeError(f"Cannot increment non-numeric value: {type(value).__name__}")
+                raise self._create_error(
+                    HPLTypeError,
+                    f"Cannot increment non-numeric value: {type(value).__name__}",
+                    error_key='TYPE_INVALID_OPERATION'
+                )
+
             new_value = value + 1
             self._update_variable(var_name, new_value, local_scope)
             return value
@@ -637,21 +788,25 @@ class HPLEvaluator:
                 elif actual_type == 'NoneType':
                     hint = " (变量可能未初始化)"
                 
-                raise HPLTypeError(
+                raise self._create_error(
+                    HPLTypeError,
                     f"Cannot index {actual_type} value{hint}",
-                    line=expr.line,
-                    column=expr.column,
+                    expr.line, expr.column,
+                    local_scope,
                     error_key='TYPE_INVALID_OPERATION'
                 )
+
             
             # 索引类型检查
             if not isinstance(index, int):
-                raise HPLTypeError(
+                raise self._create_error(
+                    HPLTypeError,
                     f"Array index must be integer, got {type(index).__name__} (value: {index!r})",
-                    line=expr.line,
-                    column=expr.column,
+                    expr.line, expr.column,
+                    local_scope,
                     error_key='TYPE_INVALID_OPERATION'
                 )
+
             
             # 增强边界检查
             length = len(array)
@@ -673,12 +828,14 @@ class HPLEvaluator:
                 
                 hint = f" ({'; '.join(suggestions)})" if suggestions else ""
                 
-                raise HPLIndexError(
+                raise self._create_error(
+                    HPLIndexError,
                     f"Array index {index} out of bounds (length: {length}){hint}",
-                    line=expr.line,
-                    column=expr.column,
+                    expr.line, expr.column,
+                    local_scope,
                     error_key='RUNTIME_INDEX_OUT_OF_BOUNDS'
                 )
+
             
             return array[index]
 
@@ -692,7 +849,13 @@ class HPLEvaluator:
             return result
 
         else:
-            raise HPLRuntimeError(f"Unknown expression type: {type(expr).__name__}")
+            raise self._create_error(
+                HPLRuntimeError,
+                f"Unknown expression type: {type(expr).__name__}",
+                error_key='RUNTIME_GENERAL'
+            )
+
+
 
 
     def _eval_binary_op(self, left, op, right):
@@ -723,17 +886,21 @@ class HPLEvaluator:
             return left * right
         elif op == '/':
             if right == 0:
-                raise HPLDivisionError(
+                raise self._create_error(
+                    HPLDivisionError,
                     "Division by zero. 建议: 添加检查 if (divisor != 0) : result = dividend / divisor",
                     error_key='RUNTIME_DIVISION_BY_ZERO'
                 )
+
             return left / right
         elif op == '%':
             if right == 0:
-                raise HPLDivisionError(
+                raise self._create_error(
+                    HPLDivisionError,
                     "Modulo by zero. 建议: 添加检查 if (divisor != 0) : result = dividend % divisor",
                     error_key='RUNTIME_DIVISION_BY_ZERO'
                 )
+
             return left % right
 
         elif op == '==':
@@ -753,7 +920,13 @@ class HPLEvaluator:
             check_numeric_operands(left, right, op)
             return left >= right
         else:
-            raise HPLRuntimeError(f"Unknown operator {op}")
+            raise self._create_error(
+                HPLRuntimeError,
+                f"Unknown operator {op}",
+                error_key='RUNTIME_GENERAL'
+            )
+
+
 
 
 
@@ -764,7 +937,15 @@ class HPLEvaluator:
         elif name in self.global_scope:
             return self.global_scope[name]
         else:
-            raise HPLNameError(f"Undefined variable: '{name}'", line, column)
+            raise self._create_error(
+                HPLNameError,
+                f"Undefined variable: '{name}'",
+                line, column,
+                local_scope,
+                error_key='RUNTIME_UNDEFINED_VAR'
+            )
+
+
 
 
     def _update_variable(self, name, value, local_scope):
@@ -793,7 +974,12 @@ class HPLEvaluator:
                 method_scope['this'] = self.current_obj
                 return self.execute_function(method, method_scope)
             else:
-                raise HPLAttributeError(f"Method '{method_name}' not found in parent class '{obj.name}'")
+                raise self._create_error(
+                    HPLAttributeError,
+                    f"Method '{method_name}' not found in parent class '{obj.name}'",
+                    error_key='TYPE_MISSING_PROPERTY'
+                )
+
         
         hpl_class = obj.hpl_class
         # 支持 init 作为 __init__ 的别名
@@ -813,7 +999,13 @@ class HPLEvaluator:
             # 不是方法，尝试作为属性访问
             if method_name in obj.attributes:
                 return obj.attributes[method_name]
-            raise HPLAttributeError(f"Method or attribute '{method_name}' not found in class '{hpl_class.name}'")
+            raise self._create_error(
+                HPLAttributeError,
+                f"Method or attribute '{method_name}' not found in class '{hpl_class.name}'",
+                error_key='TYPE_MISSING_PROPERTY'
+            )
+
+
 
         
         # 为'this'设置current_obj
@@ -883,10 +1075,14 @@ class HPLEvaluator:
     def instantiate_object(self, class_name, obj_name, init_args=None):
         """实例化对象并调用构造函数"""
         if class_name not in self.classes:
-            raise HPLNameError(f"Class '{class_name}' not found")
-
+            raise self._create_error(
+                HPLNameError,
+                f"Class '{class_name}' not found",
+                error_key='RUNTIME_UNDEFINED_VAR'
+            )
         
         hpl_class = self.classes[class_name]
+
         obj = HPLObject(obj_name, hpl_class)
         
         # 调用构造函数（如果存在）
@@ -913,23 +1109,42 @@ class HPLEvaluator:
                 local_scope[alias] = module
                 return None
         except ImportError as e:
-            raise HPLImportError(f"Cannot import module '{module_name}': {e}") from e
+            raise self._create_error(
+                HPLImportError,
+                f"Cannot import module '{module_name}': {e}",
+                error_key='IMPORT_MODULE_NOT_FOUND'
+            ) from e
         
-        raise HPLImportError(f"Module '{module_name}' not found")
+        raise self._create_error(
+            HPLImportError,
+            f"Module '{module_name}' not found",
+            error_key='IMPORT_MODULE_NOT_FOUND'
+        )
+
+
 
 
     def call_module_function(self, module, func_name, args):
         """调用模块函数"""
         if is_hpl_module(module):
             return module.call_function(func_name, args)
-        raise HPLTypeError(f"Cannot call function on non-module object")
-
+        raise self._create_error(
+            HPLTypeError,
+            f"Cannot call function on non-module object",
+            error_key='TYPE_INVALID_OPERATION'
+        )
 
     def get_module_constant(self, module, const_name):
         """获取模块常量"""
         if is_hpl_module(module):
             return module.get_constant(const_name)
-        raise HPLTypeError(f"Cannot get constant from non-module object")
+        raise self._create_error(
+            HPLTypeError,
+            f"Cannot get constant from non-module object",
+            error_key='TYPE_INVALID_OPERATION'
+        )
+
+
 
     def _create_error(self, error_class, message, line=None, column=None, 
                     local_scope=None, error_key=None, **kwargs):
