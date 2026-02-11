@@ -329,9 +329,8 @@ class HPLASTParser:
             # 首先检查是否是块终止关键字
             if self.current_token.type == 'KEYWORD' and self.current_token.value in block_terminators:
                 return statements
-               
+            
             # 检查是否是DEDENT（缩进减少表示块结束）
-            # 使用缩进级别比较，只有当DEDENT的value小于当前缩进级别时才终止
             if self.current_token.type == 'DEDENT':
                 if hasattr(self.current_token, 'value') and self.current_token.value is not None:
                     # 如果新的缩进级别小于父级块的级别，说明块已结束
@@ -343,31 +342,36 @@ class HPLASTParser:
                         continue
                 else:
                     # 没有value属性，保守地视为终止符
-                    return statements   
-            self._consume_indent()          
+                    return statements
+            
+            # 消费INDENT（如果存在）
+            self._consume_indent()
+            
             # 再次检查块终止符（消费INDENT后可能遇到）
-            if self.current_token and self.current_token.type in ['RBRACE', 'EOF', 'DEDENT']:
-                # 对于DEDENT，需要再次检查缩进级别
-                if self.current_token.type == 'DEDENT':
-                    if hasattr(self.current_token, 'value') and self.current_token.value is not None:
-                        if self.current_token.value < self.indent_level:
-                            break
-                        else:
-                            self.advance()
-                            continue
-                    else:
+            if self.current_token and self.current_token.type in ['RBRACE', 'EOF']:
+                break
+            
+            # 再次检查DEDENT（消费INDENT后可能遇到）
+            if self.current_token and self.current_token.type == 'DEDENT':
+                if hasattr(self.current_token, 'value') and self.current_token.value is not None:
+                    if self.current_token.value < self.indent_level:
                         break
+                    else:
+                        self.advance()
+                        continue
                 else:
                     break
+            
             # 再次检查块终止关键字
             if self.current_token and self.current_token.type == 'KEYWORD' and self.current_token.value in block_terminators:
-                break     
+                break
+            
+            # 解析语句
             if self.current_token:
-                statements.append(self.parse_statement())  
-
-        return statements
-
-
+                statements.append(self.parse_statement())
+        
+        return statements    
+    
     def parse_block(self):
         """解析语句块，支持多种语法格式"""
         statements = []
