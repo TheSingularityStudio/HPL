@@ -784,8 +784,28 @@ class HPLEvaluator:
             return module.get_constant(const_name)
         raise HPLTypeError(f"Cannot get constant from non-module object")
 
+    def _create_error(self, error_class, message, line=None, column=None, 
+                    local_scope=None, error_key=None, **kwargs):
+        """统一创建错误并添加上下文"""
+        error = error_class(
+            message=message,
+            line=line,
+            column=column,
+            file=getattr(self, 'current_file', None),
+            call_stack=self.call_stack.copy(),
+            error_key=error_key,
+            **kwargs
+        )
+        
+        # 自动丰富上下文
+        if local_scope is not None and hasattr(error, 'enrich_context'):
+            error.enrich_context(self, local_scope)
+        
+        return error
+
     def _matches_error_type(self, error, error_type):
         """检查错误是否匹配指定的错误类型"""
+
         if error_type is None:
             return True  # 捕获所有错误
         
@@ -800,20 +820,39 @@ class HPLEvaluator:
         if error_type == error_class_name.replace('HPL', ''):
             return True
         
-        # 检查继承关系
+        # 检查继承关系 - 使用完整的错误类型映射
         error_type_map = {
+            # 基础错误
+            'HPLError': HPLError,
             'Error': HPLError,
+            
+            # 语法错误
+            'HPLSyntaxError': HPLSyntaxError,
             'SyntaxError': HPLSyntaxError,
+            
+            # 运行时错误及其子类
+            'HPLRuntimeError': HPLRuntimeError,
             'RuntimeError': HPLRuntimeError,
+            'HPLTypeError': HPLTypeError,
             'TypeError': HPLTypeError,
+            'HPLNameError': HPLNameError,
             'NameError': HPLNameError,
+            'HPLAttributeError': HPLAttributeError,
             'AttributeError': HPLAttributeError,
+            'HPLIndexError': HPLIndexError,
             'IndexError': HPLIndexError,
-            'ImportError': HPLImportError,
+            'HPLDivisionError': HPLDivisionError,
             'DivisionError': HPLDivisionError,
+            'HPLValueError': HPLValueError,
             'ValueError': HPLValueError,
+            'HPLIOError': HPLIOError,
             'IOError': HPLIOError,
+            'HPLRecursionError': HPLRecursionError,
             'RecursionError': HPLRecursionError,
+            
+            # 导入错误
+            'HPLImportError': HPLImportError,
+            'ImportError': HPLImportError,
         }
         
         target_class = error_type_map.get(error_type)

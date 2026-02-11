@@ -23,13 +23,51 @@ class HPLError(Exception):
     # 错误代码前缀
     ERROR_CODE_PREFIX = "HPL"
     
-    def __init__(self, message, line=None, column=None, file=None, context=None, error_code=None):
+    # 错误代码映射表
+    ERROR_CODE_MAP = {
+        # 语法错误 (1xx)
+        'SYNTAX_UNEXPECTED_TOKEN': 'HPL-SYNTAX-101',
+        'SYNTAX_MISSING_BRACKET': 'HPL-SYNTAX-102',
+        'SYNTAX_INVALID_INDENT': 'HPL-SYNTAX-103',
+        'SYNTAX_YAML_ERROR': 'HPL-SYNTAX-150',
+        
+        # 运行时错误 (2xx)
+        'RUNTIME_UNDEFINED_VAR': 'HPL-RUNTIME-201',
+        'RUNTIME_TYPE_MISMATCH': 'HPL-RUNTIME-202',
+        'RUNTIME_INDEX_OUT_OF_BOUNDS': 'HPL-RUNTIME-203',
+        'RUNTIME_DIVISION_BY_ZERO': 'HPL-RUNTIME-204',
+        'RUNTIME_NULL_POINTER': 'HPL-RUNTIME-205',
+        'RUNTIME_RECURSION_DEPTH': 'HPL-RUNTIME-206',
+        
+        # 类型错误 (3xx)
+        'TYPE_INVALID_OPERATION': 'HPL-TYPE-301',
+        'TYPE_CONVERSION_FAILED': 'HPL-TYPE-302',
+        'TYPE_MISSING_PROPERTY': 'HPL-TYPE-303',
+        
+        # 导入错误 (4xx)
+        'IMPORT_MODULE_NOT_FOUND': 'HPL-IMPORT-401',
+        'IMPORT_CIRCULAR': 'HPL-IMPORT-402',
+        'IMPORT_VERSION_MISMATCH': 'HPL-IMPORT-403',
+        
+        # IO 错误 (5xx)
+        'IO_FILE_NOT_FOUND': 'HPL-IO-501',
+        'IO_PERMISSION_DENIED': 'HPL-IO-502',
+        'IO_READ_ERROR': 'HPL-IO-503',
+    }
+    
+    def __init__(self, message, line=None, column=None, file=None, context=None, 
+                 error_code=None, error_key=None):
+        # 支持通过 error_key 自动获取错误代码
+        if error_key and not error_code:
+            error_code = self.ERROR_CODE_MAP.get(error_key)
+        
         super().__init__(message)
         self.line = line
         self.column = column
         self.file = file
         self.context = context
         self.error_code = error_code
+
     
     def __str__(self):
         parts = [self.__class__.__name__]
@@ -70,6 +108,15 @@ class HPLError(Exception):
         if self.error_code:
             return self.error_code
         return f"{self.ERROR_CODE_PREFIX}-GENERAL"
+    
+    def get_help_url(self):
+        """获取帮助文档链接"""
+        error_code = self.get_error_code()
+        if error_code and error_code != f"{self.ERROR_CODE_PREFIX}-GENERAL":
+            base_url = "https://hpl-lang.org/docs/errors"
+            return f"{base_url}/{error_code.lower().replace('_', '-')}"
+        return None
+
 
 
 
@@ -98,9 +145,14 @@ class HPLRuntimeError(HPLError):
     """
     
     def __init__(self, message, line=None, column=None, file=None, context=None, 
-                 call_stack=None, error_code=None):
+                 call_stack=None, error_code=None, **kwargs):
         super().__init__(message, line, column, file, context, error_code)
         self.call_stack = call_stack or []
+        # 新增上下文信息
+        self.variable_snapshot = kwargs.get('variable_snapshot', {})
+        self.execution_trace = kwargs.get('execution_trace', [])
+        self.function_args = kwargs.get('function_args', {})
+        self.recent_assignments = kwargs.get('recent_assignments', [])
     
     def __str__(self):
         result = super().__str__()
@@ -117,6 +169,20 @@ class HPLRuntimeError(HPLError):
         if self.error_code:
             return self.error_code
         return f"{self.ERROR_CODE_PREFIX}-RUNTIME-001"
+    
+    def enrich_context(self, evaluator, local_scope):
+        """从 evaluator 捕获运行时上下文"""
+        if evaluator:
+            # 捕获变量状态
+            self.variable_snapshot = {
+                'local': {k: v for k, v in local_scope.items() if not k.startswith('_')},
+                'global_keys': list(evaluator.global_scope.keys()),
+                'current_obj': evaluator.current_obj
+            }
+            # 捕获最近执行轨迹
+            if hasattr(evaluator, 'exec_logger'):
+                self.execution_trace = evaluator.exec_logger.get_trace(last_n=10)
+
 
 
 
@@ -347,4 +413,36 @@ def format_error_for_user(error, source_code=None):
         for i, frame in enumerate(error.call_stack, 1):
             lines.append(f"      {i}. {frame}")
     
+    # 显示变量快照（如果有）
+    if isinstance(error, HPLRuntimeError) and error.variable_snapshot:
+        lines.append("\n   Variable snapshot:")
+        local_vars = error.variable_snapshot.get('local', {})
+        if local_vars:
+            lines.append("      Local variables:")
+            for name, value in list(local_vars.items())[:5]:  # 最多显示5个
+                lines.append(f"        {name} = {value!r}")
+    
+    # 显示帮助链接
+    help_url = error.get_help_url()
+    if help_url:
+        lines.append(f"\n   📖 帮助文档: {help_url}")
+    
+    # 显示错误解决建议
+    suggestion = get_error_suggestion(error)
+    if suggestion:
+        lines.append(f"\n   💡 建议: {suggestion}")
+    
     return '\n'.join(lines)
+
+
+
+def get_error_suggestion(error):
+    """根据错误类型提供解决建议"""
+    suggestions = {
+        'HPLNameError': "检查变量名拼写，或确认变量已在使用前定义",
+        'HPLTypeError': "检查操作数的类型，必要时使用类型转换函数 int() 或 str()",
+        'HPLIndexError': "检查数组长度和索引值，确保 0 <= index < len(array)",
+        'HPLDivisionError': "添加除零检查，如: if (divisor != 0) : result = dividend / divisor",
+        'HPLImportError': "检查模块名称拼写，或确认模块已正确安装",
+    }
+    return suggestions.get(error.__class__.__name__)

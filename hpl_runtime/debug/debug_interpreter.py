@@ -22,6 +22,7 @@ try:
         HPLError, HPLSyntaxError, HPLRuntimeError, HPLImportError,
         format_error_for_user
     )
+    from hpl_runtime.utils.error_handler import HPLErrorHandler, create_error_handler
     from .error_analyzer import ErrorAnalyzer, ExecutionLogger, VariableInspector
 except ImportError:
     from hpl_runtime.interpreter import main as standard_main
@@ -33,9 +34,11 @@ except ImportError:
         HPLError, HPLSyntaxError, HPLRuntimeError, HPLImportError,
         format_error_for_user
     )
+    from hpl_runtime.utils.error_handler import HPLErrorHandler, create_error_handler
     from hpl_runtime.debug.error_analyzer import (
         ErrorAnalyzer, ExecutionLogger, VariableInspector
     )
+
 
 
 class DebugEvaluator(HPLEvaluator):
@@ -165,13 +168,19 @@ class DebugInterpreter:
         parser = None
         evaluator = None
         
+        # 创建错误处理器
+        handler = create_error_handler(hpl_file, debug_mode=self.debug_mode)
+        
         try:
             # 读取源代码
             with open(hpl_file, 'r', encoding='utf-8') as f:
                 self.source_code = f.read()
+                handler.source_code = self.source_code
                 
             # 解析
             parser = HPLParser(hpl_file)
+            handler.set_parser(parser)
+            
             classes, objects, functions, main_func, _, _, imports = parser.parse()
             
             # 检查 main 函数
@@ -184,6 +193,7 @@ class DebugInterpreter:
                 call_target, call_args,
                 debug_mode=self.debug_mode
             )
+            handler.set_evaluator(evaluator)
             
             # 处理导入
             for imp in imports:
@@ -211,22 +221,24 @@ class DebugInterpreter:
             
         except HPLSyntaxError as e:
             self.last_error = e
+            # 使用错误处理器生成报告
+            report = handler.handle(e, exit_on_error=False)
             context = self.analyzer.analyze_error(
                 e, 
                 source_code=getattr(parser, 'source_code', self.source_code)
             )
             result['error'] = e
             result['debug_info'] = {
+                'error_report': report,
                 'error_context': context.to_dict(),
                 'report': self.analyzer.generate_report(context)
             }
             
         except HPLRuntimeError as e:
             self.last_error = e
-            # 附加调用栈
-            if evaluator and not e.call_stack:
-                e.call_stack = evaluator.call_stack.copy()
-                
+            # 使用错误处理器
+            report = handler.handle(e, exit_on_error=False)
+            
             context = self.analyzer.analyze_error(
                 e,
                 source_code=self.source_code,
@@ -234,6 +246,7 @@ class DebugInterpreter:
             )
             result['error'] = e
             result['debug_info'] = {
+                'error_report': report,
                 'error_context': context.to_dict(),
                 'report': self.analyzer.generate_report(context),
                 'execution_trace': evaluator.exec_logger.get_trace() if evaluator else []
@@ -241,39 +254,31 @@ class DebugInterpreter:
             
         except HPLImportError as e:
             self.last_error = e
+            report = handler.handle(e, exit_on_error=False)
             context = self.analyzer.analyze_error(e, source_code=self.source_code)
             result['error'] = e
             result['debug_info'] = {
+                'error_report': report,
                 'error_context': context.to_dict(),
                 'report': self.analyzer.generate_report(context)
             }
             
         except HPLError as e:
             self.last_error = e
+            report = handler.handle(e, exit_on_error=False)
             context = self.analyzer.analyze_error(e, source_code=self.source_code)
             result['error'] = e
             result['debug_info'] = {
+                'error_report': report,
                 'error_context': context.to_dict(),
                 'report': self.analyzer.generate_report(context)
             }
             
         except Exception as e:
             self.last_error = e
-            # 包装为 HPLRuntimeError
-            wrapped_error = HPLRuntimeError(
-                f"Internal error: {type(e).__name__}: {str(e)}",
-                file=hpl_file
-            )
-            context = self.analyzer.analyze_error(
-                wrapped_error,
-                source_code=self.source_code,
-                evaluator=evaluator
-            )
-            result['error'] = wrapped_error
-            result['debug_info'] = {
-                'error_context': context.to_dict(),
-                'report': self.analyzer.generate_report(context, include_traceback=True)
-            }
+            # 使用错误处理器处理未预期错误
+            handler.handle_unexpected_error(e, hpl_file)
+
         
         self.last_result = result
         return result
