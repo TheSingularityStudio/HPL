@@ -6,7 +6,8 @@ build-backend = "setuptools.build_meta"
 name = "hpl-runtime"
 version = "1.1.0"
 description = "HPL (H Programming Language) 是一种基于 YAML 格式的面向对象编程语言的运行器"
-readme = "README.md"
+readme = "README_PYPI.md"
+
 license = {text = "MIT"}
 requires-python = ">=3.7"
 authors = [
@@ -55,4 +56,3 @@ exclude = ["tests*", "docs*", "examples*"]
 
 [tool.setuptools.package-data]
 hpl_runtime = ["stdlib/*.py"]
-
