@@ -276,7 +276,6 @@ class HPLASTParser:
                 # 如果 current_expr 是 MethodCall（属性访问），转换为带参数的方法调用
                 if isinstance(current_expr, MethodCall):
                     current_expr = MethodCall(current_expr.obj_name, current_expr.method_name, args)
-
                 else:
                     # 函数调用
                     current_expr = FunctionCall(current_expr, args)
@@ -299,8 +298,7 @@ class HPLASTParser:
                     return PostfixIncrement(current_expr)
                 else:
                     # 其他表达式不支持自增，返回原表达式
-                    return current_expr
-            
+                    return current_expr  
             else:
                 break
         
@@ -330,13 +328,13 @@ class HPLASTParser:
             # 首先检查是否是块终止关键字
             if self.current_token.type == 'KEYWORD' and self.current_token.value in block_terminators:
                 return statements
-            
+               
             # 检查是否是DEDENT（缩进减少表示块结束）
-            # 使用缩进级别比较，只有当DEDENT的value小于等于当前缩进级别时才终止
+            # 使用缩进级别比较，只有当DEDENT的value小于当前缩进级别时才终止
             if self.current_token.type == 'DEDENT':
                 if hasattr(self.current_token, 'value') and self.current_token.value is not None:
-                    # 如果新的缩进级别小于等于父级块的级别，说明块已结束
-                    if self.current_token.value <= self.indent_level:
+                    # 如果新的缩进级别小于父级块的级别，说明块已结束
+                    if self.current_token.value < self.indent_level:
                         return statements
                     # 否则，跳过这个DEDENT（还在当前块内）
                     else:
@@ -344,16 +342,14 @@ class HPLASTParser:
                         continue
                 else:
                     # 没有value属性，保守地视为终止符
-                    return statements
-            
-            self._consume_indent()
-            
+                    return statements   
+            self._consume_indent()          
             # 再次检查块终止符（消费INDENT后可能遇到）
             if self.current_token and self.current_token.type in ['RBRACE', 'EOF', 'DEDENT']:
                 # 对于DEDENT，需要再次检查缩进级别
                 if self.current_token.type == 'DEDENT':
                     if hasattr(self.current_token, 'value') and self.current_token.value is not None:
-                        if self.current_token.value <= self.indent_level:
+                        if self.current_token.value < self.indent_level:
                             break
                         else:
                             self.advance()
@@ -362,17 +358,13 @@ class HPLASTParser:
                         break
                 else:
                     break
-            
             # 再次检查块终止关键字
             if self.current_token and self.current_token.type == 'KEYWORD' and self.current_token.value in block_terminators:
-                break
-            
+                break     
             if self.current_token:
-                statements.append(self.parse_statement())
-        
+                statements.append(self.parse_statement())  
+
         return statements
-
-
 
 
     def parse_block(self):
@@ -398,13 +390,10 @@ class HPLASTParser:
                 self.indent_level = saved_indent_level
                 # 跳过所有连续的 DEDENT token，直到遇到非 DEDENT 或缩进级别小于等于父级
                 while self.current_token and self.current_token.type == 'DEDENT':
-                    if hasattr(self.current_token, 'value') and self.current_token.value <= saved_indent_level:
+                    if hasattr(self.current_token, 'value') and self.current_token.value < saved_indent_level:
                         self.advance()
                     else:
                         break
-
-
-
             else:
                 # 单行语句
                 # 只在这些特定关键字处停止（块终止符）
@@ -412,32 +401,24 @@ class HPLASTParser:
                 while self.current_token and self.current_token.type not in ['RBRACE', 'EOF']:
                     if self.current_token.type == 'KEYWORD' and self.current_token.value in block_terminators:
                         break
-                    # 检查DEDENT作为块终止符 - 使用小于等于当前缩进级别
+                    # 检查DEDENT作为块终止符 - 使用小于当前缩进级别
                     if self.current_token.type == 'DEDENT':
                         if hasattr(self.current_token, 'value') and self.current_token.value is not None:
-                            if self.current_token.value <= self.indent_level:
+                            if self.current_token.value < self.indent_level:
                                 break
                         else:
                             break
+
                     statements.append(self.parse_statement())
                     # 如果已经解析了一个语句，就退出（单行语句块只包含一个语句）
                     if len(statements) >= 1:
                         break
                 # 跳过块结束后的DEDENT
                 self._skip_dedents(self.indent_level)
-
-
-
-
-
         
         # 情况2: 以花括号开始
         elif self.current_token and self.current_token.type == 'LBRACE':
             return self._parse_brace_block()
-
-
-
-
         
         # 情况3: 以 INDENT 开始（函数体等情况）
         elif self.current_token and self.current_token.type == 'INDENT':
@@ -456,15 +437,12 @@ class HPLASTParser:
                 else:
                     break
 
-
-
-
-        
         # 情况4: 没有花括号也没有冒号，直接解析单个语句或语句序列
         else:
             statements = self._parse_statements_until_end()
         
         return BlockStatement(statements)
+
 
     def _parse_brace_block(self):
         """解析花括号块"""
@@ -492,9 +470,6 @@ class HPLASTParser:
         return BlockStatement(statements)
 
 
-
-
-
     def parse_statement(self):
         """解析语句 - 使用分发表优化关键字查找"""
         # 跳过行首的 INDENT token
@@ -506,7 +481,6 @@ class HPLASTParser:
         
         if not self.current_token:
             return None
-
         
         # 处理关键字语句（使用分发表 O(1) 查找）
 
@@ -552,11 +526,12 @@ class HPLASTParser:
                 self.advance()
                 break
             # 如果不是通向else的DEDENT，检查是否应该终止
-            # 如果DEDENT的value小于等于当前缩进级别，说明块已结束
+            # 如果DEDENT的value小于当前缩进级别，说明块已结束
             if hasattr(self.current_token, 'value') and self.current_token.value is not None:
-                if self.current_token.value <= self.indent_level:
+                if self.current_token.value < self.indent_level:
                     # 块已结束，停止查找else
                     break
+
             # 否则跳过这个DEDENT继续检查
             self.advance()
         
@@ -568,9 +543,6 @@ class HPLASTParser:
             else_block = self.parse_block()
         
         return IfStatement(condition, then_block, else_block)
-
-
-
 
 
     def parse_for_statement(self):
@@ -611,11 +583,12 @@ class HPLASTParser:
                 self.advance()
                 break
             # 如果不是通向catch的DEDENT，检查是否应该终止
-            # 如果DEDENT的value小于等于当前缩进级别，说明块已结束
+            # 如果DEDENT的value小于当前缩进级别，说明块已结束
             if hasattr(self.current_token, 'value') and self.current_token.value is not None:
-                if self.current_token.value <= self.indent_level:
+                if self.current_token.value < self.indent_level:
                     # 块已结束，停止查找catch
                     break
+
             # 否则跳过这个DEDENT继续检查
             self.advance()
         
@@ -635,7 +608,6 @@ class HPLASTParser:
         # 使用当前缩进级别，避免跳过应该终止块的DEDENT
         self._skip_dedents(self.indent_level)
         return self.parse_or()
-
 
 
     def parse_or(self):
@@ -709,7 +681,6 @@ class HPLASTParser:
         # 使用当前缩进级别，避免跳过应该终止块的DEDENT
         self._skip_dedents(self.indent_level)
         left = self.parse_unary()
-
 
         while self.current_token and self.current_token.type in ['MUL', 'DIV', 'MOD']:
             line, column = self._get_position()
@@ -927,8 +898,6 @@ class HPLASTParser:
             line=line,
             column=column
         )
-
-
 
 
     def expect(self, type):
