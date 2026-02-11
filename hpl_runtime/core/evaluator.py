@@ -15,6 +15,8 @@ HPL 代码执行器模块
 - 内置函数：echo 输出等
 """
 
+import difflib
+
 try:
     from hpl_runtime.core.models import *
     from hpl_runtime.modules.loader import load_module, HPLModule
@@ -27,6 +29,7 @@ except ImportError:
     from hpl_runtime.utils.exceptions import *
     from hpl_runtime.utils.type_utils import check_numeric_operands, is_hpl_module
     from hpl_runtime.utils.io_utils import echo
+
 
 
 # 注意：ReturnValue, BreakException, ContinueException 现在从 exceptions 模块导入
@@ -385,12 +388,49 @@ class HPLEvaluator:
                 arg = self.evaluate_expression(expr.args[0], local_scope)
                 try:
                     return int(arg)
-                except (ValueError, TypeError):
-                    raise HPLValueError(f"Cannot convert {arg!r} to int")
+                except (ValueError, TypeError) as e:
+                    arg_type = type(arg).__name__
+                    suggestion = ""
+                    if arg_type == 'str':
+                        suggestion = " (确保字符串只包含数字，如: int(\"42\"))"
+                    elif arg_type == 'list':
+                        suggestion = " (不能将数组转换为整数)"
+                    elif arg_type == 'dict':
+                        suggestion = " (不能将字典转换为整数)"
+                    elif arg_type == 'NoneType':
+                        suggestion = " (变量未初始化，值为 null)"
+                    
+                    raise HPLTypeError(
+                        f"Cannot convert {arg_type} (value: {arg!r}) to int{suggestion}",
+                        line=expr.line,
+                        column=expr.column,
+                        error_key='TYPE_CONVERSION_FAILED'
+                    )
+
+
+            elif expr.func_name == 'float':
+                arg = self.evaluate_expression(expr.args[0], local_scope)
+                try:
+                    return float(arg)
+                except (ValueError, TypeError) as e:
+                    arg_type = type(arg).__name__
+                    suggestion = ""
+                    if arg_type == 'str':
+                        suggestion = " (确保字符串是有效的数字格式，如: float(\"3.14\"))"
+                    elif arg_type == 'NoneType':
+                        suggestion = " (变量未初始化，值为 null)"
+                    
+                    raise HPLTypeError(
+                        f"Cannot convert {arg_type} (value: {arg!r}) to float{suggestion}",
+                        line=expr.line,
+                        column=expr.column,
+                        error_key='TYPE_CONVERSION_FAILED'
+                    )
 
             elif expr.func_name == 'str':
                 arg = self.evaluate_expression(expr.args[0], local_scope)
                 return str(arg)
+
             elif expr.func_name == 'type':
                 arg = self.evaluate_expression(expr.args[0], local_scope)
                 if isinstance(arg, bool):
@@ -536,13 +576,113 @@ class HPLEvaluator:
         elif isinstance(expr, ArrayAccess):
             array = self.evaluate_expression(expr.array, local_scope)
             index = self.evaluate_expression(expr.index, local_scope)
+            
+            # 处理字典访问
+            if isinstance(array, dict):
+                # 字典键检查 - 使用新的 HPLKeyError
+                if index not in array:
+                    available_keys = list(array.keys())[:5]  # 显示前5个可用键
+                    key_type = type(index).__name__
+                    
+                    # 查找相似键
+                    similar_keys = []
+                    if available_keys:
+                        key_strs = [str(k) for k in available_keys]
+                        target_str = str(index)
+                        similar = difflib.get_close_matches(target_str, key_strs, n=2, cutoff=0.6)
+                        if similar:
+                            similar_keys = similar
+                    
+                    # 构建错误消息
+                    parts = [f"Key {index!r} (type: {key_type}) not found in dictionary"]
+                    
+                    if available_keys:
+                        parts.append(f"Available keys: {available_keys}")
+                    
+                    if similar_keys:
+                        if len(similar_keys) == 1:
+                            parts.append(f"Did you mean: '{similar_keys[0]}'?")
+                        else:
+                            parts.append(f"Similar keys: {', '.join(similar_keys)}")
+                    
+                    # 键类型建议
+                    if isinstance(index, int):
+                        str_keys = [k for k in available_keys if isinstance(k, str) and str(index) == k]
+                        if str_keys:
+                            parts.append(f"Try using string key: '{index}'")
+                    elif isinstance(index, str) and index.isdigit():
+                        int_keys = [k for k in available_keys if isinstance(k, int) and str(k) == index]
+                        if int_keys:
+                            parts.append(f"Try using integer key: {int(index)}")
+                    
+                    hint = ". ".join(parts)
+                    
+                    raise HPLKeyError(
+                        hint,
+                        line=expr.line,
+                        column=expr.column,
+                        error_key='RUNTIME_KEY_NOT_FOUND'
+                    )
+                
+                return array[index]
+            
+            # 增强类型检查和错误信息
             if not isinstance(array, (list, str)):
-                raise HPLTypeError(f"Cannot index non-array and non-string value: {type(array).__name__}")
+                actual_type = type(array).__name__
+                hint = ""
+                if actual_type == 'dict':
+                    hint = " (字典使用键访问，如: dict[key])"
+                elif actual_type == 'int':
+                    hint = " (数字不可索引)"
+                elif actual_type == 'NoneType':
+                    hint = " (变量可能未初始化)"
+                
+                raise HPLTypeError(
+                    f"Cannot index {actual_type} value{hint}",
+                    line=expr.line,
+                    column=expr.column,
+                    error_key='TYPE_INVALID_OPERATION'
+                )
+            
+            # 索引类型检查
             if not isinstance(index, int):
-                raise HPLTypeError(f"Array index must be integer, got {type(index).__name__}")
-            if index < 0 or index >= len(array):
-                raise HPLIndexError(f"Array index {index} out of bounds (length: {len(array)})")
+                raise HPLTypeError(
+                    f"Array index must be integer, got {type(index).__name__} (value: {index!r})",
+                    line=expr.line,
+                    column=expr.column,
+                    error_key='TYPE_INVALID_OPERATION'
+                )
+            
+            # 增强边界检查
+            length = len(array)
+            if index < 0 or index >= length:
+                suggestions = []
+                
+                if index < 0 and length > 0:
+                    reverse_idx = length + index
+                    if 0 <= reverse_idx < length:
+                        suggestions.append(f"使用反向索引 {reverse_idx} 访问倒数第 {abs(index)} 个元素")
+                
+                if index >= length:
+                    suggestions.append(f"最大有效索引是 {length - 1}")
+                
+                if length > 0:
+                    suggestions.append(f"有效索引范围: 0 到 {length - 1}")
+                else:
+                    suggestions.append("数组为空，无法访问任何索引")
+                
+                hint = f" ({'; '.join(suggestions)})" if suggestions else ""
+                
+                raise HPLIndexError(
+                    f"Array index {index} out of bounds (length: {length}){hint}",
+                    line=expr.line,
+                    column=expr.column,
+                    error_key='RUNTIME_INDEX_OUT_OF_BOUNDS'
+                )
+            
             return array[index]
+
+
 
         elif isinstance(expr, DictionaryLiteral):
             # 评估字典字面量，计算所有值表达式
@@ -583,12 +723,19 @@ class HPLEvaluator:
             return left * right
         elif op == '/':
             if right == 0:
-                raise HPLDivisionError("Division by zero")
+                raise HPLDivisionError(
+                    "Division by zero. 建议: 添加检查 if (divisor != 0) : result = dividend / divisor",
+                    error_key='RUNTIME_DIVISION_BY_ZERO'
+                )
             return left / right
         elif op == '%':
             if right == 0:
-                raise HPLDivisionError("Modulo by zero")
+                raise HPLDivisionError(
+                    "Modulo by zero. 建议: 添加检查 if (divisor != 0) : result = dividend % divisor",
+                    error_key='RUNTIME_DIVISION_BY_ZERO'
+                )
             return left % right
+
         elif op == '==':
             return left == right
         elif op == '!=':

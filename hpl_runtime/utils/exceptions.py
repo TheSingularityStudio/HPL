@@ -235,6 +235,16 @@ class HPLIndexError(HPLRuntimeError):
     pass
 
 
+class HPLKeyError(HPLRuntimeError):
+    """
+    HPL 键错误
+    
+    字典中访问不存在的键。
+    """
+    pass
+
+
+
 class HPLImportError(HPLError):
     """
     HPL 导入错误
@@ -442,7 +452,52 @@ def get_error_suggestion(error):
         'HPLNameError': "检查变量名拼写，或确认变量已在使用前定义",
         'HPLTypeError': "检查操作数的类型，必要时使用类型转换函数 int() 或 str()",
         'HPLIndexError': "检查数组长度和索引值，确保 0 <= index < len(array)",
+        'HPLKeyError': "检查字典中是否存在该键，或使用 get() 方法提供默认值",
         'HPLDivisionError': "添加除零检查，如: if (divisor != 0) : result = dividend / divisor",
         'HPLImportError': "检查模块名称拼写，或确认模块已正确安装",
     }
     return suggestions.get(error.__class__.__name__)
+
+
+def format_error_with_suggestions(error, source_code=None, suggestion_engine=None):
+    """
+    格式化错误信息并添加智能建议
+    
+    Args:
+        error: HPLError 实例
+        source_code: 源代码字符串（可选）
+        suggestion_engine: ErrorSuggestionEngine 实例（可选）
+    
+    Returns:
+        格式化后的错误字符串
+    """
+    # 获取基础错误信息
+    result = format_error_for_user(error, source_code)
+    
+    # 如果没有建议引擎，直接返回基础信息
+    if suggestion_engine is None:
+        return result
+    
+    # 获取智能建议
+    try:
+        analysis = suggestion_engine.analyze_error(error)
+        
+        # 添加智能建议
+        if analysis.get('suggestions'):
+            result += "\n\n   💡 智能建议:"
+            for i, suggestion in enumerate(analysis['suggestions'], 1):
+                # 处理多行建议
+                lines = suggestion.split('\n')
+                result += f"\n      {i}. {lines[0]}"
+                for line in lines[1:]:
+                    result += f"\n         {line}"
+        
+        # 添加快速修复代码
+        if analysis.get('quick_fix'):
+            result += f"\n\n   🛠️  快速修复:\n   ```\n   {analysis['quick_fix']}\n   ```"
+        
+    except Exception:
+        # 如果建议引擎出错，不影响错误显示
+        pass
+    
+    return result

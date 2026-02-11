@@ -11,6 +11,7 @@ HPL 统一错误处理模块
 - 自动增强错误上下文
 - 生成用户友好的错误报告
 - 支持调试模式
+- 集成智能错误建议
 """
 
 import sys
@@ -19,13 +20,16 @@ import os
 try:
     from hpl_runtime.utils.exceptions import (
         HPLError, HPLSyntaxError, HPLRuntimeError, HPLImportError,
-        format_error_for_user
+        format_error_for_user, format_error_with_suggestions
     )
+    from hpl_runtime.utils.error_suggestions import ErrorSuggestionEngine
 except ImportError:
     from hpl_runtime.utils.exceptions import (
         HPLError, HPLSyntaxError, HPLRuntimeError, HPLImportError,
-        format_error_for_user
+        format_error_for_user, format_error_with_suggestions
     )
+    from hpl_runtime.utils.error_suggestions import ErrorSuggestionEngine
+
 
 
 class HPLErrorHandler:
@@ -35,7 +39,8 @@ class HPLErrorHandler:
     简化错误处理流程，提供一致的错误报告格式。
     """
     
-    def __init__(self, source_code=None, debug_mode=False, hpl_file=None):
+    def __init__(self, source_code=None, debug_mode=False, hpl_file=None, 
+                 enable_suggestions=True):
         """
         初始化错误处理器
         
@@ -43,12 +48,20 @@ class HPLErrorHandler:
             source_code: 源代码字符串（用于显示上下文）
             debug_mode: 是否启用调试模式
             hpl_file: 当前 HPL 文件路径
+            enable_suggestions: 是否启用智能错误建议
         """
         self.source_code = source_code
         self.debug_mode = debug_mode
         self.hpl_file = hpl_file
         self.parser = None
         self.evaluator = None
+        self.enable_suggestions = enable_suggestions
+        self.suggestion_engine = None
+        
+        # 初始化建议引擎
+        if enable_suggestions:
+            self.suggestion_engine = ErrorSuggestionEngine()
+
     
     def set_parser(self, parser):
         """设置解析器引用（用于获取源代码）"""
@@ -57,14 +70,33 @@ class HPLErrorHandler:
     def set_evaluator(self, evaluator):
         """设置执行器引用（用于获取调用栈）"""
         self.evaluator = evaluator
+        # 更新建议引擎的 evaluator 引用
+        if self.suggestion_engine:
+            self.suggestion_engine.evaluator = evaluator
     
-    def handle(self, error, exit_on_error=True):
+    def update_scope(self, global_scope=None, local_scope=None):
+        """
+        更新作用域信息用于建议引擎
+        
+        Args:
+            global_scope: 全局变量作用域
+            local_scope: 局部变量作用域
+        """
+        if self.suggestion_engine:
+            self.suggestion_engine.set_scopes(
+                global_scope or {},
+                local_scope or {}
+            )
+
+    
+    def handle(self, error, exit_on_error=True, local_scope=None):
         """
         统一处理错误
         
         Args:
             error: 异常对象
             exit_on_error: 是否退出程序（默认为 True）
+            local_scope: 当前局部作用域（用于智能建议）
         
         Returns:
             格式化的错误字符串（如果不退出）
@@ -77,14 +109,22 @@ class HPLErrorHandler:
         # 获取源代码
         source = self._get_source_code()
         
-        # 生成错误报告
-        report = format_error_for_user(error, source)
+        # 更新作用域信息（如果提供）
+        if local_scope and self.suggestion_engine:
+            self.suggestion_engine.local_scope = local_scope
+        
+        # 生成错误报告（使用智能建议）
+        if self.enable_suggestions and self.suggestion_engine:
+            report = format_error_with_suggestions(error, source, self.suggestion_engine)
+        else:
+            report = format_error_for_user(error, source)
         
         if exit_on_error:
             print(report)
             sys.exit(1)
         else:
             return report
+
     
     def handle_syntax_error(self, error, parser=None):
         """
@@ -169,13 +209,14 @@ class HPLErrorHandler:
         return self.source_code
 
 
-def create_error_handler(hpl_file, debug_mode=False):
+def create_error_handler(hpl_file, debug_mode=False, enable_suggestions=True):
     """
     创建错误处理器的工厂函数
     
     Args:
         hpl_file: HPL 文件路径
         debug_mode: 是否启用调试模式
+        enable_suggestions: 是否启用智能错误建议
     
     Returns:
         HPLErrorHandler 实例
@@ -193,5 +234,6 @@ def create_error_handler(hpl_file, debug_mode=False):
     return HPLErrorHandler(
         source_code=source_code,
         debug_mode=debug_mode,
-        hpl_file=hpl_file
+        hpl_file=hpl_file,
+        enable_suggestions=enable_suggestions
     )
