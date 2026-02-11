@@ -5,20 +5,15 @@ HPL 解析器单元测试
 
 import sys
 import os
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'hpl_runtime'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 import unittest
 
-try:
-    from hpl_runtime.core.parser import HPLParser
-    from hpl_runtime.core.lexer import HPLLexer
-    from hpl_runtime.core.ast_parser import HPLASTParser
-    from hpl_runtime.core.models import WhileStatement, BinaryOp, Variable, IntegerLiteral, ImportStatement, BreakStatement, ContinueStatement
-except ImportError:
-    from parser import HPLParser
-    from lexer import HPLLexer
-    from ast_parser import HPLASTParser
-    from models import WhileStatement, BinaryOp, Variable, IntegerLiteral, ImportStatement, BreakStatement, ContinueStatement
+from hpl_runtime.core.parser import HPLParser
+from hpl_runtime.core.lexer import HPLLexer
+from hpl_runtime.core.ast_parser import HPLASTParser
+from hpl_runtime.core.models import WhileStatement, BinaryOp, Variable, IntegerLiteral, ImportStatement, BreakStatement, ContinueStatement
+from hpl_runtime.utils.text_utils import preprocess_functions
 
 
 
@@ -112,9 +107,8 @@ class TestPreprocessor(unittest.TestCase):
     x = 1
   }"""
         
-        # 测试预处理
-        parser = HPLParser.__new__(HPLParser)
-        result = parser.preprocess_functions(content)
+        # 测试预处理 - 使用导入的函数
+        result = preprocess_functions(content)
         
         # 验证预处理结果包含字面量块标记
         self.assertIn('|', result)
@@ -186,3 +180,4 @@ class TestNewParsingFeatures(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+

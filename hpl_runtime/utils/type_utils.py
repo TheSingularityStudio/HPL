@@ -4,8 +4,14 @@ HPL 类型检查工具模块
 该模块提供类型检查和验证相关的通用工具函数。
 """
 
+try:
+    from hpl_runtime.utils.exceptions import HPLTypeError
+except ImportError:
+    from exceptions import HPLTypeError
+
 
 def is_numeric(value):
+
     """
     检查值是否为数值类型（int或float）
     
@@ -93,12 +99,13 @@ def check_numeric_operands(left, right, op):
         op: 操作符（用于错误消息）
     
     Raises:
-        TypeError: 如果操作数不是数值类型
+        HPLTypeError: 如果操作数不是数值类型
     """
     if not is_numeric(left):
-        raise TypeError(f"Unsupported operand type for {op}: '{type(left).__name__}' (expected number)")
+        raise HPLTypeError(f"Unsupported operand type for {op}: '{type(left).__name__}' (expected number)")
     if not is_numeric(right):
-        raise TypeError(f"Unsupported operand type for {op}: '{type(right).__name__}' (expected number)")
+        raise HPLTypeError(f"Unsupported operand type for {op}: '{type(right).__name__}' (expected number)")
+
 
 
 def is_hpl_module(obj):

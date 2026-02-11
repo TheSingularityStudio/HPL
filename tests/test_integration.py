@@ -7,16 +7,12 @@ import sys
 import os
 import io
 import contextlib
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'hpl_runtime'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 import unittest
 
-try:
-    from hpl_runtime.core.parser import HPLParser
-    from hpl_runtime.core.evaluator import HPLEvaluator
-except ImportError:
-    from parser import HPLParser
-    from evaluator import HPLEvaluator
+from hpl_runtime.core.parser import HPLParser
+from hpl_runtime.core.evaluator import HPLEvaluator
 
 
 
@@ -41,10 +37,7 @@ class TestHPLIntegration(unittest.TestCase):
 
         
         # 添加 examples 目录到模块搜索路径（用于第三方模块测试）
-        try:
-            from hpl_runtime.modules.loader import add_module_path, set_current_hpl_file
-        except ImportError:
-            from module_loader import add_module_path, set_current_hpl_file
+        from hpl_runtime.modules.loader import add_module_path, set_current_hpl_file
         add_module_path(self.examples_dir)
         
         # 设置当前 HPL 文件目录，用于相对导入
@@ -318,3 +311,4 @@ class TestErrorHandling(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+

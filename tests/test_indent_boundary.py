@@ -7,27 +7,17 @@ HPL 缩进边界处理测试
 
 import sys
 import os
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'hpl_runtime'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 import unittest
-try:
-    from hpl_runtime.core.lexer import HPLLexer
-    from hpl_runtime.core.ast_parser import HPLASTParser
-    from hpl_runtime.core.models import (
-        IntegerLiteral, BooleanLiteral, Variable, BinaryOp,
-        AssignmentStatement, IfStatement, ForInStatement, WhileStatement,
-        TryCatchStatement, BlockStatement, EchoStatement
-    )
-    from hpl_runtime.utils.exceptions import HPLSyntaxError
-except ImportError:
-    from lexer import HPLLexer
-    from ast_parser import HPLASTParser
-    from models import (
-        IntegerLiteral, BooleanLiteral, Variable, BinaryOp,
-        AssignmentStatement, IfStatement, ForInStatement, WhileStatement,
-        TryCatchStatement, BlockStatement, EchoStatement
-    )
-    from exceptions import HPLSyntaxError
+from hpl_runtime.core.lexer import HPLLexer
+from hpl_runtime.core.ast_parser import HPLASTParser
+from hpl_runtime.core.models import (
+    IntegerLiteral, BooleanLiteral, Variable, BinaryOp,
+    AssignmentStatement, IfStatement, ForInStatement, WhileStatement,
+    TryCatchStatement, BlockStatement, EchoStatement
+)
+from hpl_runtime.utils.exceptions import HPLSyntaxError
 
 
 class TestIndentBoundaryBasic(unittest.TestCase):
@@ -449,3 +439,4 @@ w = 6"""
 
 if __name__ == '__main__':
     unittest.main()
+
