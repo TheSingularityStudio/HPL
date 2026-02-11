@@ -207,7 +207,8 @@ class HPLLexer:
 
             if self.current_char.isalpha() or self.current_char == '_':
                 ident = self.identifier()
-                if ident in ['if', 'else', 'for', 'while', 'try', 'catch', 'return', 'break', 'continue', 'import', 'throw', 'in']:
+                if ident in ['if', 'else', 'for', 'while', 'try', 'catch', 'finally', 'return', 'break', 'continue', 'import', 'throw', 'in']:
+
 
 
                     tokens.append(Token('KEYWORD', ident, token_line, token_column))

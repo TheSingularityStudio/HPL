@@ -600,14 +600,24 @@ class HPLASTParser:
             
             self.advance()  # 跳过 'catch'
             
-            # 解析可选的错误类型
-            error_type = None
-            if self.current_token and self.current_token.type == 'IDENTIFIER':
-                error_type = self.current_token.value
-                self.advance()
-            
             self.expect('LPAREN')
-            catch_var = self.expect('IDENTIFIER').value
+            
+            # 解析 catch 子句内容：可以是 "ErrorType var" 或 "var"
+            error_type = None
+            catch_var = None
+            
+            first_ident = self.expect('IDENTIFIER').value
+            
+            # 检查后面是否还有 IDENTIFIER（即有两个标识符：ErrorType var）
+            if self.current_token and self.current_token.type == 'IDENTIFIER':
+                # 有两个标识符，第一个是错误类型，第二个是变量名
+                error_type = first_ident
+                catch_var = self.current_token.value
+                self.advance()
+            else:
+                # 只有一个标识符，这是变量名（捕获所有错误）
+                catch_var = first_ident
+            
             self.expect('RPAREN')
             
             catch_block = self.parse_block()
@@ -621,6 +631,7 @@ class HPLASTParser:
             finally_block = self.parse_block()
         
         return TryCatchStatement(try_block, catch_clauses, finally_block, line, column)
+
 
 
 

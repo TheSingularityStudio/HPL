@@ -55,6 +55,7 @@ def build_exe():
         "--clean",  # 清理临时文件
         "--hidden-import", "yaml",  # 显式包含yaml模块
         "--hidden-import", "platform",  # 显式包含platform模块
+        "--hidden-import", "difflib",  # 显式包含difflib模块
         "--hidden-import", "json",  # 显式包含json模块
         "--exclude-module", "tests",  # 排除测试模块
         "--exclude-module", "docs",  # 排除文档模块

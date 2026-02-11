@@ -113,8 +113,8 @@ class HPLError(Exception):
         """获取帮助文档链接"""
         error_code = self.get_error_code()
         if error_code and error_code != f"{self.ERROR_CODE_PREFIX}-GENERAL":
-            base_url = "https://github.com/TheSingularityStudio/HPL/wiki/errors"
-            return f"{base_url}/{error_code.lower().replace('_', '-')}"
+            base_url = "https://github.com/TheSingularityStudio/HPL/wiki/help"
+            return f"{base_url}#{error_code}"
         return None
 
 
@@ -241,7 +241,13 @@ class HPLKeyError(HPLRuntimeError):
     
     字典中访问不存在的键。
     """
-    pass
+    
+    def get_error_code(self):
+        """键错误代码"""
+        if self.error_code:
+            return self.error_code
+        return f"{self.ERROR_CODE_PREFIX}-KEY-001"
+
 
 
 
