@@ -83,7 +83,13 @@ classes:
         return this.exits[direction]
       }
 
+    # 获取房间名称 - Get room name
+    getName: () => {
+        return this.name
+      }
+
   # 玩家类 - Player Class
+
   # 表示游戏中的玩家角色
   Player:
     # 初始化玩家 - Initialize player
@@ -146,22 +152,33 @@ classes:
             "take": ["take", "拿", "捡起"],
             "drop": ["drop", "扔", "放下"],
             "inventory": ["inventory", "背包", "i"],
-            "look": ["look", "看", "观察"],
+            "look": ["look", "看", "观察", "l"],
+            "help": ["help", "帮助", "h"],
             "quit": ["quit", "退出", "q"]
           }
       }
 
     # 解析命令 - Parse command
     parse: (input) => {
+        # 安全检查：确保输入有效
+        if (input == null) :
+          return {"command": "unknown", "args": []}
+        
         words = this.splitInput(input)
+        if (words == null) :
+          return {"command": "unknown", "args": []}
+        
         if (len(words) == 0) :
           return {"command": "unknown", "args": []}
+
 
         commandWord = words[0]
         args = []
         if (len(words) > 1) :
-          for (i in range(1, len(words))) :
+          i = 1
+          while (i < len(words)) :
             args = args + [words[i]]
+            i = i + 1
 
         # 识别命令 - Recognize command
         for (cmd in this.commands) :
@@ -179,7 +196,15 @@ classes:
         # Simple split, real implementation might need more complex parsing
         words = []
         current = ""
-        for (char in input) :
+        
+        # 检查空输入
+        if (input == null) :
+          return words
+        
+        # 确保输入是字符串
+        inputStr = str(input)
+        
+        for (char in inputStr) :
           if (char == " ") :
             if (len(current) > 0) :
               words = words + [current]
@@ -190,6 +215,8 @@ classes:
           words = words + [current]
         return words
       }
+
+
 
 
   # 游戏类 - Game Class
@@ -218,7 +245,7 @@ classes:
     # 设置起始房间 - Set starting room
     setStartingRoom: (roomName) => {
         for (r in this.rooms) :
-          if (r.name == roomName) :
+          if (r.getName() == roomName) :
             this.currentRoom = r
             this.player.setLocation(this.currentRoom)
             break
@@ -238,12 +265,15 @@ classes:
     gameLoop: () => {
         while (this.isRunning) :
           echo ""
-          input = input("> ")
-          if (input == "quit" || input == "q") :
+          userInput = input("> ")
+          if (userInput == null || userInput == "") :
+            continue
+          if (userInput == "quit" || userInput == "q") :
             this.quit()
           else :
-            this.processCommand(input)
+            this.processCommand(userInput)
       }
+
 
     # 处理命令 - Process command
     processCommand: (input) => {
@@ -251,6 +281,7 @@ classes:
         command = parsed["command"]
         args = parsed["args"]
 
+        # 使用 if-else 链处理命令
         if (command == "go") :
           this.doGo(args)
         else :
@@ -266,8 +297,27 @@ classes:
                 if (command == "look") :
                   this.doLook()
                 else :
-                  echo "我不明白这个命令。输入 'help' 查看可用命令。"
+                  if (command == "help") :
+                    this.doHelp()
+                  else :
+                    if (command == "quit") :
+                      this.quit()
+                    else :
+                      echo "我不明白这个命令。输入 'help' 查看可用命令。"
       }
+
+    # 显示帮助 - Show help
+    doHelp: () => {
+        echo "可用命令："
+        echo "  go <方向> - 移动（如：go north, go east）"
+        echo "  take <物品> - 拾取物品（如：take 钥匙）"
+        echo "  drop <物品> - 放下物品（如：drop 钥匙）"
+        echo "  inventory - 查看背包（简写：i）"
+        echo "  look - 查看当前房间（简写：l）"
+        echo "  help - 显示帮助（简写：h）"
+        echo "  quit - 退出游戏（简写：q）"
+      }
+
 
     # 执行移动命令 - Execute go command
     doGo: (args) => {
@@ -280,7 +330,7 @@ classes:
           nextRoomName = this.currentRoom.getExit(direction)
           # 在房间列表中查找目标房间
           for (r in this.rooms) :
-            if (r.name == nextRoomName) :
+            if (r.getName() == nextRoomName) :
               this.currentRoom = r
               this.player.setLocation(this.currentRoom)
               this.showCurrentRoom()
@@ -288,6 +338,7 @@ classes:
         else :
           echo "那个方向没有出口。"
       }
+
 
 
     # 执行拿取命令 - Execute take command
