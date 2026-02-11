@@ -5,18 +5,13 @@ HPL 执行器单元测试
 
 import sys
 import os
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'hpl_runtime'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 import unittest
 
-try:
-    from hpl_runtime.core.evaluator import HPLEvaluator
-    from hpl_runtime.core.models import *
-    from hpl_runtime.utils.exceptions import HPLReturnValue, HPLNameError, HPLTypeError, HPLDivisionError
-except ImportError:
-    from evaluator import HPLEvaluator
-    from models import *
-    from exceptions import HPLReturnValue, HPLNameError, HPLTypeError, HPLDivisionError
+from hpl_runtime.core.evaluator import HPLEvaluator
+from hpl_runtime.core.models import *
+from hpl_runtime.utils.exceptions import HPLReturnValue, HPLNameError, HPLTypeError, HPLDivisionError
 
 
 # 使用正确的 ReturnValue 别名
@@ -372,10 +367,7 @@ class TestHPLEvaluator(unittest.TestCase):
     
     def test_break_continue(self):
         """测试 break 和 continue 异常"""
-        try:
-            from hpl_runtime.utils.exceptions import HPLBreakException, HPLContinueException
-        except ImportError:
-            from exceptions import HPLBreakException, HPLContinueException
+        from hpl_runtime.utils.exceptions import HPLBreakException, HPLContinueException
         
         # 测试 BreakException
         with self.assertRaises(HPLBreakException):
@@ -555,3 +547,4 @@ class TestReturnValue(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
