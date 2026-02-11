@@ -27,7 +27,7 @@ HPL（H Programming Language）是一种基于 YAML 格式的面向对象编程�
 1. 克隆仓库：
    ```bash
    git clone https://github.com/TheSingularityStudio/HPL.git
-   cd hpl
+   cd HPL
    ```
 
 2. 安装依赖：
