@@ -130,37 +130,48 @@ class HPLLexer:
         tokens = []
         while self.current_char is not None:
             # 处理行首的缩进
-            if self.at_line_start and self.current_char.isspace():
-                # 计算前导空格数
-                indent = 0
-                while self.current_char is not None and self.current_char.isspace() and self.current_char != '\n':
-                    if self.current_char == ' ':
-                        indent += 1
-                    elif self.current_char == '\t':
-                        indent += 4  # 制表符算作4个空格
-                    self.advance()
-                
-                # 跳过空行（只有空白字符的行）
-                if self.current_char == '\n' or self.current_char is None:
-                    self.at_line_start = True
-                    if self.current_char == '\n':
+            if self.at_line_start:
+                if self.current_char.isspace():
+                    # 计算前导空格数
+                    indent = 0
+                    while self.current_char is not None and self.current_char.isspace() and self.current_char != '\n':
+                        if self.current_char == ' ':
+                            indent += 1
+                        elif self.current_char == '\t':
+                            indent += 4  # 制表符算作4个空格
                         self.advance()
+                    
+                    # 跳过空行（只有空白字符的行）
+                    if self.current_char == '\n' or self.current_char is None:
+                        self.at_line_start = True
+                        if self.current_char == '\n':
+                            self.advance()
+                        continue
+                    
+                    # 生成 INDENT/DEDENT 标记
+                    current_indent = self.indent_stack[-1]
+                    if indent > current_indent:
+                        # 缩进增加
+                        self.indent_stack.append(indent)
+                        tokens.append(Token('INDENT', indent, self.line, self.column))
+                    elif indent < current_indent:
+                        # 缩进减少，可能弹出多个级别
+                        while indent < self.indent_stack[-1]:
+                            self.indent_stack.pop()
+                            tokens.append(Token('DEDENT', self.indent_stack[-1], self.line, self.column))
+                    
+                    self.at_line_start = False
                     continue
-                
-                # 生成 INDENT/DEDENT 标记
-                current_indent = self.indent_stack[-1]
-                if indent > current_indent:
-                    # 缩进增加
-                    self.indent_stack.append(indent)
-                    tokens.append(Token('INDENT', indent, self.line, self.column))
-                elif indent < current_indent:
-                    # 缩进减少，可能弹出多个级别
-                    while indent < self.indent_stack[-1]:
-                        self.indent_stack.pop()
-                        tokens.append(Token('DEDENT', self.indent_stack[-1], self.line, self.column))
-                
-                self.at_line_start = False
-                continue
+                else:
+                    # 行首遇到非空白字符，检查是否需要生成 DEDENT
+                    current_indent = self.indent_stack[-1]
+                    if current_indent > 0:
+                        # 缩进减少到0
+                        while 0 < self.indent_stack[-1]:
+                            self.indent_stack.pop()
+                            tokens.append(Token('DEDENT', self.indent_stack[-1], self.line, self.column))
+                    self.at_line_start = False
+
             
             # 处理换行符
             if self.current_char == '\n':
@@ -321,7 +332,8 @@ class HPLLexer:
         # 文件结束时，弹出所有缩进级别
         while len(self.indent_stack) > 1:
             self.indent_stack.pop()
-            tokens.append(Token('DEDENT', 0, self.line, self.column))
+            tokens.append(Token('DEDENT', self.indent_stack[-1], self.line, self.column))
+
         
         tokens.append(Token('EOF', None, self.line, self.column))
         return tokens
