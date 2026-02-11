@@ -38,6 +38,7 @@ try:
         HPLError, HPLSyntaxError, HPLRuntimeError, HPLImportError,
         format_error_for_user
     )
+    from hpl_runtime.utils.error_handler import HPLErrorHandler, create_error_handler
 except ImportError:
     from hpl_runtime.core.parser import HPLParser
     from hpl_runtime.core.evaluator import HPLEvaluator
@@ -47,6 +48,8 @@ except ImportError:
         HPLError, HPLSyntaxError, HPLRuntimeError, HPLImportError,
         format_error_for_user
     )
+    from hpl_runtime.utils.error_handler import HPLErrorHandler, create_error_handler
+
 
 
 
@@ -63,12 +66,19 @@ def main():
     # 设置当前 HPL 文件路径，用于相对导入
     set_current_hpl_file(hpl_file)
     
+    # 创建错误处理器
+    handler = create_error_handler(hpl_file, debug_mode=os.environ.get('HPL_DEBUG'))
+    
     try:
         # 读取源代码用于错误显示
         with open(hpl_file, 'r', encoding='utf-8') as f:
             source_code = f.read()
         
+        # 更新处理器的源代码
+        handler.source_code = source_code
+        
         parser = HPLParser(hpl_file)
+        handler.set_parser(parser)
 
         classes, objects, functions, main_func, call_target, call_args, imports = parser.parse()
 
@@ -79,6 +89,7 @@ def main():
             sys.exit(1)
 
         evaluator = HPLEvaluator(classes, objects, functions, main_func, call_target, call_args)
+        handler.set_evaluator(evaluator)
 
 
         # 处理顶层导入（必须在对象实例化之前，以便构造函数可以使用导入的模块）
@@ -118,60 +129,28 @@ def main():
         evaluator.run()
 
     except HPLSyntaxError as e:
-        # 使用parser的源代码（如果解析器已创建）或主文件的源代码
-        error_source = parser.source_code if 'parser' in locals() and parser and parser.source_code else source_code if 'source_code' in locals() else None
-        print(format_error_for_user(e, error_source))
-        sys.exit(1)
+        handler.handle_syntax_error(e, parser if 'parser' in locals() else None)
 
     except HPLRuntimeError as e:
-        # 附加调用栈信息到错误对象
-        if 'evaluator' in locals() and evaluator.call_stack:
-            e.call_stack = evaluator.call_stack.copy()
-        print(format_error_for_user(e, source_code if 'source_code' in locals() else None))
-        sys.exit(1)
-    except HPLImportError as e:
-        print(format_error_for_user(e, source_code if 'source_code' in locals() else None))
-        sys.exit(1)
-    except HPLError as e:
-        print(format_error_for_user(e, source_code if 'source_code' in locals() else None))
-        sys.exit(1)
+        handler.handle(e)
 
+    except HPLImportError as e:
+        handler.handle(e)
+
+    except HPLError as e:
+        handler.handle(e)
 
     except FileNotFoundError as e:
-        print(f"[ERROR] File not found: {e.filename}")
+        handler.handle_file_not_found(e)
 
-        sys.exit(1)
     except Exception as e:
         # 检查是否是YAML解析错误
         if yaml and hasattr(e, '__class__') and 'yaml' in e.__class__.__module__:
-            # YAML解析错误，转换为语法错误
-            line = getattr(e, 'problem_mark', None)
-            line_num = line.line + 1 if line else None
-            col_num = line.column if line else None
-            syntax_error = HPLSyntaxError(
-                f"YAML syntax error: {str(e)}",
-                line=line_num,
-                column=col_num,
-                file=hpl_file
-            )
-            print(format_error_for_user(syntax_error, source_code if 'source_code' in locals() else None))
-            sys.exit(1)
+            handler.handle_yaml_error(e, hpl_file)
         
-        # 未预期的内部错误，使用友好格式显示
-        import traceback
-        
-        # 创建友好的内部错误包装
-        internal_error = HPLRuntimeError(
-            f"Internal error: {type(e).__name__}: {str(e)}",
-            file=hpl_file
-        )
-        print(format_error_for_user(internal_error))
-        
-        # 在调试模式下显示完整traceback
-        if os.environ.get('HPL_DEBUG'):
-            print("\n--- Full traceback ---")
-            traceback.print_exc()
-        sys.exit(1)
+        # 未预期的内部错误
+        handler.handle_unexpected_error(e, hpl_file)
+
 
 
 

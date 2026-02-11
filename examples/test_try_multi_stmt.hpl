@@ -1,0 +1,19 @@
+# 测试 try 块中多个语句
+
+main: () => {
+    echo "=== 单语句 try ==="
+    try :
+      x = 10 / 0
+    catch (err) :
+      echo "错误: " + err
+    
+    echo ""
+    echo "=== 多语句 try ==="
+    try :
+      a = 1
+      b = 10 / 0
+    catch (err) :
+      echo "错误: " + err
+  }
+
+call: main()

@@ -1,0 +1,10 @@
+# 简单测试 try-catch
+
+main: () => {
+    try :
+      x = 10 / 0
+    catch (err) :
+      echo "错误: " + err
+  }
+
+call: main()

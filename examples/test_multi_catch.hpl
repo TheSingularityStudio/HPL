@@ -1,0 +1,29 @@
+# 测试多 catch 和 finally
+
+main: () => {
+    echo "=== 测试多 catch ==="
+    try :
+      arr = [1, 2, 3]
+      val = arr["bad"]  # 类型错误
+    catch HPLTypeError (type_err) :
+      echo "类型错误: " + type_err
+    catch (other) :
+      echo "其他错误: " + other
+    
+    echo ""
+    echo "=== 测试 finally ==="
+    resource = "opened"
+    try :
+      echo "使用资源"
+      bad = 10 / 0
+    catch (err) :
+      echo "捕获错误"
+    finally :
+      resource = "closed"
+      echo "资源状态: " + resource
+    
+    echo ""
+    echo "完成!"
+  }
+
+call: main()

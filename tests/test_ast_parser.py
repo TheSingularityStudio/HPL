@@ -17,9 +17,10 @@ from hpl_runtime.core.models import (
     Variable, BinaryOp, UnaryOp, FunctionCall, MethodCall,
     PostfixIncrement, ArrayLiteral, ArrayAccess,
     AssignmentStatement, ReturnStatement, IfStatement, ForInStatement,
-    WhileStatement, TryCatchStatement, EchoStatement, IncrementStatement,
+    WhileStatement, TryCatchStatement, CatchClause, EchoStatement, IncrementStatement,
     BreakStatement, ContinueStatement, ImportStatement, BlockStatement
 )
+
 # Try to import DictionaryLiteral separately
 try:
     from hpl_runtime.core.models import DictionaryLiteral
@@ -693,8 +694,13 @@ class TestASTParserControlFlow(unittest.TestCase):
         
         self.assertIsInstance(result, TryCatchStatement)
         self.assertIsNotNone(result.try_block)
-        self.assertEqual(result.catch_var, "e")
-        self.assertIsNotNone(result.catch_block)
+        # 新的多 catch 子句 API
+        self.assertIsInstance(result.catch_clauses, list)
+        self.assertEqual(len(result.catch_clauses), 1)
+        self.assertIsInstance(result.catch_clauses[0], CatchClause)
+        self.assertEqual(result.catch_clauses[0].var_name, "e")
+        self.assertIsNotNone(result.catch_clauses[0].block)
+
 
 
 class TestASTParserBlock(unittest.TestCase):

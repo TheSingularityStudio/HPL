@@ -12,6 +12,8 @@ import unittest
 from hpl_runtime.core.evaluator import HPLEvaluator
 from hpl_runtime.core.models import *
 from hpl_runtime.utils.exceptions import HPLReturnValue, HPLNameError, HPLTypeError, HPLDivisionError
+from hpl_runtime.core.models import CatchClause
+
 
 
 # 使用正确的 ReturnValue 别名
@@ -485,12 +487,16 @@ class TestHPLEvaluator(unittest.TestCase):
             AssignmentStatement('error', Variable('e'))
         ])
         
-        try_catch = TryCatchStatement(try_block, 'e', catch_block)
+        # 使用新的多 catch 子句 API
+        catch_clause = CatchClause(None, 'e', catch_block)
+        try_catch = TryCatchStatement(try_block, [catch_clause])
         evaluator.execute_statement(try_catch, local_scope)
         
         # 应该捕获除零错误
         self.assertIn('error', local_scope)
-        self.assertIn('Division by zero', local_scope['error'])
+        self.assertIn('Division by zero', str(local_scope['error']))
+
+
     
     def test_try_catch_no_exception(self):
         """测试无异常的 try-catch 语句"""
@@ -506,12 +512,15 @@ class TestHPLEvaluator(unittest.TestCase):
             AssignmentStatement('error', Variable('e'))
         ])
         
-        try_catch = TryCatchStatement(try_block, 'e', catch_block)
+        # 使用新的多 catch 子句 API
+        catch_clause = CatchClause(None, 'e', catch_block)
+        try_catch = TryCatchStatement(try_block, [catch_clause])
         evaluator.execute_statement(try_catch, local_scope)
         
         # 应该正常执行，不进入 catch
         self.assertEqual(local_scope['x'], 42)
         self.assertNotIn('error', local_scope)
+
 
     
     def test_array_assignment_statement(self):
@@ -547,4 +556,3 @@ class TestReturnValue(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
-

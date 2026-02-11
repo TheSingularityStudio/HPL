@@ -188,12 +188,23 @@ class WhileStatement(Statement):
 
 
 
+class CatchClause:
+    """单个 catch 子句"""
+    def __init__(self, error_type, var_name, block, line=None, column=None):
+        self.error_type = error_type  # 特定错误类型或 None（捕获所有）
+        self.var_name = var_name      # 异常变量名
+        self.block = block            # catch 块
+        self.line = line
+        self.column = column
+
+
 class TryCatchStatement(Statement):
-    def __init__(self, try_block, catch_var, catch_block, line=None, column=None):
+    def __init__(self, try_block, catch_clauses, finally_block=None, line=None, column=None):
         super().__init__(line, column)
         self.try_block = try_block
-        self.catch_var = catch_var
-        self.catch_block = catch_block
+        self.catch_clauses = catch_clauses  # CatchClause 列表
+        self.finally_block = finally_block  # 可选的 finally 块
+
 
 
 class EchoStatement(Statement):
