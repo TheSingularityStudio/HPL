@@ -314,27 +314,119 @@ class ErrorTracer:
         return context
     
     def _extract_source_snippet(self, source_code: str, 
-                                line: int, column: int = None) -> str:
-        """提取源代码片段"""
-        lines = source_code.split('\n')
-        if not (1 <= line <= len(lines)):
+                                line: int, column: int = None,
+                                context_lines: int = 3) -> str:
+        """
+        提取源代码片段
+        
+        特性：
+        - 动态行号宽度，适应大文件
+        - 准确的列位置指示器
+        - 处理长行截断
+        - 语法高亮错误行
+        - 更好的边界处理
+        """
+        if not source_code or not isinstance(source_code, str):
             return None
             
-        start = max(0, line - 3)
-        end = min(len(lines), line + 2)
+        lines = source_code.split('\n')
+        total_lines = len(lines)
+        
+        # 验证行号范围
+        if not isinstance(line, int) or line < 1:
+            return f"    1    | [无法定位: 无效行号 {line}]"
+        
+        # 处理行号超出范围的情况
+        if line > total_lines:
+            return f"    {total_lines:4d} | [错误发生在文件结束后，行号: {line}]"
+            
+        # 计算上下文范围
+        start = max(0, line - context_lines - 1)
+        end = min(total_lines, line + context_lines)
+        
+        # 动态计算行号宽度
+        line_num_width = len(str(total_lines))
         
         result = []
+        result.append(f"{'─' * (line_num_width + 10)}")
+        
         for i in range(start, end):
             line_num = i + 1
-            prefix = ">>> " if line_num == line else "    "
-            result.append(f"{prefix}{line_num:4d} | {lines[i]}")
+            is_error_line = line_num == line
+            line_content = lines[i]
             
-            # 添加错误位置指示器
-            if line_num == line and column is not None:
-                indicator = " " * (8 + column) + "^"
-                result.append(indicator)
-                
+            # 处理空行显示
+            display_content = line_content if line_content.strip() else "[空行]"
+            
+            # 截断超长行（超过80字符）
+            max_line_length = 80
+            if len(display_content) > max_line_length:
+                display_content = display_content[:max_line_length - 3] + "..."
+            
+            # 构建前缀：错误行用 >>> 标记，其他用空格
+            prefix = ">>> " if is_error_line else "    "
+            
+            # 格式化行号，右对齐
+            line_num_str = f"{line_num:{line_num_width}d}"
+            
+            # 错误行添加高亮标记
+            if is_error_line:
+                result.append(f"{prefix}{line_num_str} │ {display_content}")
+            else:
+                result.append(f"{prefix}{line_num_str} │ {display_content}")
+            
+            # 添加列位置指示器（仅对错误行）
+            if is_error_line and column is not None and isinstance(column, int):
+                if column >= 0:
+                    # 计算指示器位置：前缀(4) + 行号(line_num_width) + 分隔符(3) = 7 + line_num_width
+                    base_offset = 4 + line_num_width + 3
+                    # 调整列位置，考虑中文字符宽度
+                    adjusted_column = self._calculate_visual_column(line_content, column)
+                    indicator_pos = base_offset + adjusted_column
+                    
+                    # 确保指示器不会超出范围
+                    if indicator_pos < base_offset:
+                        indicator_pos = base_offset
+                    
+                    indicator_line = " " * (base_offset - 1) + "│" + " " * adjusted_column + "▲"
+                    result.append(indicator_line)
+                    
+                    # 添加列号提示
+                    if column > 0:
+                        result.append(f"{' ' * (base_offset - 1)}│ [列 {column}]")
+        
+        result.append(f"{'─' * (line_num_width + 10)}")
         return '\n'.join(result)
+    
+    def _calculate_visual_column(self, line: str, byte_column: int) -> int:
+        """
+        计算视觉列位置，正确处理中文字符和特殊字符
+        
+        Args:
+            line: 行内容
+            byte_column: 字节列位置
+            
+        Returns:
+            视觉列位置（考虑字符宽度）
+        """
+        if not line or byte_column <= 0:
+            return 0
+            
+        visual_col = 0
+        char_count = 0
+        
+        for char in line:
+            if char_count >= byte_column:
+                break
+            # 中文字符和全角字符占2个视觉宽度
+            if ord(char) > 127 or char in '，。！？；：""''（）【】《》':
+                visual_col += 2
+            else:
+                visual_col += 1
+            char_count += 1
+            
+        return visual_col
+
     
     def _capture_evaluator_state(self, evaluator: HPLEvaluator) -> Dict[str, Any]:
         """捕获 evaluator 的当前状态"""
