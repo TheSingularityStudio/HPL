@@ -26,8 +26,10 @@ except ImportError:
 # 确保 hpl_runtime 目录在 Python 路径中
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
-if script_dir not in sys.path:
-    sys.path.insert(0, script_dir)
+# 获取父目录（项目根目录）以便正确导入
+project_dir = os.path.dirname(script_dir)
+if project_dir not in sys.path:
+    sys.path.insert(0, project_dir)
 
 try:
     from hpl_runtime.core.parser import HPLParser
@@ -51,9 +53,41 @@ except ImportError:
     from hpl_runtime.utils.error_handler import HPLErrorHandler, create_error_handler
 
 
-
-
-
+def _instantiate_objects(evaluator, handler):
+    """
+    实例化所有对象并调用构造函数
+    将对象实例化逻辑提取为独立函数，便于错误处理
+    """
+    for obj_name, obj in list(evaluator.objects.items()):
+        if isinstance(obj, HPLObject) and '__init_args__' in obj.attributes:
+            init_args = obj.attributes.pop('__init_args__')
+            # 将参数字符串转换为实际值（数字或字符串）
+            parsed_args = []
+            for arg in init_args:
+                arg = arg.strip()
+                # 尝试解析为整数
+                try:
+                    parsed_args.append(int(arg))
+                except ValueError:
+                    # 尝试解析为浮点数
+                    try:
+                        parsed_args.append(float(arg))
+                    except ValueError:
+                        # 作为字符串处理（去掉引号）
+                        if (arg.startswith('"') and arg.endswith('"')) or \
+                           (arg.startswith("'") and arg.endswith("'")):
+                            parsed_args.append(arg[1:-1])
+                        else:
+                            parsed_args.append(arg)  # 变量名或其他
+            
+            # 调用构造函数，添加错误上下文
+            try:
+                evaluator._call_constructor(obj, parsed_args)
+            except HPLRuntimeError as e:
+                # 增强错误信息，添加对象实例化上下文
+                if e.line is None:
+                    e.line = 1  # 默认行号
+                raise
 
 
 def main():
@@ -82,7 +116,6 @@ def main():
 
         classes, objects, functions, main_func, call_target, call_args, imports = parser.parse()
 
-
         # 检查是否有 main 函数
         if main_func is None:
             print("[ERROR] No main function found in the HPL file")
@@ -91,11 +124,8 @@ def main():
         evaluator = HPLEvaluator(classes, objects, functions, main_func, call_target, call_args)
         handler.set_evaluator(evaluator)
 
-
         # 处理顶层导入（必须在对象实例化之前，以便构造函数可以使用导入的模块）
         for imp in imports:
-
-
             module_name = imp['module']
             alias = imp['alias'] or module_name
             # 创建 ImportStatement 并执行
@@ -103,28 +133,7 @@ def main():
             evaluator.execute_import(import_stmt, evaluator.global_scope)
 
         # 实例化所有对象并调用构造函数（在导入之后，以便构造函数可以使用导入的模块）
-        for obj_name, obj in list(evaluator.objects.items()):
-            if isinstance(obj, HPLObject) and '__init_args__' in obj.attributes:
-                init_args = obj.attributes.pop('__init_args__')
-                # 将参数字符串转换为实际值（数字或字符串）
-                parsed_args = []
-                for arg in init_args:
-                    arg = arg.strip()
-                    # 尝试解析为整数
-                    try:
-                        parsed_args.append(int(arg))
-                    except ValueError:
-                        # 尝试解析为浮点数
-                        try:
-                            parsed_args.append(float(arg))
-                        except ValueError:
-                            # 作为字符串处理（去掉引号）
-                            if (arg.startswith('"') and arg.endswith('"')) or \
-                               (arg.startswith("'") and arg.endswith("'")):
-                                parsed_args.append(arg[1:-1])
-                            else:
-                                parsed_args.append(arg)  # 变量名或其他
-                evaluator._call_constructor(obj, parsed_args)
+        _instantiate_objects(evaluator, handler)
 
         evaluator.run()
 
@@ -150,11 +159,6 @@ def main():
         
         # 未预期的内部错误
         handler.handle_unexpected_error(e, hpl_file)
-
-
-
-
-
 
 
 if __name__ == "__main__":

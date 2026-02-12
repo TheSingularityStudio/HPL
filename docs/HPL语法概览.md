@@ -342,7 +342,11 @@ imports:
   - json
   - os
   - time
+  - crypto
+  - random
+  - string
 ```
+
 
 ### 别名导入
 
@@ -364,6 +368,9 @@ imports:
   - math
   - io
   - json
+  - crypto
+  - random
+  - string
 
 main: () => {
     # math 模块
@@ -376,8 +383,21 @@ main: () => {
     # json 模块
     data = json.parse('{"a": 1}')
     json.write("data.json", data)
+    
+    # crypto 模块
+    hash = crypto.sha256("Hello")
+    encoded = crypto.base64_encode("Hello")
+    
+    # random 模块
+    num = random.random_int(1, 100)
+    id = random.uuid()
+    
+    # string 模块
+    words = string.split("a,b,c", ",")
+    upper = string.to_upper("hello")
   }
 ```
+
 
 ---
 
@@ -550,8 +570,9 @@ call: main()
 │  对象: obj: Class()                                     │
 ├─────────────────────────────────────────────────────────┤
 │  包含: includes: [- file.hpl]                           │
-│  导入: imports: [- math, - io]                          │
+│  导入: imports: [- math, - io, - crypto]                │
 │  别名: imports: [- math: m]                             │
+
 ├─────────────────────────────────────────────────────────┤
 │  异常: try : ... catch (e) : ...                       │
 │  抛出: throw "message"                                  │

@@ -11,16 +11,19 @@ import platform as _platform
 try:
     from hpl_runtime.modules.base import HPLModule
     from hpl_runtime.utils.exceptions import HPLTypeError, HPLValueError, HPLIOError, HPLRuntimeError
+    from hpl_runtime import __version__ as HPL_VERSION
 except ImportError:
     try:
         from hpl_runtime.modules.base import HPLModule
         from hpl_runtime.utils.exceptions import HPLTypeError, HPLValueError, HPLIOError, HPLRuntimeError
+        from hpl_runtime import __version__ as HPL_VERSION
     except ImportError:
         import sys
         import os
         sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
         from hpl_runtime.modules.base import HPLModule
         from hpl_runtime.utils.exceptions import HPLTypeError, HPLValueError, HPLIOError, HPLRuntimeError
+        from hpl_runtime import __version__ as HPL_VERSION
 
 
 
@@ -80,7 +83,7 @@ def get_python_version():
 
 def get_hpl_version():
     """获取 HPL 版本"""
-    return "1.1.1"
+    return HPL_VERSION
 
 
 def execute_command(command):

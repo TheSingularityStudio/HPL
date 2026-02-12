@@ -48,6 +48,10 @@ HPL_CONFIG_DIR.mkdir(exist_ok=True)
 HPL_PACKAGES_DIR.mkdir(exist_ok=True)
 
 
+# 循环导入检测 - 正在加载中的模块集合
+_loading_modules = set()
+
+
 class ModuleLoaderContext:
     """
     模块加载器上下文管理类
@@ -127,6 +131,13 @@ def load_module(module_name, search_paths=None):
     Raises:
         HPLImportError: 当模块无法找到或加载失败时
     """
+    # 检查循环导入
+    if module_name in _loading_modules:
+        raise HPLImportError(
+            f"Circular import detected: '{module_name}' is already being loaded. "
+            f"Import chain: {' -> '.join(sorted(_loading_modules))} -> {module_name}"
+        )
+    
     # 检查缓存
     if module_name in _module_cache:
         logger.debug(f"Module '{module_name}' found in cache")
@@ -280,7 +291,19 @@ def _parse_hpl_module(module_name, file_path):
     """
     解析 HPL 模块文件
     返回 HPLModule 实例
+    
+    包含循环导入检测机制
     """
+    # 检查循环导入
+    if module_name in _loading_modules:
+        raise HPLImportError(
+            f"Circular import detected: '{module_name}' is already being loaded. "
+            f"Import chain: {' -> '.join(sorted(_loading_modules))} -> {module_name}"
+        )
+    
+    # 标记模块正在加载中
+    _loading_modules.add(module_name)
+    
     try:
         # 延迟导入以避免循环依赖
         try:
@@ -435,6 +458,9 @@ def _parse_hpl_module(module_name, file_path):
         import traceback
         traceback.print_exc()
         raise HPLImportError(f"Failed to parse HPL module '{module_name}': {e}") from e
+    finally:
+        # 无论成功还是失败，都从加载中集合移除
+        _loading_modules.discard(module_name)
 
 
 
@@ -568,6 +594,7 @@ def list_installed_packages():
 def clear_cache():
     """清除模块缓存"""
     _module_cache.clear()
+    _loading_modules.clear()  # 同时清除加载中集合
 
 
 def init_stdlib():
@@ -576,14 +603,14 @@ def init_stdlib():
         # 尝试多种导入方式以适应不同的运行环境
         try:
             # 方式1: 从 hpl_runtime.stdlib 导入（当 hpl_runtime 在 Python 路径中时）
-            from hpl_runtime.stdlib import io, math, json_mod, os_mod, time_mod
+            from hpl_runtime.stdlib import io, math, json_mod, os_mod, time_mod, string_mod, random_mod, crypto_mod, re_mod, net_mod
         except ImportError:
             # 方式2: 直接从 stdlib 导入（当在 hpl_runtime 目录中运行时）
             # 将 hpl_runtime 目录添加到 Python 路径
             hpl_runtime_dir = os.path.dirname(os.path.abspath(__file__))
             if hpl_runtime_dir not in sys.path:
                 sys.path.insert(0, hpl_runtime_dir)
-            from stdlib import io, math, json_mod, os_mod, time_mod
+            from stdlib import io, math, json_mod, os_mod, time_mod, string_mod, random_mod, crypto_mod, re_mod, net_mod
         
         # 注册模块
         register_module('io', io.module)
@@ -591,10 +618,17 @@ def init_stdlib():
         register_module('json', json_mod.module)
         register_module('os', os_mod.module)
         register_module('time', time_mod.module)
+        register_module('string', string_mod.module)
+        register_module('random', random_mod.module)
+        register_module('crypto', crypto_mod.module)
+        register_module('re', re_mod.module)
+        register_module('net', net_mod.module)
         
     except ImportError as e:
         # 如果某些模块导入失败，记录错误但不中断
         logger.warning(f"Some stdlib modules failed to load: {e}")
+
+
 
 
 

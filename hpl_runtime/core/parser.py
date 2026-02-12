@@ -140,7 +140,6 @@ class HPLParser:
         return '\n'.join(result)
 
 
-
     def load_and_parse(self):
         """加载并解析 HPL 文件"""
         with open(self.hpl_file, 'r', encoding='utf-8') as f:
@@ -154,16 +153,13 @@ class HPLParser:
         
         # 预处理：将函数定义转换为 YAML 字面量块格式
         content = preprocess_functions(content)
-
-        
+       
         # 使用自定义 YAML 解析器
         data = yaml.safe_load(content)
-
-        
+  
         # 如果 YAML 解析返回 None（空文件或只有注释），使用空字典
         if data is None:
             data = {}
-
         
         # 处理 includes（支持多路径搜索和嵌套include）
         if 'includes' in data:

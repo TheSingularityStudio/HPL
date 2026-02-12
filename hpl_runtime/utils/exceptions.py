@@ -223,7 +223,13 @@ class HPLAttributeError(HPLRuntimeError):
     
     访问不存在的对象属性或方法。
     """
-    pass
+    
+    def get_error_code(self):
+        """属性错误代码"""
+        if self.error_code:
+            return self.error_code
+        return f"{self.ERROR_CODE_PREFIX}-ATTR-001"
+
 
 
 class HPLIndexError(HPLRuntimeError):
@@ -232,7 +238,13 @@ class HPLIndexError(HPLRuntimeError):
     
     数组索引越界或无效的索引操作。
     """
-    pass
+    
+    def get_error_code(self):
+        """索引错误代码"""
+        if self.error_code:
+            return self.error_code
+        return f"{self.ERROR_CODE_PREFIX}-INDEX-001"
+
 
 
 class HPLKeyError(HPLRuntimeError):
@@ -258,7 +270,27 @@ class HPLImportError(HPLError):
     模块导入失败。
     例如：模块不存在、导入循环等。
     """
-    pass
+    
+    def __init__(self, message, line=None, column=None, file=None, context=None,
+                 module_name=None, import_path=None, error_code=None, error_key=None):
+        super().__init__(message, line, column, file, context, error_code, error_key)
+        self.module_name = module_name
+        self.import_path = import_path
+    
+    def get_error_code(self):
+        """导入错误代码"""
+        if self.error_code:
+            return self.error_code
+        return f"{self.ERROR_CODE_PREFIX}-IMPORT-001"
+    
+    def __str__(self):
+        result = super().__str__()
+        if self.module_name:
+            result += f"\n  Module: {self.module_name}"
+        if self.import_path:
+            result += f"\n  Import path: {self.import_path}"
+        return result
+
 
 
 class HPLDivisionError(HPLRuntimeError):
@@ -267,7 +299,13 @@ class HPLDivisionError(HPLRuntimeError):
     
     除法或取模运算中除数为零。
     """
-    pass
+    
+    def get_error_code(self):
+        """除零错误代码"""
+        if self.error_code:
+            return self.error_code
+        return f"{self.ERROR_CODE_PREFIX}-DIV-001"
+
 
 
 class HPLValueError(HPLRuntimeError):
@@ -277,7 +315,13 @@ class HPLValueError(HPLRuntimeError):
     数值超出有效范围或无效的值。
     例如：负数开平方。
     """
-    pass
+    
+    def get_error_code(self):
+        """值错误代码"""
+        if self.error_code:
+            return self.error_code
+        return f"{self.ERROR_CODE_PREFIX}-VALUE-001"
+
 
 
 class HPLIOError(HPLRuntimeError):
@@ -287,7 +331,27 @@ class HPLIOError(HPLRuntimeError):
     输入输出操作失败。
     例如：文件不存在、权限不足等。
     """
-    pass
+    
+    def __init__(self, message, line=None, column=None, file=None, context=None,
+                 path=None, operation=None, error_code=None, error_key=None, **kwargs):
+        super().__init__(message, line, column, file, context, error_code, **kwargs)
+        self.path = path
+        self.operation = operation
+    
+    def get_error_code(self):
+        """IO错误代码"""
+        if self.error_code:
+            return self.error_code
+        return f"{self.ERROR_CODE_PREFIX}-IO-001"
+    
+    def __str__(self):
+        result = super().__str__()
+        if self.operation:
+            result += f"\n  Operation: {self.operation}"
+        if self.path:
+            result += f"\n  Path: {self.path}"
+        return result
+
 
 
 class HPLRecursionError(HPLRuntimeError):
@@ -296,7 +360,27 @@ class HPLRecursionError(HPLRuntimeError):
     
     递归调用过深或无限递归。
     """
-    pass
+    
+    def __init__(self, message, line=None, column=None, file=None, context=None,
+                 recursion_depth=None, max_depth=None, error_code=None, error_key=None, **kwargs):
+        super().__init__(message, line, column, file, context, error_code, **kwargs)
+        self.recursion_depth = recursion_depth
+        self.max_depth = max_depth
+    
+    def get_error_code(self):
+        """递归错误代码"""
+        if self.error_code:
+            return self.error_code
+        return f"{self.ERROR_CODE_PREFIX}-RECURSION-001"
+    
+    def __str__(self):
+        result = super().__str__()
+        if self.recursion_depth is not None:
+            result += f"\n  Recursion depth: {self.recursion_depth}"
+        if self.max_depth is not None:
+            result += f"\n  Maximum allowed depth: {self.max_depth}"
+        return result
+
 
 
 class HPLControlFlowException(HPLError):

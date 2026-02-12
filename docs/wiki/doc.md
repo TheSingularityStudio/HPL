@@ -684,9 +684,9 @@ call: main()
 
 ## 导航
 
-- [🔙 返回首页](./home.md)
-- [❓ 查看帮助](./help.md)
+- [🔙 返回首页](https://github.com/TheSingularityStudio/HPL/wiki)
+- [❓ 查看帮助](https://github.com/TheSingularityStudio/HPL/wiki/help)
 
 ---
 
-> **提示**: 更多详细信息请参考 [HPL语法概览.md](../HPL语法概览.md) 和 [HPL语法手册.md](../HPL语法手册.md)
+> **提示**: 更多详细信息请参考 [HPL语法概览.md](https://github.com/TheSingularityStudio/HPL/blob/main/docs/HPL%E8%AF%AD%E6%B3%95%E6%A6%82%E8%A7%88.md) 和 [HPL语法手册.md](https://github.com/TheSingularityStudio/HPL/blob/main/docs/HPL%E8%AF%AD%E6%B3%95%E6%89%8B%E5%86%8C.md)

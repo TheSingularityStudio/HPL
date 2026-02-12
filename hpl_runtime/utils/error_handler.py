@@ -101,11 +101,6 @@ class HPLErrorHandler:
         Returns:
             格式化的错误字符串（如果不退出）
         """
-        # 增强错误信息
-        if isinstance(error, HPLRuntimeError) and self.evaluator:
-            if not error.call_stack:
-                error.call_stack = self.evaluator.call_stack.copy()
-
         # 获取源代码
         source = self._get_source_code()
 
@@ -126,6 +121,7 @@ class HPLErrorHandler:
             sys.exit(1)
         else:
             return report
+
 
     
     def handle_syntax_error(self, error, parser=None):

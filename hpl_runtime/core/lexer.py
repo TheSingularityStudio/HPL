@@ -121,57 +121,165 @@ class HPLLexer:
             self.advance()
         return result
 
+    def _handle_indentation(self, tokens):
+        """处理行首缩进，生成 INDENT/DEDENT 标记"""
+        if not self.current_char.isspace():
+            # 行首遇到非空白字符，检查是否需要生成 DEDENT
+            current_indent = self.indent_stack[-1]
+            if current_indent > 0:
+                while 0 < self.indent_stack[-1]:
+                    self.indent_stack.pop()
+                    tokens.append(Token('DEDENT', self.indent_stack[-1], self.line, self.column))
+            self.at_line_start = False
+            return True  # 继续处理当前字符
+        
+        # 计算前导空格数
+        indent = 0
+        while self.current_char is not None and self.current_char.isspace() and self.current_char != '\n':
+            if self.current_char == ' ':
+                indent += 1
+            elif self.current_char == '\t':
+                indent += 4
+            self.advance()
+        
+        # 跳过空行
+        if self.current_char == '\n' or self.current_char is None:
+            self.at_line_start = True
+            if self.current_char == '\n':
+                self.advance()
+            return False  # 跳过本次循环
+        
+        # 生成 INDENT/DEDENT 标记
+        current_indent = self.indent_stack[-1]
+        if indent > current_indent:
+            self.indent_stack.append(indent)
+            tokens.append(Token('INDENT', indent, self.line, self.column))
+        elif indent < current_indent:
+            while indent < self.indent_stack[-1]:
+                self.indent_stack.pop()
+                tokens.append(Token('DEDENT', self.indent_stack[-1], self.line, self.column))
+        
+        self.at_line_start = False
+        return False  # 跳过本次循环
+
+    def _handle_number(self, token_line, token_column):
+        """处理数字，返回 NUMBER 标记"""
+        return Token('NUMBER', self.number(), token_line, token_column)
+
+    def _handle_string(self, token_line, token_column):
+        """处理字符串，返回 STRING 标记"""
+        return Token('STRING', self.string(), token_line, token_column)
+
+    def _handle_identifier(self, token_line, token_column):
+        """处理标识符和关键字，返回对应标记"""
+        ident = self.identifier()
+        keywords = {'if', 'else', 'for', 'while', 'try', 'catch', 'finally', 
+                   'return', 'break', 'continue', 'import', 'throw', 'in'}
+        
+        if ident in keywords:
+            return Token('KEYWORD', ident, token_line, token_column)
+        elif ident in ('true', 'false'):
+            return Token('BOOLEAN', ident == 'true', token_line, token_column)
+        elif ident == 'null':
+            return Token('NULL', None, token_line, token_column)
+        else:
+            return Token('IDENTIFIER', ident, token_line, token_column)
+
+    # 运算符映射表：字符 -> (单字符标记类型, 双字符标记类型或None, 双字符值或None)
+    _OPERATOR_MAP = {
+        '+': ('PLUS', 'INCREMENT', '+'),
+        '-': ('MINUS', None, None),
+        '*': ('MUL', None, None),
+        '/': ('DIV', None, None),
+        '%': ('MOD', None, None),
+        '(': ('LPAREN', None, None),
+        ')': ('RPAREN', None, None),
+        '{': ('LBRACE', None, None),
+        '}': ('RBRACE', None, None),
+        '[': ('LBRACKET', None, None),
+        ']': ('RBRACKET', None, None),
+        ';': ('SEMICOLON', None, None),
+        ',': ('COMMA', None, None),
+        '.': ('DOT', None, None),
+        ':': ('COLON', None, None),
+    }
+
+    def _handle_operator(self, char, token_line, token_column):
+        """处理运算符，返回对应标记"""
+        # 特殊处理需要检查第二个字符的运算符
+        if char == '!':
+            self.advance()
+            if self.current_char == '=':
+                self.advance()
+                return Token('NE', '!=', token_line, token_column)
+            return Token('NOT', '!', token_line, token_column)
+        
+        if char == '<':
+            self.advance()
+            if self.current_char == '=':
+                self.advance()
+                return Token('LE', '<=', token_line, token_column)
+            return Token('LT', '<', token_line, token_column)
+        
+        if char == '>':
+            self.advance()
+            if self.current_char == '=':
+                self.advance()
+                return Token('GE', '>=', token_line, token_column)
+            return Token('GT', '>', token_line, token_column)
+        
+        if char == '=':
+            self.advance()
+            if self.current_char == '=':
+                self.advance()
+                return Token('EQ', '==', token_line, token_column)
+            elif self.current_char == '>':
+                self.advance()
+                return Token('ARROW', '=>', token_line, token_column)
+            return Token('ASSIGN', '=', token_line, token_column)
+        
+        if char == '&':
+            self.advance()
+            if self.current_char == '&':
+                self.advance()
+                return Token('AND', '&&', token_line, token_column)
+            raise HPLSyntaxError(f"Invalid character '&'", line=self.line, column=self.column)
+        
+        if char == '|':
+            self.advance()
+            if self.current_char == '|':
+                self.advance()
+                return Token('OR', '||', token_line, token_column)
+            raise HPLSyntaxError(f"Invalid character '|'", line=self.line, column=self.column)
+        
+        # 使用映射表处理标准运算符
+        self.advance()
+        single_type, double_type, double_value = self._OPERATOR_MAP[char]
+        
+        # 检查双字符运算符（目前只有 ++）
+        if double_type and self.current_char == char:
+            self.advance()
+            return Token(double_type, double_value + char, token_line, token_column)
+        
+        return Token(single_type, char, token_line, token_column)
+
     def skip_comment(self):
+
         """跳过从当前位置到行尾的注释"""
         while self.current_char is not None and self.current_char != '\n':
             self.advance()
 
     def tokenize(self):
+        """词法分析主函数，将源代码转换为 Token 序列"""
         tokens = []
+        
         while self.current_char is not None:
-            # 处理行首的缩进
+            # 处理行首缩进
             if self.at_line_start:
-                if self.current_char.isspace():
-                    # 计算前导空格数
-                    indent = 0
-                    while self.current_char is not None and self.current_char.isspace() and self.current_char != '\n':
-                        if self.current_char == ' ':
-                            indent += 1
-                        elif self.current_char == '\t':
-                            indent += 4  # 制表符算作4个空格
-                        self.advance()
-                    
-                    # 跳过空行（只有空白字符的行）
-                    if self.current_char == '\n' or self.current_char is None:
-                        self.at_line_start = True
-                        if self.current_char == '\n':
-                            self.advance()
-                        continue
-                    
-                    # 生成 INDENT/DEDENT 标记
-                    current_indent = self.indent_stack[-1]
-                    if indent > current_indent:
-                        # 缩进增加
-                        self.indent_stack.append(indent)
-                        tokens.append(Token('INDENT', indent, self.line, self.column))
-                    elif indent < current_indent:
-                        # 缩进减少，可能弹出多个级别
-                        while indent < self.indent_stack[-1]:
-                            self.indent_stack.pop()
-                            tokens.append(Token('DEDENT', self.indent_stack[-1], self.line, self.column))
-                    
-                    self.at_line_start = False
-                    continue
+                if self._handle_indentation(tokens):
+                    continue  # 需要继续处理当前字符
                 else:
-                    # 行首遇到非空白字符，检查是否需要生成 DEDENT
-                    current_indent = self.indent_stack[-1]
-                    if current_indent > 0:
-                        # 缩进减少到0
-                        while 0 < self.indent_stack[-1]:
-                            self.indent_stack.pop()
-                            tokens.append(Token('DEDENT', self.indent_stack[-1], self.line, self.column))
-                    self.at_line_start = False
-
+                    continue  # 已处理完缩进，跳过本次循环
             
             # 处理换行符
             if self.current_char == '\n':
@@ -182,7 +290,7 @@ class HPLLexer:
             # 处理注释
             if self.current_char == '#':
                 self.skip_comment()
-                self.at_line_start = True  # 注释后视为行首
+                self.at_line_start = True
                 continue
             
             # 跳过非行首的空白字符
@@ -193,148 +301,30 @@ class HPLLexer:
             # 记录当前 token 的位置
             token_line = self.line
             token_column = self.column
-            
-            # 其他字符，标记不在行首
             self.at_line_start = False
-
-            if self.current_char.isdigit():
-                tokens.append(Token('NUMBER', self.number(), token_line, token_column))
-                continue
-
-            if self.current_char == '"':
-                tokens.append(Token('STRING', self.string(), token_line, token_column))
-                continue
-
-            if self.current_char.isalpha() or self.current_char == '_':
-                ident = self.identifier()
-                if ident in ['if', 'else', 'for', 'while', 'try', 'catch', 'finally', 'return', 'break', 'continue', 'import', 'throw', 'in']:
-
-
-
-                    tokens.append(Token('KEYWORD', ident, token_line, token_column))
-                elif ident in ['true', 'false']:
-                    tokens.append(Token('BOOLEAN', ident == 'true', token_line, token_column))
-                elif ident == 'null':
-                    tokens.append(Token('NULL', None, token_line, token_column))
-
-                else:
-                    tokens.append(Token('IDENTIFIER', ident, token_line, token_column))
-                continue
-
-            if self.current_char == '+':
-                self.advance()
-                if self.current_char == '+':
-                    tokens.append(Token('INCREMENT', '++', token_line, token_column))
-                    self.advance()
-                else:
-                    tokens.append(Token('PLUS', '+', token_line, token_column))
-            elif self.current_char == '-':
-                self.advance()
-                tokens.append(Token('MINUS', '-', token_line, token_column))
-            elif self.current_char == '*':
-                self.advance()
-                tokens.append(Token('MUL', '*', token_line, token_column))
-            elif self.current_char == '/':
-                self.advance()
-                tokens.append(Token('DIV', '/', token_line, token_column))
-            elif self.current_char == '%':
-                self.advance()
-                tokens.append(Token('MOD', '%', token_line, token_column))
-            elif self.current_char == '!':
-                self.advance()
-                if self.current_char == '=':
-                    tokens.append(Token('NE', '!=', token_line, token_column))
-                    self.advance()
-                else:
-                    tokens.append(Token('NOT', '!', token_line, token_column))
-            elif self.current_char == '<':
-                self.advance()
-                if self.current_char == '=':
-                    tokens.append(Token('LE', '<=', token_line, token_column))
-                    self.advance()
-                else:
-                    tokens.append(Token('LT', '<', token_line, token_column))
-            elif self.current_char == '>':
-                self.advance()
-                if self.current_char == '=':
-                    tokens.append(Token('GE', '>=', token_line, token_column))
-                    self.advance()
-                else:
-                    tokens.append(Token('GT', '>', token_line, token_column))
-            elif self.current_char == '(':
-                self.advance()
-                tokens.append(Token('LPAREN', '(', token_line, token_column))
-            elif self.current_char == ')':
-                self.advance()
-                tokens.append(Token('RPAREN', ')', token_line, token_column))
-            elif self.current_char == '{':
-                self.advance()
-                tokens.append(Token('LBRACE', '{', token_line, token_column))
-            elif self.current_char == '}':
-                self.advance()
-                tokens.append(Token('RBRACE', '}', token_line, token_column))
-            elif self.current_char == '[':
-                self.advance()
-                tokens.append(Token('LBRACKET', '[', token_line, token_column))
-            elif self.current_char == ']':
-                self.advance()
-                tokens.append(Token('RBRACKET', ']', token_line, token_column))
-            elif self.current_char == ';':
-                self.advance()
-                tokens.append(Token('SEMICOLON', ';', token_line, token_column))
-            elif self.current_char == ',':
-                self.advance()
-                tokens.append(Token('COMMA', ',', token_line, token_column))
-            elif self.current_char == '.':
-                self.advance()
-                tokens.append(Token('DOT', '.', token_line, token_column))
-            elif self.current_char == ':':
-                self.advance()
-                tokens.append(Token('COLON', ':', token_line, token_column))
-            elif self.current_char == '=':
-                self.advance()
-                if self.current_char == '=':
-                    tokens.append(Token('EQ', '==', token_line, token_column))
-                    self.advance()
-                elif self.current_char == '>':
-                    tokens.append(Token('ARROW', '=>', token_line, token_column))
-                    self.advance()
-                else:
-                    tokens.append(Token('ASSIGN', '=', token_line, token_column))
-            elif self.current_char == '&':
-                self.advance()
-                if self.current_char == '&':
-                    tokens.append(Token('AND', '&&', token_line, token_column))
-                    self.advance()
-                else:
-                    raise HPLSyntaxError(
-                        f"Invalid character '&'",
-                        line=self.line,
-                        column=self.column
-                    )
-            elif self.current_char == '|':
-                self.advance()
-                if self.current_char == '|':
-                    tokens.append(Token('OR', '||', token_line, token_column))
-                    self.advance()
-                else:
-                    raise HPLSyntaxError(
-                        f"Invalid character '|'",
-                        line=self.line,
-                        column=self.column
-                    )
+            
+            char = self.current_char
+            
+            # 分发处理不同类型的 token
+            if char.isdigit():
+                tokens.append(self._handle_number(token_line, token_column))
+            elif char == '"':
+                tokens.append(self._handle_string(token_line, token_column))
+            elif char.isalpha() or char == '_':
+                tokens.append(self._handle_identifier(token_line, token_column))
+            elif char in self._OPERATOR_MAP or char in '!<>=&|':
+                tokens.append(self._handle_operator(char, token_line, token_column))
             else:
                 raise HPLSyntaxError(
-                    f"Invalid character '{self.current_char}'",
+                    f"Invalid character '{char}'",
                     line=self.line,
                     column=self.column
                 )
-
+        
         # 文件结束时，弹出所有缩进级别
         while len(self.indent_stack) > 1:
             self.indent_stack.pop()
             tokens.append(Token('DEDENT', self.indent_stack[-1], self.line, self.column))
-
         
         tokens.append(Token('EOF', None, self.line, self.column))
         return tokens
