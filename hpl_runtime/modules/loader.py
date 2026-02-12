@@ -576,14 +576,14 @@ def init_stdlib():
         # 尝试多种导入方式以适应不同的运行环境
         try:
             # 方式1: 从 hpl_runtime.stdlib 导入（当 hpl_runtime 在 Python 路径中时）
-            from hpl_runtime.stdlib import io, math, json_mod, os_mod, time_mod
+            from hpl_runtime.stdlib import io, math, json_mod, os_mod, time_mod, string_mod, random_mod, crypto_mod
         except ImportError:
             # 方式2: 直接从 stdlib 导入（当在 hpl_runtime 目录中运行时）
             # 将 hpl_runtime 目录添加到 Python 路径
             hpl_runtime_dir = os.path.dirname(os.path.abspath(__file__))
             if hpl_runtime_dir not in sys.path:
                 sys.path.insert(0, hpl_runtime_dir)
-            from stdlib import io, math, json_mod, os_mod, time_mod
+            from stdlib import io, math, json_mod, os_mod, time_mod, string_mod, random_mod, crypto_mod
         
         # 注册模块
         register_module('io', io.module)
@@ -591,10 +591,14 @@ def init_stdlib():
         register_module('json', json_mod.module)
         register_module('os', os_mod.module)
         register_module('time', time_mod.module)
+        register_module('string', string_mod.module)
+        register_module('random', random_mod.module)
+        register_module('crypto', crypto_mod.module)
         
     except ImportError as e:
         # 如果某些模块导入失败，记录错误但不中断
         logger.warning(f"Some stdlib modules failed to load: {e}")
+
 
 
 

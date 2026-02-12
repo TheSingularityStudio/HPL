@@ -1,0 +1,113 @@
+# HPL 新标准库测试示例
+# 测试 string, random, crypto 模块
+
+imports:
+  - string
+  - random
+  - crypto
+
+main: () => {
+  # ========== string 模块测试 ==========
+  echo("=== String Module Test ===")
+  
+  test_str = "  Hello, HPL!  "
+  echo("Original: '" + test_str + "'")
+  echo("Length: " + string.length(test_str))
+  echo("Trimmed: '" + string.trim(test_str) + "'")
+  echo("Upper: " + string.to_upper(test_str))
+  echo("Lower: " + string.to_lower(test_str))
+  
+  # 分割和连接
+  words = string.split("apple,banana,cherry", ",")
+  echo("Split result: " + words)
+  joined = string.join(words, " | ")
+  echo("Joined: " + joined)
+  
+  # 替换
+  replaced = string.replace("Hello World", "World", "HPL")
+  echo("Replaced: " + replaced)
+  
+  # 子串操作
+  echo("Substring(0,5): " + string.substring("Hello HPL", 0, 5))
+  echo("Index of 'HPL': " + string.index_of("Hello HPL", "HPL"))
+  echo("Contains 'HPL': " + string.contains("Hello HPL", "HPL"))
+  echo("Starts with 'Hello': " + string.starts_with("Hello HPL", "Hello"))
+  echo("Ends with 'HPL': " + string.ends_with("Hello HPL", "HPL"))
+  
+  # 其他操作
+  echo("Reversed: " + string.reverse("HPL"))
+  echo("Repeated: " + string.repeat("HPL", 3))
+  echo("Padded start: " + string.pad_start("42", 5, "0"))
+  echo("Padded end: " + string.pad_end("42", 5, "0"))
+  
+  echo("")
+  
+  # ========== random 模块测试 ==========
+  echo("=== Random Module Test ===")
+  
+  # 基本随机数
+  echo("Random float [0,1): " + random.random())
+  echo("Random int [1,100]: " + random.random_int(1, 100))
+  echo("Random float [0,10): " + random.random_float(0, 10))
+  
+  # 数组操作
+  items = ["apple", "banana", "cherry", "date"]
+  echo("Random choice from array: " + random.choice(items))
+  
+  # 打乱数组
+  shuffled = random.shuffle([1, 2, 3, 4, 5])
+  echo("Shuffled array: " + shuffled)
+  
+  # 抽样
+  sampled = random.sample([1, 2, 3, 4, 5, 6, 7, 8, 9, 10], 3)
+  echo("Sampled 3 items: " + sampled)
+  
+  # UUID
+  echo("UUID v4: " + random.uuid())
+  echo("UUID v1: " + random.uuid1())
+  
+  # 随机字节
+  hex_str = random.random_hex(16)
+  echo("Random hex (16 bytes): " + hex_str)
+  
+  echo("")
+  
+  # ========== crypto 模块测试 ==========
+  echo("=== Crypto Module Test ===")
+  
+  test_data = "Hello, HPL!"
+  
+  # 哈希
+  echo("MD5: " + crypto.md5(test_data))
+  echo("SHA1: " + crypto.sha1(test_data))
+  echo("SHA256: " + crypto.sha256(test_data))
+  echo("SHA512: " + crypto.sha512(test_data))
+  
+  # 通用哈希
+  echo("Hash (sha256): " + crypto.hash(test_data, "sha256"))
+  
+  # HMAC
+  echo("HMAC-SHA256: " + crypto.hmac(test_data, "secret_key", "sha256"))
+  
+  # Base64
+  encoded = crypto.base64_encode(test_data)
+  echo("Base64 encoded: " + encoded)
+  decoded = crypto.base64_decode(encoded)
+  echo("Base64 decoded: " + decoded)
+  
+  # URL编码
+  url_encoded = crypto.url_encode("Hello World!@#$%")
+  echo("URL encoded: " + url_encoded)
+  url_decoded = crypto.url_decode(url_encoded)
+  echo("URL decoded: " + url_decoded)
+  
+  # 安全随机数
+  secure_hex = crypto.secure_random_hex(16)
+  echo("Secure random hex: " + secure_hex)
+  secure_urlsafe = crypto.secure_random_urlsafe(16)
+  echo("Secure random URL-safe: " + secure_urlsafe)
+  
+  echo("")
+  echo("=== All New Stdlib Tests Completed ===")
+}
+

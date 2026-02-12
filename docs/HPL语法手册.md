@@ -858,6 +858,10 @@ HPL 解释器现在包含类型检查，提供清晰的错误信息：
 | `json` | JSON 解析和生成 |
 | `os` | 操作系统接口 |
 | `time` | 日期时间处理 |
+| `crypto` | 加密哈希和编码功能 |
+| `random` | 随机数生成 |
+| `string` | 字符串处理 |
+
 
 
 ### 17.1 math 模块 - 数学函数
@@ -1028,7 +1032,170 @@ HPL 解释器现在包含类型检查，提供清晰的错误信息：
 - `time.local_timezone()` - 获取本地时区偏移（小时）
 
 
+### 17.6 crypto 模块 - 加密哈希和编码
+
+提供加密哈希、编码功能和安全随机数生成。
+
+#### 哈希函数
+
+| 函数 | 参数 | 返回值 | 说明 |
+|------|------|--------|------|
+| `crypto.md5(data)` | string/bytes | string | 计算 MD5 哈希（32位十六进制） |
+| `crypto.sha1(data)` | string/bytes | string | 计算 SHA1 哈希（40位十六进制） |
+| `crypto.sha256(data)` | string/bytes | string | 计算 SHA256 哈希（64位十六进制） |
+| `crypto.sha512(data)` | string/bytes | string | 计算 SHA512 哈希（128位十六进制） |
+| `crypto.sha3_256(data)` | string/bytes | string | 计算 SHA3-256 哈希 |
+| `crypto.sha3_512(data)` | string/bytes | string | 计算 SHA3-512 哈希 |
+| `crypto.blake2b(data, digest_size?)` | string/bytes, int? | string | 计算 BLAKE2b 哈希 |
+| `crypto.blake2s(data, digest_size?)` | string/bytes, int? | string | 计算 BLAKE2s 哈希 |
+| `crypto.hash(data, algorithm?)` | string/bytes, string? | string | 使用指定算法计算哈希，默认 sha256 |
+| `crypto.hmac(data, key, algorithm?)` | string/bytes, string/bytes, string? | string | 计算 HMAC 签名，默认 sha256 |
+
+#### 编码函数
+
+| 函数 | 参数 | 返回值 | 说明 |
+|------|------|--------|------|
+| `crypto.base64_encode(data)` | string/bytes | string | Base64 编码 |
+| `crypto.base64_decode(data)` | string | string/bytes | Base64 解码 |
+| `crypto.base64_urlsafe_encode(data)` | string/bytes | string | URL 安全 Base64 编码 |
+| `crypto.base64_urlsafe_decode(data)` | string | string/bytes | URL 安全 Base64 解码 |
+| `crypto.url_encode(data)` | string | string | URL 编码 |
+| `crypto.url_decode(data)` | string | string | URL 解码 |
+| `crypto.url_encode_plus(data)` | string | string | URL 编码（空格转为+） |
+| `crypto.url_decode_plus(data)` | string | string | URL 解码（+转为空格） |
+
+#### 安全随机数生成
+
+| 函数 | 参数 | 返回值 | 说明 |
+|------|------|--------|------|
+| `crypto.secure_random_bytes(length)` | int | bytes | 生成加密安全随机字节 |
+| `crypto.secure_random_hex(length)` | int | string | 生成加密安全随机十六进制字符串 |
+| `crypto.secure_random_urlsafe(length)` | int | string | 生成 URL 安全随机字符串 |
+| `crypto.secure_choice(sequence)` | array/string | any | 从序列中安全随机选择 |
+| `crypto.compare_digest(a, b)` | string/bytes, string/bytes | boolean | 安全比较（防时序攻击） |
+
+#### 密钥派生
+
+| 函数 | 参数 | 返回值 | 说明 |
+|------|------|--------|------|
+| `crypto.pbkdf2_hmac(password, salt, iterations?, dklen?, hash_name?)` | string/bytes, string/bytes, int?, int?, string? | string | PBKDF2 密钥派生 |
+| `crypto.scrypt(password, salt, n?, r?, p?, dklen?)` | string/bytes, string/bytes, int?, int?, int?, int? | string | scrypt 密钥派生 |
+
+
+### 17.7 random 模块 - 随机数生成
+
+提供随机数生成和 UUID 生成功能。
+
+#### 基础随机数
+
+| 函数 | 参数 | 返回值 | 说明 |
+|------|------|--------|------|
+| `random.random()` | - | float | 生成 [0, 1) 范围内的随机浮点数 |
+| `random.random_int(min, max)` | int, int | int | 生成 [min, max] 范围内的随机整数 |
+| `random.random_float(min, max)` | number, number | float | 生成 [min, max) 范围内的随机浮点数 |
+| `random.choice(array)` | array | any | 从数组中随机选择一个元素 |
+| `random.shuffle(array)` | array | array | 随机打乱数组（原地修改） |
+| `random.sample(array, count)` | array, int | array | 无放回抽样指定数量元素 |
+| `random.seed(value)` | int/float/string | boolean | 设置随机种子 |
+| `random.random_bool()` | - | boolean | 生成随机布尔值 |
+
+#### UUID 生成
+
+| 函数 | 参数 | 返回值 | 说明 |
+|------|------|--------|------|
+| `random.uuid()` | - | string | 生成 UUID v4（随机） |
+| `random.uuid1()` | - | string | 生成 UUID v1（基于时间和 MAC） |
+| `random.uuid3(namespace, name)` | string, string | string | 生成 UUID v3（基于 MD5） |
+| `random.uuid5(namespace, name)` | string, string | string | 生成 UUID v5（基于 SHA1） |
+
+**命名空间常量**：`dns`, `url`, `oid`, `x500`
+
+#### 随机字节
+
+| 函数 | 参数 | 返回值 | 说明 |
+|------|------|--------|------|
+| `random.random_bytes(length)` | int | bytes | 生成指定长度随机字节 |
+| `random.random_hex(length)` | int | string | 生成指定长度随机十六进制字符串 |
+
+#### 统计分布随机数
+
+| 函数 | 参数 | 返回值 | 说明 |
+|------|------|--------|------|
+| `random.gauss(mu?, sigma?)` | number?, number? | float | 高斯分布，默认 mu=0, sigma=1 |
+| `random.triangular(low?, high?, mode?)` | number?, number?, number? | float | 三角分布，默认 low=0, high=1 |
+| `random.expovariate(lambd)` | number | float | 指数分布 |
+| `random.betavariate(alpha, beta)` | number, number | float | Beta 分布 |
+| `random.gammavariate(alpha, beta)` | number, number | float | Gamma 分布 |
+| `random.lognormvariate(mu, sigma)` | number, number | float | 对数正态分布 |
+| `random.vonmisesvariate(mu, kappa)` | number, number | float | von Mises 分布 |
+| `random.paretovariate(alpha)` | number | float | Pareto 分布 |
+| `random.weibullvariate(alpha, beta)` | number, number | float | Weibull 分布 |
+
+#### 状态管理
+
+| 函数 | 参数 | 返回值 | 说明 |
+|------|------|--------|------|
+| `random.getstate()` | - | state | 获取随机数生成器状态 |
+| `random.setstate(state)` | state | boolean | 恢复随机数生成器状态 |
+
+
+### 17.8 string 模块 - 字符串处理
+
+提供字符串处理功能。
+
+#### 基础操作
+
+| 函数 | 参数 | 返回值 | 说明 |
+|------|------|--------|------|
+| `string.length(s)` | string | int | 获取字符串长度 |
+| `string.split(s, delimiter?, maxsplit?)` | string, string?, int? | array | 分割字符串为数组 |
+| `string.join(array, delimiter?)` | array, string? | string | 使用分隔符连接数组元素 |
+| `string.replace(s, old, new, count?)` | string, string, string, int? | string | 替换子串 |
+| `string.substring(s, start, end?)` | string, int, int? | string | 截取子字符串 |
+
+#### 空白处理
+
+| 函数 | 参数 | 返回值 | 说明 |
+|------|------|--------|------|
+| `string.trim(s, chars?)` | string, string? | string | 去除首尾空白或指定字符 |
+| `string.trim_start(s, chars?)` | string, string? | string | 去除开头空白或指定字符 |
+| `string.trim_end(s, chars?)` | string, string? | string | 去除结尾空白或指定字符 |
+| `string.is_empty(s)` | string | boolean | 检查字符串是否为空 |
+| `string.is_blank(s)` | string | boolean | 检查字符串是否为空或仅空白 |
+
+#### 大小写转换
+
+| 函数 | 参数 | 返回值 | 说明 |
+|------|------|--------|------|
+| `string.to_upper(s)` | string | string | 转为大写 |
+| `string.to_lower(s)` | string | string | 转为小写 |
+| `string.capitalize(s)` | string | string | 首字母大写 |
+| `string.title_case(s)` | string | string | 每个单词首字母大写 |
+| `string.swap_case(s)` | string | string | 交换大小写 |
+
+#### 查找和检查
+
+| 函数 | 参数 | 返回值 | 说明 |
+|------|------|--------|------|
+| `string.index_of(s, substr, start?)` | string, string, int? | int | 查找子串位置，未找到返回 -1 |
+| `string.last_index_of(s, substr, start?)` | string, string, int? | int | 从后往前查找子串位置 |
+| `string.starts_with(s, prefix)` | string, string | boolean | 检查是否以指定前缀开头 |
+| `string.ends_with(s, suffix)` | string, string | boolean | 检查是否以指定后缀结尾 |
+| `string.contains(s, substr)` | string, string | boolean | 检查是否包含子串 |
+| `string.count(s, substr)` | string, string | int | 统计子串出现次数 |
+
+#### 其他操作
+
+| 函数 | 参数 | 返回值 | 说明 |
+|------|------|--------|------|
+| `string.reverse(s)` | string | string | 反转字符串 |
+| `string.repeat(s, count)` | string, int | string | 重复字符串指定次数 |
+| `string.pad_start(s, length, pad?)` | string, int, string? | string | 在开头填充至指定长度 |
+| `string.pad_end(s, length, pad?)` | string, int, string? | string | 在结尾填充至指定长度 |
+
+
 ## 18. 标准库使用示例
+
 
 以下示例展示了如何使用标准库模块：
 
@@ -1039,6 +1206,9 @@ imports:
   - json
   - os
   - time
+  - crypto
+  - random
+  - string
 
 main: () => {
     # === Math 模块 ===
@@ -1076,13 +1246,45 @@ main: () => {
     # === JSON 模块 ===
     echo ""
     echo "=== JSON Module ==="
-    # HPL 数组可以直接序列化为 JSON
+    # HPL 的数组可以直接序列化为 JSON
     data = [1, 2, 3, "hello", "world"]
     json_str = json.stringify(data)
     echo("JSON: " + json_str)
+    
+    # === Crypto 模块 ===
+    echo ""
+    echo "=== Crypto Module ==="
+    data = "Hello, HPL!"
+    echo "MD5: " + crypto.md5(data)
+    echo "SHA256: " + crypto.sha256(data)
+    echo "Base64: " + crypto.base64_encode(data)
+    echo "URL encoded: " + crypto.url_encode(data)
+    echo "Secure random hex: " + crypto.secure_random_hex(16)
+    
+    # === Random 模块 ===
+    echo ""
+    echo "=== Random Module ==="
+    echo "Random int (1-100): " + random.random_int(1, 100)
+    echo "Random float: " + random.random()
+    echo "UUID: " + random.uuid()
+    arr = [1, 2, 3, 4, 5]
+    echo "Random choice: " + random.choice(arr)
+    
+    # === String 模块 ===
+    echo ""
+    echo "=== String Module ==="
+    text = "  Hello, HPL!  "
+    echo "Original: '" + text + "'"
+    echo "Trimmed: '" + string.trim(text) + "'"
+    echo "Upper: " + string.to_upper(text)
+    echo "Lower: " + string.to_lower(text)
+    words = string.split("apple,banana,cherry", ",")
+    echo "Split: " + words
+    echo "Join: " + string.join(words, " - ")
   }
 
 call: main()
+
 ```
 
 
