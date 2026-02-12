@@ -93,15 +93,11 @@ class HPLEvaluator:
             if isinstance(result, ReturnValue):
                 return result.value
             return result
-        except HPLRuntimeError as e:
-            # 附加调用栈信息到错误对象
-            if not e.call_stack:
-                e.call_stack = self.call_stack.copy()
-            raise
         finally:
             # 从调用栈移除
             if func_name:
                 self.call_stack.pop()
+
 
 
     def execute_block(self, block, local_scope):
@@ -353,11 +349,13 @@ class HPLEvaluator:
                         break
                 
                 if not caught:
-                    raise  # 重新抛出未捕获的错误
-            except HPLBreakException:
-                raise  # 控制流异常需要继续传播
-            except HPLContinueException:
-                raise  # 控制流异常需要继续传播
+                    # 重新抛出未捕获的错误，添加try块位置信息
+                    if e.line is None and hasattr(stmt.try_block, 'line'):
+                        e.line = stmt.try_block.line
+                    raise  # 重新抛出
+            except HPLControlFlowException:
+                # 控制流异常（break, continue, return）自然传播，不处理
+                raise
             finally:
                 # 执行 finally 块（如果有）
                 if stmt.finally_block:
@@ -365,6 +363,7 @@ class HPLEvaluator:
                     # finally 中的 return 会覆盖 try/catch 中的 return
                     if isinstance(finally_result, HPLReturnValue):
                         return finally_result
+
 
 
         elif isinstance(stmt, EchoStatement):
@@ -413,7 +412,8 @@ class HPLEvaluator:
         elif isinstance(expr, BinaryOp):
             left = self.evaluate_expression(expr.left, local_scope)
             right = self.evaluate_expression(expr.right, local_scope)
-            return self._eval_binary_op(left, expr.op, right)
+            return self._eval_binary_op(left, expr.op, right, expr.line, expr.column)
+
         elif isinstance(expr, UnaryOp):
             operand = self.evaluate_expression(expr.operand, local_scope)
             if expr.op == '!':
@@ -968,7 +968,7 @@ class HPLEvaluator:
 
 
 
-    def _eval_binary_op(self, left, op, right):
+    def _eval_binary_op(self, left, op, right, line=None, column=None):
         # 逻辑运算符
         if op == '&&':
             return left and right
@@ -999,6 +999,7 @@ class HPLEvaluator:
                 raise self._create_error(
                     HPLDivisionError,
                     "Division by zero. 建议: 添加检查 if (divisor != 0) : result = dividend / divisor",
+                    line, column,
                     error_key='RUNTIME_DIVISION_BY_ZERO'
                 )
 
@@ -1008,6 +1009,7 @@ class HPLEvaluator:
                 raise self._create_error(
                     HPLDivisionError,
                     "Modulo by zero. 建议: 添加检查 if (divisor != 0) : result = dividend % divisor",
+                    line, column,
                     error_key='RUNTIME_DIVISION_BY_ZERO'
                 )
 
@@ -1033,8 +1035,10 @@ class HPLEvaluator:
             raise self._create_error(
                 HPLRuntimeError,
                 f"Unknown operator {op}",
+                line, column,
                 error_key='RUNTIME_GENERAL'
             )
+
 
 
 
@@ -1259,12 +1263,15 @@ class HPLEvaluator:
     def _create_error(self, error_class, message, line=None, column=None, 
                     local_scope=None, error_key=None, **kwargs):
         """统一创建错误并添加上下文"""
+        # 自动捕获当前调用栈（如果尚未设置）
+        call_stack = kwargs.pop('call_stack', None) or self.call_stack.copy()
+        
         error = error_class(
             message=message,
             line=line,
             column=column,
             file=getattr(self, 'current_file', None),
-            call_stack=self.call_stack.copy(),
+            call_stack=call_stack,
             error_key=error_key,
             **kwargs
         )
@@ -1274,6 +1281,7 @@ class HPLEvaluator:
             error.enrich_context(self, local_scope)
         
         return error
+
 
     def _matches_error_type(self, error, error_type):
         """检查错误是否匹配指定的错误类型"""
