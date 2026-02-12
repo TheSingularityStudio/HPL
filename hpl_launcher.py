@@ -81,6 +81,11 @@ def run_hpl_file(hpl_file):
         interpreter_main()
         return 0
         
+    except SystemExit as e:
+        # 捕获解释器调用的sys.exit()，返回退出码
+        # 这样可以让上层函数控制何时退出，确保wait_for_exit()能执行
+        return e.code if isinstance(e.code, int) else 1
+        
     except ImportError as e:
         print(f"错误: 无法加载HPL解释器 - {e}")
         print("请确保hpl_runtime目录在正确的位置")
@@ -88,6 +93,7 @@ def run_hpl_file(hpl_file):
     except Exception as e:
         print(f"运行时错误: {e}")
         return 1
+
 
 def show_usage():
     """显示使用说明"""
@@ -127,12 +133,20 @@ def main():
     print("-" * 50)
     
     # 运行HPL文件
-    result = run_hpl_file(hpl_file)
-    
-    # 暂停显示结果，让用户看到输出
-    wait_for_exit()
+    result = 0
+    try:
+        result = run_hpl_file(hpl_file)
+    except Exception as e:
+        # 捕获任何未处理的异常
+        print(f"\n未处理的错误: {e}")
+        result = 1
+    finally:
+        # 确保无论是否出错，都暂停让用户看到输出
+        # 这是解决exe窗口自动关闭问题的关键
+        wait_for_exit()
     
     return result
+
 
 
 
