@@ -1182,36 +1182,10 @@ class HPLEvaluator:
         if constructor_name:
             self._call_method(obj, constructor_name, args)
         
-        # 无论子类是否有构造函数，都调用父类构造函数（如果存在）
-        # 递归调用，确保所有祖先类的构造函数都被调用
-        if hpl_class.parent:
-            parent_class = self.classes.get(hpl_class.parent)
-            if parent_class:
-                parent_constructor_name = None
-                if 'init' in parent_class.methods:
-                    parent_constructor_name = 'init'
-                elif '__init__' in parent_class.methods:
-                    parent_constructor_name = '__init__'
-                
-                if parent_constructor_name:
-                    method = parent_class.methods[parent_constructor_name]
-                    prev_obj = self.current_obj
-                    self.current_obj = obj
-                    
-                    method_scope = {param: args[i] for i, param in enumerate(method.params) if i < len(args)}
-                    method_scope['this'] = obj
-                    
-                    obj_name = obj.hpl_class.name if isinstance(obj, HPLObject) else obj.name
-                    self.call_stack.append(f"{obj_name}.{parent_constructor_name}()")
+        # 注意：父类构造函数不再自动调用
+        # 子类需要通过 this.parent.init(...) 显式调用父类构造函数
+        # 这样可以确保参数传递正确，避免父类构造函数被错误地调用两次
 
-                    try:
-                        self.execute_function(method, method_scope)
-                    finally:
-                        self.call_stack.pop()
-                        self.current_obj = prev_obj
-                
-                # 递归调用祖父类的构造函数
-                self._call_parent_constructors_recursive(obj, parent_class, args)
     
     def _call_parent_constructors_recursive(self, obj, parent_class, args):
         """递归调用父类构造函数链"""

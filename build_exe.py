@@ -57,6 +57,32 @@ def build_exe():
         "--hidden-import", "platform",  # 显式包含platform模块
         "--hidden-import", "difflib",  # 显式包含difflib模块
         "--hidden-import", "json",  # 显式包含json模块
+        "--hidden-import", "logging",  # 显式包含logging模块
+        "--hidden-import", "pathlib",  # 显式包含pathlib模块
+        "--hidden-import", "importlib",  # 显式包含importlib模块
+        "--hidden-import", "importlib.util",  # 显式包含importlib.util模块
+        "--hidden-import", "subprocess",  # 显式包含subprocess模块
+        "--hidden-import", "shutil",  # 显式包含shutil模块
+        "--hidden-import", "traceback",  # 显式包含traceback模块
+        "--hidden-import", "re",  # 显式包含re模块
+        "--hidden-import", "urllib",  # 显式包含urllib模块
+        "--hidden-import", "urllib.request",  # 显式包含urllib.request模块
+        "--hidden-import", "urllib.parse",  # 显式包含urllib.parse模块
+        "--hidden-import", "urllib.error",  # 显式包含urllib.error模块
+        "--hidden-import", "http.client",  # 显式包含http.client模块
+        "--hidden-import", "ssl",  # 显式包含ssl模块
+        "--hidden-import", "hashlib",  # 显式包含hashlib模块
+        "--hidden-import", "base64",  # 显式包含base64模块
+        "--hidden-import", "secrets",  # 显式包含secrets模块
+        "--hidden-import", "random",  # 显式包含random模块
+        "--hidden-import", "string",  # 显式包含string模块
+        "--hidden-import", "datetime",  # 显式包含datetime模块
+        "--hidden-import", "time",  # 显式包含time模块
+        "--hidden-import", "math",  # 显式包含math模块
+        "--hidden-import", "os",  # 显式包含os模块
+        "--hidden-import", "sys",  # 显式包含sys模块
+        "--hidden-import", "uuid",  # 显式包含uuid模块
+        "--hidden-import", "hmac",  # 显式包含hmac模块
         "--exclude-module", "tests",  # 排除测试模块
         "--exclude-module", "docs",  # 排除文档模块
         "--exclude-module", "examples",  # 排除示例模块
