@@ -48,6 +48,10 @@ HPL_CONFIG_DIR.mkdir(exist_ok=True)
 HPL_PACKAGES_DIR.mkdir(exist_ok=True)
 
 
+# 循环导入检测 - 正在加载中的模块集合
+_loading_modules = set()
+
+
 class ModuleLoaderContext:
     """
     模块加载器上下文管理类
@@ -127,6 +131,13 @@ def load_module(module_name, search_paths=None):
     Raises:
         HPLImportError: 当模块无法找到或加载失败时
     """
+    # 检查循环导入
+    if module_name in _loading_modules:
+        raise HPLImportError(
+            f"Circular import detected: '{module_name}' is already being loaded. "
+            f"Import chain: {' -> '.join(sorted(_loading_modules))} -> {module_name}"
+        )
+    
     # 检查缓存
     if module_name in _module_cache:
         logger.debug(f"Module '{module_name}' found in cache")
@@ -280,7 +291,19 @@ def _parse_hpl_module(module_name, file_path):
     """
     解析 HPL 模块文件
     返回 HPLModule 实例
+    
+    包含循环导入检测机制
     """
+    # 检查循环导入
+    if module_name in _loading_modules:
+        raise HPLImportError(
+            f"Circular import detected: '{module_name}' is already being loaded. "
+            f"Import chain: {' -> '.join(sorted(_loading_modules))} -> {module_name}"
+        )
+    
+    # 标记模块正在加载中
+    _loading_modules.add(module_name)
+    
     try:
         # 延迟导入以避免循环依赖
         try:
@@ -435,6 +458,9 @@ def _parse_hpl_module(module_name, file_path):
         import traceback
         traceback.print_exc()
         raise HPLImportError(f"Failed to parse HPL module '{module_name}': {e}") from e
+    finally:
+        # 无论成功还是失败，都从加载中集合移除
+        _loading_modules.discard(module_name)
 
 
 
@@ -568,6 +594,7 @@ def list_installed_packages():
 def clear_cache():
     """清除模块缓存"""
     _module_cache.clear()
+    _loading_modules.clear()  # 同时清除加载中集合
 
 
 def init_stdlib():

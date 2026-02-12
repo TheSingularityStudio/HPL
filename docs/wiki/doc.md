@@ -386,9 +386,6 @@ imports:
   - json
   - os
   - time
-  - crypto
-  - random
-  - string
 ```
 
 ### 别名导入
@@ -411,9 +408,6 @@ imports:
   - math
   - io
   - json
-  - crypto
-  - random
-  - string
 
 main: () => {
     # math 模块
@@ -426,18 +420,6 @@ main: () => {
     # json 模块
     data = json.parse('{"a": 1}')
     json.write("data.json", data)
-    
-    # crypto 模块
-    hash = crypto.sha256("Hello")
-    encoded = crypto.base64_encode("Hello")
-    
-    # random 模块
-    num = random.random_int(1, 100)
-    id = random.uuid()
-    
-    # string 模块
-    words = string.split("a,b,c", ",")
-    upper = string.to_upper("hello")
   }
 ```
 
@@ -596,49 +578,6 @@ catch (outerError) :
 | `time.get_month(timestamp)` | 获取月份 (1-12) |
 | `time.get_day(timestamp)` | 获取日期 (1-31) |
 
-### crypto 模块 - 加密哈希和编码
-
-| 函数 | 说明 |
-|------|------|
-| `crypto.md5(data)` | 计算 MD5 哈希 |
-| `crypto.sha256(data)` | 计算 SHA256 哈希 |
-| `crypto.sha512(data)` | 计算 SHA512 哈希 |
-| `crypto.base64_encode(data)` | Base64 编码 |
-| `crypto.base64_decode(data)` | Base64 解码 |
-| `crypto.url_encode(data)` | URL 编码 |
-| `crypto.url_decode(data)` | URL 解码 |
-| `crypto.secure_random_hex(length)` | 生成安全随机十六进制字符串 |
-| `crypto.hmac(data, key, algorithm?)` | 计算 HMAC 签名 |
-
-### random 模块 - 随机数生成
-
-| 函数 | 说明 |
-|------|------|
-| `random.random()` | 生成 [0, 1) 随机浮点数 |
-| `random.random_int(min, max)` | 生成 [min, max] 随机整数 |
-| `random.random_float(min, max)` | 生成 [min, max) 随机浮点数 |
-| `random.choice(array)` | 从数组中随机选择 |
-| `random.shuffle(array)` | 随机打乱数组 |
-| `random.uuid()` | 生成 UUID v4 |
-| `random.uuid1()` | 生成 UUID v1 |
-| `random.seed(value)` | 设置随机种子 |
-
-### string 模块 - 字符串处理
-
-| 函数 | 说明 |
-|------|------|
-| `string.length(s)` | 获取字符串长度 |
-| `string.split(s, delimiter?)` | 分割字符串为数组 |
-| `string.join(array, delimiter?)` | 连接数组为字符串 |
-| `string.replace(s, old, new, count?)` | 替换子串 |
-| `string.trim(s)` | 去除首尾空白 |
-| `string.to_upper(s)` | 转为大写 |
-| `string.to_lower(s)` | 转为小写 |
-| `string.index_of(s, substr)` | 查找子串位置 |
-| `string.starts_with(s, prefix)` | 检查前缀 |
-| `string.ends_with(s, suffix)` | 检查后缀 |
-| `string.reverse(s)` | 反转字符串 |
-
 ---
 
 ## 快速参考卡
@@ -668,7 +607,7 @@ catch (outerError) :
 │  对象: obj: Class()                                     │
 ├─────────────────────────────────────────────────────────┤
 │  包含: includes: [- file.hpl]                           │
-│  导入: imports: [- math, - io, - crypto]                │
+│  导入: imports: [- math, - io]                          │
 │  别名: imports: [- math: m]                             │
 ├─────────────────────────────────────────────────────────┤
 │  异常: try : ... catch (e) : ...                       │
@@ -745,9 +684,9 @@ call: main()
 
 ## 导航
 
-- [🔙 返回首页](./home.md)
-- [❓ 查看帮助](./help.md)
+- [🔙 返回首页](https://github.com/TheSingularityStudio/HPL/wiki)
+- [❓ 查看帮助](https://github.com/TheSingularityStudio/HPL/wiki/help)
 
 ---
 
-> **提示**: 更多详细信息请参考 [HPL语法概览.md](../HPL语法概览.md) 和 [HPL语法手册.md](../HPL语法手册.md)
+> **提示**: 更多详细信息请参考 [HPL语法概览.md](https://github.com/TheSingularityStudio/HPL/blob/main/docs/HPL%E8%AF%AD%E6%B3%95%E6%A6%82%E8%A7%88.md) 和 [HPL语法手册.md](https://github.com/TheSingularityStudio/HPL/blob/main/docs/HPL%E8%AF%AD%E6%B3%95%E6%89%8B%E5%86%8C.md)

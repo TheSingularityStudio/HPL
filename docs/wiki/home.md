@@ -78,9 +78,9 @@ python hpl_runtime/interpreter.py hello.hpl
 
 | 页面 | 描述 |
 |------|------|
-| [🏠 首页](./home.md) | 语言介绍和快速开始 |
-| [❓ 帮助](./help.md) | 安装指南、教程和故障排除 |
-| [📚 文档](./doc.md) | 完整语法参考和 API 文档 |
+| [🏠 首页](https://github.com/TheSingularityStudio/HPL/wiki) | 语言介绍和快速开始 |
+| [📚 文档](https://github.com/TheSingularityStudio/HPL/wiki/Docs) | 完整语法参考和 API 文档 |
+| [❓ 帮助](https://github.com/TheSingularityStudio/HPL/wiki/Help) | 错误代码详解与解决方案 |
 
 ---
 
@@ -204,4 +204,4 @@ HPL/
 
 > **提示**: HPL 基于 YAML 格式，缩进非常重要（建议使用 2 个空格）！
 
-**[➡️ 继续阅读帮助文档](./help.md)**
+**[➡️ 继续阅读语法文档](https://github.com/TheSingularityStudio/HPL/wiki/docs)**

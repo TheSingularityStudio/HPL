@@ -1006,6 +1006,63 @@ class HPLEvaluator:
 
     def _lookup_variable(self, name, local_scope, line=None, column=None):
         """统一变量查找逻辑"""
+        # 处理 this.property 形式的属性访问
+        if '.' in name:
+            obj_name, prop_name = name.split('.', 1)
+            if obj_name == 'this':
+                # 获取 this 对象
+                obj = local_scope.get('this') or self.current_obj
+                if obj is None:
+                    raise self._create_error(
+                        HPLNameError,
+                        f"'this' is not defined outside of method context",
+                        line, column,
+                        local_scope,
+                        error_key='RUNTIME_UNDEFINED_VAR'
+                    )
+                # 从对象属性中查找
+                if isinstance(obj, HPLObject):
+                    if prop_name in obj.attributes:
+                        return obj.attributes[prop_name]
+                    else:
+                        raise self._create_error(
+                            HPLAttributeError,
+                            f"Property '{prop_name}' not found in object",
+                            line, column,
+                            local_scope,
+                            error_key='TYPE_MISSING_PROPERTY'
+                        )
+                else:
+                    raise self._create_error(
+                        HPLTypeError,
+                        f"'this' is not an object",
+                        line, column,
+                        local_scope,
+                        error_key='TYPE_INVALID_OPERATION'
+                    )
+            else:
+                # 普通对象属性访问
+                obj = self._lookup_variable(obj_name, local_scope, line, column)
+                if isinstance(obj, HPLObject):
+                    if prop_name in obj.attributes:
+                        return obj.attributes[prop_name]
+                    else:
+                        raise self._create_error(
+                            HPLAttributeError,
+                            f"Property '{prop_name}' not found in object '{obj_name}'",
+                            line, column,
+                            local_scope,
+                            error_key='TYPE_MISSING_PROPERTY'
+                        )
+                else:
+                    raise self._create_error(
+                        HPLTypeError,
+                        f"Cannot access property '{prop_name}' on non-object '{obj_name}'",
+                        line, column,
+                        local_scope,
+                        error_key='TYPE_INVALID_OPERATION'
+                    )
+        
         if name in local_scope:
             return local_scope[name]
         elif name in self.global_scope:
@@ -1019,6 +1076,7 @@ class HPLEvaluator:
                 error_key='RUNTIME_UNDEFINED_VAR'
             )
 
+
     def _update_variable(self, name, value, local_scope):
         """统一变量更新逻辑"""
         if name in local_scope:
@@ -1028,6 +1086,30 @@ class HPLEvaluator:
         else:
             # 默认创建局部变量
             local_scope[name] = value
+
+    def _find_method_in_class_hierarchy(self, hpl_class, method_name):
+        """在类继承层次结构中查找方法"""
+        # 支持 init 作为 __init__ 的别名
+        if method_name == 'init':
+            alt_method_name = '__init__'
+        elif method_name == '__init__':
+            alt_method_name = 'init'
+        else:
+            alt_method_name = None
+        
+        # 当前类中查找
+        if method_name in hpl_class.methods:
+            return hpl_class.methods[method_name]
+        if alt_method_name and alt_method_name in hpl_class.methods:
+            return hpl_class.methods[alt_method_name]
+        
+        # 向上递归查找父类
+        if hpl_class.parent:
+            parent_class = self.classes.get(hpl_class.parent)
+            if parent_class:
+                return self._find_method_in_class_hierarchy(parent_class, method_name)
+        
+        return None
 
     def _call_method(self, obj, method_name, args):
         """统一方法调用逻辑"""
@@ -1051,20 +1133,11 @@ class HPLEvaluator:
                 )
 
         hpl_class = obj.hpl_class
-        # 支持 init 作为 __init__ 的别名
-        actual_method_name = method_name
-        if method_name == 'init' and 'init' not in hpl_class.methods and '__init__' in hpl_class.methods:
-            actual_method_name = '__init__'
         
-        if method_name in hpl_class.methods:
-            method = hpl_class.methods[method_name]
-        elif actual_method_name in hpl_class.methods:
-            method = hpl_class.methods[actual_method_name]
-        elif hpl_class.parent and method_name in self.classes[hpl_class.parent].methods:
-            method = self.classes[hpl_class.parent].methods[method_name]
-        elif hpl_class.parent and actual_method_name in self.classes[hpl_class.parent].methods:
-            method = self.classes[hpl_class.parent].methods[actual_method_name]
-        else:
+        # 在类继承层次结构中查找方法
+        method = self._find_method_in_class_hierarchy(hpl_class, method_name)
+        
+        if method is None:
             # 不是方法，尝试作为属性访问
             if method_name in obj.attributes:
                 return obj.attributes[method_name]
@@ -1073,6 +1146,7 @@ class HPLEvaluator:
                 f"Method or attribute '{method_name}' not found in class '{hpl_class.name}'",
                 error_key='TYPE_MISSING_PROPERTY'
             )
+
 
         # 为'this'设置current_obj
         prev_obj = self.current_obj
@@ -1107,31 +1181,71 @@ class HPLEvaluator:
         
         if constructor_name:
             self._call_method(obj, constructor_name, args)
-        elif hpl_class.parent:
-            # 调用父类的构造函数
-            parent_class = self.classes[hpl_class.parent]
-            parent_constructor_name = None
-            if 'init' in parent_class.methods:
-                parent_constructor_name = 'init'
-            elif '__init__' in parent_class.methods:
-                parent_constructor_name = '__init__'
-            
-            if parent_constructor_name:
-                method = parent_class.methods[parent_constructor_name]
-                prev_obj = self.current_obj
-                self.current_obj = obj
+        
+        # 无论子类是否有构造函数，都调用父类构造函数（如果存在）
+        # 递归调用，确保所有祖先类的构造函数都被调用
+        if hpl_class.parent:
+            parent_class = self.classes.get(hpl_class.parent)
+            if parent_class:
+                parent_constructor_name = None
+                if 'init' in parent_class.methods:
+                    parent_constructor_name = 'init'
+                elif '__init__' in parent_class.methods:
+                    parent_constructor_name = '__init__'
                 
-                method_scope = {param: args[i] for i, param in enumerate(method.params) if i < len(args)}
-                method_scope['this'] = obj
-                
-                obj_name = obj.hpl_class.name if isinstance(obj, HPLObject) else obj.name
-                self.call_stack.append(f"{obj_name}.{parent_constructor_name}()")
+                if parent_constructor_name:
+                    method = parent_class.methods[parent_constructor_name]
+                    prev_obj = self.current_obj
+                    self.current_obj = obj
+                    
+                    method_scope = {param: args[i] for i, param in enumerate(method.params) if i < len(args)}
+                    method_scope['this'] = obj
+                    
+                    obj_name = obj.hpl_class.name if isinstance(obj, HPLObject) else obj.name
+                    self.call_stack.append(f"{obj_name}.{parent_constructor_name}()")
 
-                try:
-                    self.execute_function(method, method_scope)
-                finally:
-                    self.call_stack.pop()
-                    self.current_obj = prev_obj
+                    try:
+                        self.execute_function(method, method_scope)
+                    finally:
+                        self.call_stack.pop()
+                        self.current_obj = prev_obj
+                
+                # 递归调用祖父类的构造函数
+                self._call_parent_constructors_recursive(obj, parent_class, args)
+    
+    def _call_parent_constructors_recursive(self, obj, parent_class, args):
+        """递归调用父类构造函数链"""
+        # 继续向上查找祖先类的构造函数
+        if parent_class.parent:
+            grandparent_class = self.classes.get(parent_class.parent)
+            if grandparent_class:
+                grandparent_constructor_name = None
+                if 'init' in grandparent_class.methods:
+                    grandparent_constructor_name = 'init'
+                elif '__init__' in grandparent_class.methods:
+                    grandparent_constructor_name = '__init__'
+                
+                if grandparent_constructor_name:
+                    method = grandparent_class.methods[grandparent_constructor_name]
+                    prev_obj = self.current_obj
+                    self.current_obj = obj
+                    
+                    method_scope = {param: args[i] for i, param in enumerate(method.params) if i < len(args)}
+                    method_scope['this'] = obj
+                    
+                    obj_name = obj.hpl_class.name if isinstance(obj, HPLObject) else obj.name
+                    self.call_stack.append(f"{obj_name}.{grandparent_constructor_name}()")
+
+                    try:
+                        self.execute_function(method, method_scope)
+                    finally:
+                        self.call_stack.pop()
+                        self.current_obj = prev_obj
+                
+                # 继续递归向上
+                self._call_parent_constructors_recursive(obj, grandparent_class, args)
+
+
 
     def instantiate_object(self, class_name, obj_name, init_args=None):
         """实例化对象并调用构造函数"""
