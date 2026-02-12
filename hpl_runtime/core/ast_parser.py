@@ -24,7 +24,6 @@ except ImportError:
     from hpl_runtime.utils.parse_utils import get_token_position, is_block_terminator, skip_dedents
 
 
-
 class HPLASTParser:
     def __init__(self, tokens):
         self.tokens = tokens
@@ -631,8 +630,6 @@ class HPLASTParser:
             finally_block = self.parse_block()
         
         return TryCatchStatement(try_block, catch_clauses, finally_block, line, column)
-
-
 
 
     def parse_expression(self):

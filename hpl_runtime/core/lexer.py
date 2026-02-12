@@ -172,7 +172,6 @@ class HPLLexer:
                             tokens.append(Token('DEDENT', self.indent_stack[-1], self.line, self.column))
                     self.at_line_start = False
 
-            
             # 处理换行符
             if self.current_char == '\n':
                 self.advance()
@@ -208,8 +207,6 @@ class HPLLexer:
             if self.current_char.isalpha() or self.current_char == '_':
                 ident = self.identifier()
                 if ident in ['if', 'else', 'for', 'while', 'try', 'catch', 'finally', 'return', 'break', 'continue', 'import', 'throw', 'in']:
-
-
 
                     tokens.append(Token('KEYWORD', ident, token_line, token_column))
                 elif ident in ['true', 'false']:

@@ -31,7 +31,6 @@ except ImportError:
     from hpl_runtime.utils.io_utils import echo
 
 
-
 # 注意：ReturnValue, BreakException, ContinueException 现在从 exceptions 模块导入
 # 保留这些别名以保持向后兼容
 ReturnValue = HPLReturnValue
@@ -99,7 +98,6 @@ class HPLEvaluator:
                 self.call_stack.pop()
 
 
-
     def execute_block(self, block, local_scope):
         for stmt in block.statements:
             result = self.execute_statement(stmt, local_scope)
@@ -160,8 +158,7 @@ class HPLEvaluator:
                         f"Cannot access property on non-object value: {type(obj).__name__}",
                         error_key='TYPE_MISSING_PROPERTY'
                     )
-
-                
+    
                 # 获取属性（应该是数组/字典）
                 if prop_name not in obj.attributes:
                     # 如果属性不存在，创建一个空字典
@@ -207,8 +204,7 @@ class HPLEvaluator:
                         f"Cannot assign to non-array value: {type(array).__name__}",
                         error_key='TYPE_INVALID_OPERATION'
                     )
-
-                
+             
                 index = self.evaluate_expression(stmt.index_expr, local_scope)
                 if not isinstance(index, int):
                     raise self._create_error(
@@ -216,19 +212,16 @@ class HPLEvaluator:
                         f"Array index must be integer, got {type(index).__name__}",
                         error_key='TYPE_INVALID_OPERATION'
                     )
-
-                
+            
                 if index < 0 or index >= len(array):
                     raise self._create_error(
                         HPLIndexError,
                         f"Array index {index} out of bounds (length: {len(array)})",
                         error_key='RUNTIME_INDEX_OUT_OF_BOUNDS'
                     )
-
-                
+     
                 value = self.evaluate_expression(stmt.value_expr, local_scope)
                 array[index] = value
-
 
         elif isinstance(stmt, ReturnStatement):
             # 评估返回值并用HPLReturnValue包装，以便上层识别
@@ -294,8 +287,6 @@ class HPLEvaluator:
                     f"'{type(iterable).__name__}' object is not iterable",
                     error_key='TYPE_INVALID_OPERATION'
                 )
-
-
 
         elif isinstance(stmt, WhileStatement):
             while self.evaluate_expression(stmt.condition, local_scope):
@@ -363,8 +354,6 @@ class HPLEvaluator:
                     # finally 中的 return 会覆盖 try/catch 中的 return
                     if isinstance(finally_result, HPLReturnValue):
                         return finally_result
-
-
 
         elif isinstance(stmt, EchoStatement):
             message = self.evaluate_expression(stmt.expr, local_scope)
@@ -436,11 +425,9 @@ class HPLEvaluator:
                     error_key='RUNTIME_GENERAL'
                 )
 
-
         elif isinstance(expr, FunctionCall):
             # 检查是否是类实例化（类名存在于 self.classes 中）
             if expr.func_name in self.classes:
-                hpl_class = self.classes[expr.func_name]
                 # 实例化对象
                 args = [self.evaluate_expression(arg, local_scope) for arg in expr.args]
                 obj_name = f"__{expr.func_name}_instance_{id(expr)}__"
@@ -448,8 +435,6 @@ class HPLEvaluator:
             
             # 内置函数处理
             if expr.func_name == 'echo':
-
-
                 message = self.evaluate_expression(expr.args[0], local_scope)
                 echo(message)
                 return None
@@ -464,7 +449,6 @@ class HPLEvaluator:
                         f"len() requires list or string, got {type(arg).__name__}",
                         error_key='TYPE_INVALID_OPERATION'
                     )
-
 
             elif expr.func_name == 'int':
                 arg = self.evaluate_expression(expr.args[0], local_scope)
@@ -490,8 +474,6 @@ class HPLEvaluator:
                         error_key='TYPE_CONVERSION_FAILED'
                     )
 
-
-
             elif expr.func_name == 'float':
                 arg = self.evaluate_expression(expr.args[0], local_scope)
                 try:
@@ -511,7 +493,6 @@ class HPLEvaluator:
                         local_scope,
                         error_key='TYPE_CONVERSION_FAILED'
                     )
-
 
             elif expr.func_name == 'str':
                 arg = self.evaluate_expression(expr.args[0], local_scope)
@@ -573,8 +554,7 @@ class HPLEvaluator:
                         "range() requires 1 to 3 arguments",
                         error_key='RUNTIME_GENERAL'
                     )
-
-                
+               
                 args = [self.evaluate_expression(arg, local_scope) for arg in expr.args]
                 
                 # 检查所有参数都是整数
@@ -586,7 +566,6 @@ class HPLEvaluator:
                             error_key='TYPE_INVALID_OPERATION'
                         )
 
-                
                 if len(args) == 1:
                     # range(stop) -> 0 到 stop-1
                     return list(range(args[0]))
@@ -637,7 +616,6 @@ class HPLEvaluator:
                         error_key='RUNTIME_GENERAL'
                     )
 
-
             else:
                 # 检查是否是用户定义的函数（从include或其他方式导入）
                 if expr.func_name in self.functions:
@@ -658,8 +636,6 @@ class HPLEvaluator:
                         f"Unknown function '{expr.func_name}'",
                         error_key='RUNTIME_UNDEFINED_VAR'
                     )
-
-
 
         elif isinstance(expr, MethodCall):
             obj = self.evaluate_expression(expr.obj_name, local_scope)
@@ -694,7 +670,6 @@ class HPLEvaluator:
                         # 不是常量，可能是无参函数调用
                         return self.call_module_function(obj, expr.method_name, [])
 
-
                 else:
                     # 模块函数调用，如 math.sqrt(16)
                     args = [self.evaluate_expression(arg, local_scope) for arg in expr.args]
@@ -705,7 +680,6 @@ class HPLEvaluator:
                     f"Cannot call method on {type(obj).__name__}",
                     error_key='TYPE_INVALID_OPERATION'
                 )
-
 
         elif isinstance(expr, PostfixIncrement):
             var_name = expr.var.name
@@ -720,7 +694,6 @@ class HPLEvaluator:
             new_value = value + 1
             self._update_variable(var_name, new_value, local_scope)
             return value
-
 
         elif isinstance(expr, ArrayLiteral):
             return [self.evaluate_expression(elem, local_scope) for elem in expr.elements]
@@ -949,8 +922,6 @@ class HPLEvaluator:
 
             return array[index]
 
-
-
         elif isinstance(expr, DictionaryLiteral):
             # 评估字典字面量，计算所有值表达式
             result = {}
@@ -964,9 +935,7 @@ class HPLEvaluator:
                 f"Unknown expression type: {type(expr).__name__}",
                 error_key='RUNTIME_GENERAL'
             )
-
-
-
+        
 
     def _eval_binary_op(self, left, op, right, line=None, column=None):
         # 逻辑运算符
@@ -1040,10 +1009,6 @@ class HPLEvaluator:
             )
 
 
-
-
-
-
     def _lookup_variable(self, name, local_scope, line=None, column=None):
         """统一变量查找逻辑"""
         if name in local_scope:
@@ -1058,8 +1023,6 @@ class HPLEvaluator:
                 local_scope,
                 error_key='RUNTIME_UNDEFINED_VAR'
             )
-
-
 
 
     def _update_variable(self, name, value, local_scope):
@@ -1236,8 +1199,6 @@ class HPLEvaluator:
         )
 
 
-
-
     def call_module_function(self, module, func_name, args):
         """调用模块函数"""
         if is_hpl_module(module):
@@ -1257,7 +1218,6 @@ class HPLEvaluator:
             f"Cannot get constant from non-module object",
             error_key='TYPE_INVALID_OPERATION'
         )
-
 
 
     def _create_error(self, error_class, message, line=None, column=None, 

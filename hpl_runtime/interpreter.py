@@ -26,11 +26,10 @@ except ImportError:
 # 确保 hpl_runtime 目录在 Python 路径中
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
-# Get parent directory (project root) for proper imports
+# 获取父目录（项目根目录）以便正确导入
 project_dir = os.path.dirname(script_dir)
 if project_dir not in sys.path:
     sys.path.insert(0, project_dir)
-
 
 try:
     from hpl_runtime.core.parser import HPLParser
@@ -52,10 +51,6 @@ except ImportError:
         format_error_for_user
     )
     from hpl_runtime.utils.error_handler import HPLErrorHandler, create_error_handler
-
-
-
-
 
 
 def _instantiate_objects(evaluator, handler):
@@ -95,9 +90,6 @@ def _instantiate_objects(evaluator, handler):
                 raise
 
 
-
-
-
 def main():
     if len(sys.argv) != 2:
         print("Usage: python interpreter.py <hpl_file>")
@@ -124,7 +116,6 @@ def main():
 
         classes, objects, functions, main_func, call_target, call_args, imports = parser.parse()
 
-
         # 检查是否有 main 函数
         if main_func is None:
             print("[ERROR] No main function found in the HPL file")
@@ -133,11 +124,8 @@ def main():
         evaluator = HPLEvaluator(classes, objects, functions, main_func, call_target, call_args)
         handler.set_evaluator(evaluator)
 
-
         # 处理顶层导入（必须在对象实例化之前，以便构造函数可以使用导入的模块）
         for imp in imports:
-
-
             module_name = imp['module']
             alias = imp['alias'] or module_name
             # 创建 ImportStatement 并执行
@@ -171,9 +159,6 @@ def main():
         
         # 未预期的内部错误
         handler.handle_unexpected_error(e, hpl_file)
-
-
-
 
 
 if __name__ == "__main__":
