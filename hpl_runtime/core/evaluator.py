@@ -51,7 +51,11 @@ class HPLEvaluator:
         self.current_obj = None  # 用于方法中的'this'
         self.call_stack = []  # 调用栈，用于错误跟踪
         self.imported_modules = {}  # 导入的模块 {alias/name: module}
-
+        
+        # 初始化语句处理器映射表
+        self._init_statement_handlers()
+        # 初始化表达式处理器映射表
+        self._init_expression_handlers()
 
     def run(self):
         # 如果指定了 call_target，执行对应的函数
@@ -79,7 +83,6 @@ class HPLEvaluator:
         elif self.main_func:
             self.execute_function(self.main_func, {}, 'main')
 
-
     def execute_function(self, func, local_scope, func_name=None):
         # 执行语句块并返回结果
         # 添加到调用栈（如果提供了函数名）
@@ -97,7 +100,6 @@ class HPLEvaluator:
             if func_name:
                 self.call_stack.pop()
 
-
     def execute_block(self, block, local_scope):
         for stmt in block.statements:
             result = self.execute_statement(stmt, local_scope)
@@ -111,831 +113,825 @@ class HPLEvaluator:
                 raise result
         return None
 
-    def execute_statement(self, stmt, local_scope):
-        if isinstance(stmt, AssignmentStatement):
-            value = self.evaluate_expression(stmt.expr, local_scope)
-            # 检查是否是属性赋值（如 this.name = value）
-            if '.' in stmt.var_name:
-                obj_name, prop_name = stmt.var_name.split('.', 1)
-                # 获取对象
-                if obj_name == 'this':
-                    obj = local_scope.get('this') or self.current_obj
-                else:
-                    obj = self._lookup_variable(obj_name, local_scope, stmt.line, stmt.column)
+    def _init_statement_handlers(self):
+        """初始化语句处理器映射表"""
+        self._statement_handlers = {
+            AssignmentStatement: self._execute_assignment,
+            ArrayAssignmentStatement: self._execute_array_assignment,
+            ReturnStatement: self._execute_return,
+            IfStatement: self._execute_if,
+            ForInStatement: self._execute_for_in,
+            WhileStatement: self._execute_while,
+            BreakStatement: self._execute_break,
+            ContinueStatement: self._execute_continue,
+            ThrowStatement: self._execute_throw,
+            TryCatchStatement: self._execute_try_catch,
+            EchoStatement: self._execute_echo,
+            ImportStatement: self._execute_import,
+            IncrementStatement: self._execute_increment,
+            BlockStatement: self._execute_block_statement,
+            Expression: self._execute_expression_statement,
+            MethodCall: self._execute_method_call_statement,
+            FunctionCall: self._execute_function_call_statement,
+        }
 
-                if isinstance(obj, HPLObject):
-                    obj.attributes[prop_name] = value
-                else:
-                    raise self._create_error(
-                        HPLTypeError,
-                        f"Cannot set property on non-object value: {type(obj).__name__}",
-                        stmt.line, stmt.column,
-                        local_scope,
-                        error_key='TYPE_MISSING_PROPERTY'
-                    )
 
-            else:
-                local_scope[stmt.var_name] = value
-
-        elif isinstance(stmt, ArrayAssignmentStatement):
-            # 数组元素赋值：arr[index] = value
-            # 或者复合赋值：obj.prop[index] = value
-            
-            # 检查是否是复合属性访问（如 this.exits[direction]）
-            if '.' in stmt.array_name:
-                # 复合属性数组赋值：obj.prop[index] = value
-                obj_name, prop_name = stmt.array_name.split('.', 1)
-                
-                # 获取对象
-                if obj_name == 'this':
-                    obj = local_scope.get('this') or self.current_obj
-                else:
-                    obj = self._lookup_variable(obj_name, local_scope)
-                
-                if not isinstance(obj, HPLObject):
-                    raise self._create_error(
-                        HPLTypeError,
-                        f"Cannot access property on non-object value: {type(obj).__name__}",
-                        error_key='TYPE_MISSING_PROPERTY'
-                    )
     
-                # 获取属性（应该是数组/字典）
-                if prop_name not in obj.attributes:
-                    # 如果属性不存在，创建一个空字典
-                    obj.attributes[prop_name] = {}
-                
-                array = obj.attributes[prop_name]
-                
-                # 计算索引
-                index = self.evaluate_expression(stmt.index_expr, local_scope)
-                value = self.evaluate_expression(stmt.value_expr, local_scope)
-                
-                # 支持字典和数组
-                if isinstance(array, dict):
-                    array[index] = value
-                elif isinstance(array, list):
-                    if not isinstance(index, int):
-                        raise self._create_error(
-                            HPLTypeError,
-                            f"Array index must be integer, got {type(index).__name__}",
-                            error_key='TYPE_INVALID_OPERATION'
-                        )
-                    if index < 0 or index >= len(array):
-                        raise self._create_error(
-                            HPLIndexError,
-                            f"Array index {index} out of bounds (length: {len(array)})",
-                            error_key='RUNTIME_INDEX_OUT_OF_BOUNDS'
-                        )
-
-                    array[index] = value
-                else:
-                    raise self._create_error(
-                        HPLTypeError,
-                        f"Cannot index non-array and non-dict value: {type(array).__name__}",
-                        error_key='TYPE_INVALID_OPERATION'
-                    )
-
+    def execute_statement(self, stmt, local_scope):
+        """语句执行主分发器"""
+        handler = self._statement_handlers.get(type(stmt))
+        if handler:
+            return handler(stmt, local_scope)
+        raise self._create_error(
+            HPLRuntimeError,
+            f"Unknown statement type: {type(stmt).__name__}",
+            error_key='RUNTIME_GENERAL'
+        )
+    
+    def _execute_assignment(self, stmt, local_scope):
+        """执行赋值语句"""
+        value = self.evaluate_expression(stmt.expr, local_scope)
+        # 检查是否是属性赋值（如 this.name = value）
+        if '.' in stmt.var_name:
+            obj_name, prop_name = stmt.var_name.split('.', 1)
+            # 获取对象
+            if obj_name == 'this':
+                obj = local_scope.get('this') or self.current_obj
             else:
-                # 简单数组赋值
-                array = self._lookup_variable(stmt.array_name, local_scope)
-                if not isinstance(array, list):
-                    raise self._create_error(
-                        HPLTypeError,
-                        f"Cannot assign to non-array value: {type(array).__name__}",
-                        error_key='TYPE_INVALID_OPERATION'
-                    )
-             
-                index = self.evaluate_expression(stmt.index_expr, local_scope)
+                obj = self._lookup_variable(obj_name, local_scope, stmt.line, stmt.column)
+
+            if isinstance(obj, HPLObject):
+                obj.attributes[prop_name] = value
+            else:
+                raise self._create_error(
+                    HPLTypeError,
+                    f"Cannot set property on non-object value: {type(obj).__name__}",
+                    stmt.line, stmt.column,
+                    local_scope,
+                    error_key='TYPE_MISSING_PROPERTY'
+                )
+        else:
+            local_scope[stmt.var_name] = value
+    
+    def _execute_array_assignment(self, stmt, local_scope):
+        """执行数组元素赋值语句"""
+        # 检查是否是复合属性访问（如 this.exits[direction]）
+        if '.' in stmt.array_name:
+            # 复合属性数组赋值：obj.prop[index] = value
+            obj_name, prop_name = stmt.array_name.split('.', 1)
+            
+            # 获取对象
+            if obj_name == 'this':
+                obj = local_scope.get('this') or self.current_obj
+            else:
+                obj = self._lookup_variable(obj_name, local_scope)
+            
+            if not isinstance(obj, HPLObject):
+                raise self._create_error(
+                    HPLTypeError,
+                    f"Cannot access property on non-object value: {type(obj).__name__}",
+                    error_key='TYPE_MISSING_PROPERTY'
+                )
+
+            # 获取属性（应该是数组/字典）
+            if prop_name not in obj.attributes:
+                # 如果属性不存在，创建一个空字典
+                obj.attributes[prop_name] = {}
+            
+            array = obj.attributes[prop_name]
+            
+            # 计算索引
+            index = self.evaluate_expression(stmt.index_expr, local_scope)
+            value = self.evaluate_expression(stmt.value_expr, local_scope)
+            
+            # 支持字典和数组
+            if isinstance(array, dict):
+                array[index] = value
+            elif isinstance(array, list):
                 if not isinstance(index, int):
                     raise self._create_error(
                         HPLTypeError,
                         f"Array index must be integer, got {type(index).__name__}",
                         error_key='TYPE_INVALID_OPERATION'
                     )
-            
                 if index < 0 or index >= len(array):
                     raise self._create_error(
                         HPLIndexError,
                         f"Array index {index} out of bounds (length: {len(array)})",
                         error_key='RUNTIME_INDEX_OUT_OF_BOUNDS'
                     )
-     
-                value = self.evaluate_expression(stmt.value_expr, local_scope)
                 array[index] = value
-
-        elif isinstance(stmt, ReturnStatement):
-            # 评估返回值并用HPLReturnValue包装，以便上层识别
-            value = None
-            if stmt.expr:
-                value = self.evaluate_expression(stmt.expr, local_scope)
-            return HPLReturnValue(value)
-
-        elif isinstance(stmt, IfStatement):
-            cond = self.evaluate_expression(stmt.condition, local_scope)
-            if cond:
-                result = self.execute_block(stmt.then_block, local_scope)
-                if isinstance(result, HPLReturnValue):
-                    return result
-            elif stmt.else_block:
-                result = self.execute_block(stmt.else_block, local_scope)
-                if isinstance(result, HPLReturnValue):
-                    return result
-        elif isinstance(stmt, ForInStatement):
-            # 计算可迭代对象
-            iterable = self.evaluate_expression(stmt.iterable_expr, local_scope)
-            
-            # 根据类型进行迭代
-            if isinstance(iterable, list):
-                # 数组迭代
-                for item in iterable:
-                    local_scope[stmt.var_name] = item
-                    try:
-                        result = self.execute_block(stmt.body, local_scope)
-                        if isinstance(result, HPLReturnValue):
-                            return result
-                    except HPLBreakException:
-                        break
-                    except HPLContinueException:
-                        continue
-            elif isinstance(iterable, dict):
-                # 字典迭代（遍历键）
-                for key in iterable.keys():
-                    local_scope[stmt.var_name] = key
-                    try:
-                        result = self.execute_block(stmt.body, local_scope)
-                        if isinstance(result, HPLReturnValue):
-                            return result
-                    except HPLBreakException:
-                        break
-                    except HPLContinueException:
-                        continue
-            elif isinstance(iterable, str):
-                # 字符串迭代（遍历字符）
-                for char in iterable:
-                    local_scope[stmt.var_name] = char
-                    try:
-                        result = self.execute_block(stmt.body, local_scope)
-                        if isinstance(result, HPLReturnValue):
-                            return result
-                    except HPLBreakException:
-                        break
-                    except HPLContinueException:
-                        continue
             else:
                 raise self._create_error(
                     HPLTypeError,
-                    f"'{type(iterable).__name__}' object is not iterable",
+                    f"Cannot index non-array and non-dict value: {type(array).__name__}",
                     error_key='TYPE_INVALID_OPERATION'
                 )
-
-        elif isinstance(stmt, WhileStatement):
-            while self.evaluate_expression(stmt.condition, local_scope):
-                try:
-                    result = self.execute_block(stmt.body, local_scope)
-                    # 如果是HPLReturnValue，立即终止循环并向上传播
-                    if isinstance(result, HPLReturnValue):
-                        return result
-                except HPLBreakException:
-                    break
-                except HPLContinueException:
-                    pass
-
-        elif isinstance(stmt, BreakStatement):
-            raise HPLBreakException()
-        elif isinstance(stmt, ContinueStatement):
-            raise HPLContinueException()
-        elif isinstance(stmt, ThrowStatement):
-            # 评估 throw 表达式并抛出异常
-            value = None
-            if stmt.expr:
-                value = self.evaluate_expression(stmt.expr, local_scope)
-            raise self._create_error(
-                HPLRuntimeError,
-                str(value) if value is not None else "Exception thrown",
-                error_key='RUNTIME_GENERAL'
-            )
-
-        elif isinstance(stmt, TryCatchStatement):
-            caught = False
-            error_obj = None
-            result = None
-            
-            try:
-                result = self.execute_block(stmt.try_block, local_scope)
-                # 如果是HPLReturnValue，向上传播
-                if isinstance(result, HPLReturnValue):
-                    return result
-            except HPLRuntimeError as e:
-                error_obj = e
-                
-                # 尝试匹配特定的 catch 子句
-                for catch in stmt.catch_clauses:
-                    if self._matches_error_type(e, catch.error_type):
-                        # 传递完整错误对象（而不仅是字符串）
-                        local_scope[catch.var_name] = error_obj
-                        result = self.execute_block(catch.block, local_scope)
-                        caught = True
-                        if isinstance(result, HPLReturnValue):
-                            return result
-                        break
-                
-                if not caught:
-                    # 重新抛出未捕获的错误，添加try块位置信息
-                    if e.line is None and hasattr(stmt.try_block, 'line'):
-                        e.line = stmt.try_block.line
-                    raise  # 重新抛出
-            except HPLControlFlowException:
-                # 控制流异常（break, continue, return）自然传播，不处理
-                raise
-            finally:
-                # 执行 finally 块（如果有）
-                if stmt.finally_block:
-                    finally_result = self.execute_block(stmt.finally_block, local_scope)
-                    # finally 中的 return 会覆盖 try/catch 中的 return
-                    if isinstance(finally_result, HPLReturnValue):
-                        return finally_result
-
-        elif isinstance(stmt, EchoStatement):
-            message = self.evaluate_expression(stmt.expr, local_scope)
-            echo(message)
-
-        elif isinstance(stmt, ImportStatement):
-            self.execute_import(stmt, local_scope)
-        elif isinstance(stmt, IncrementStatement):
-            # 前缀自增
-            value = self._lookup_variable(stmt.var_name, local_scope)
-            if not isinstance(value, (int, float)):
-                raise self._create_error(
-                    HPLTypeError,
-                    f"Cannot increment non-numeric value: {type(value).__name__}",
-                    stmt.line, stmt.column,
-                    local_scope,
-                    error_key='TYPE_INVALID_OPERATION'
-                )
-
-            new_value = value + 1
-            self._update_variable(stmt.var_name, new_value, local_scope)
-        elif isinstance(stmt, BlockStatement):
-            return self.execute_block(stmt, local_scope)
-        elif isinstance(stmt, Expression):
-            # 表达式作为语句
-            return self.evaluate_expression(stmt, local_scope)
-        return None
-    
-
-    def evaluate_expression(self, expr, local_scope):
-        if isinstance(expr, IntegerLiteral):
-            return expr.value
-        elif isinstance(expr, FloatLiteral):
-            return expr.value
-        elif isinstance(expr, StringLiteral):
-            return expr.value
-        elif isinstance(expr, BooleanLiteral):
-            return expr.value
-        elif isinstance(expr, NullLiteral):
-            return None
-
-        elif isinstance(expr, Variable):
-
-            return self._lookup_variable(expr.name, local_scope, expr.line, expr.column)
-        elif isinstance(expr, BinaryOp):
-            left = self.evaluate_expression(expr.left, local_scope)
-            right = self.evaluate_expression(expr.right, local_scope)
-            return self._eval_binary_op(left, expr.op, right, expr.line, expr.column)
-
-        elif isinstance(expr, UnaryOp):
-            operand = self.evaluate_expression(expr.operand, local_scope)
-            if expr.op == '!':
-                if not isinstance(operand, bool):
-                    raise self._create_error(
-                        HPLTypeError,
-                        f"Logical NOT requires boolean operand, got {type(operand).__name__}",
-                        expr.line, expr.column,
-                        local_scope,
-                        error_key='TYPE_INVALID_OPERATION'
-                    )
-
-                return not operand
-            else:
-                raise self._create_error(
-                    HPLRuntimeError,
-                    f"Unknown unary operator {expr.op}",
-                    expr.line, expr.column,
-                    local_scope,
-                    error_key='RUNTIME_GENERAL'
-                )
-
-        elif isinstance(expr, FunctionCall):
-            # 检查是否是类实例化（类名存在于 self.classes 中）
-            if expr.func_name in self.classes:
-                # 实例化对象
-                args = [self.evaluate_expression(arg, local_scope) for arg in expr.args]
-                obj_name = f"__{expr.func_name}_instance_{id(expr)}__"
-                return self.instantiate_object(expr.func_name, obj_name, args)
-            
-            # 内置函数处理
-            if expr.func_name == 'echo':
-                message = self.evaluate_expression(expr.args[0], local_scope)
-                echo(message)
-                return None
-
-            elif expr.func_name == 'len':
-                arg = self.evaluate_expression(expr.args[0], local_scope)
-                if isinstance(arg, (list, str)):
-                    return len(arg)
-                else:
-                    raise self._create_error(
-                        HPLTypeError,
-                        f"len() requires list or string, got {type(arg).__name__}",
-                        error_key='TYPE_INVALID_OPERATION'
-                    )
-
-            elif expr.func_name == 'int':
-                arg = self.evaluate_expression(expr.args[0], local_scope)
-                try:
-                    return int(arg)
-                except (ValueError, TypeError) as e:
-                    arg_type = type(arg).__name__
-                    suggestion = ""
-                    if arg_type == 'str':
-                        suggestion = " (确保字符串只包含数字，如: int(\"42\"))"
-                    elif arg_type == 'list':
-                        suggestion = " (不能将数组转换为整数)"
-                    elif arg_type == 'dict':
-                        suggestion = " (不能将字典转换为整数)"
-                    elif arg_type == 'NoneType':
-                        suggestion = " (变量未初始化，值为 null)"
-                    
-                    raise self._create_error(
-                        HPLTypeError,
-                        f"Cannot convert {arg_type} (value: {arg!r}) to int{suggestion}",
-                        expr.line, expr.column,
-                        local_scope,
-                        error_key='TYPE_CONVERSION_FAILED'
-                    )
-
-            elif expr.func_name == 'float':
-                arg = self.evaluate_expression(expr.args[0], local_scope)
-                try:
-                    return float(arg)
-                except (ValueError, TypeError) as e:
-                    arg_type = type(arg).__name__
-                    suggestion = ""
-                    if arg_type == 'str':
-                        suggestion = " (确保字符串是有效的数字格式，如: float(\"3.14\"))"
-                    elif arg_type == 'NoneType':
-                        suggestion = " (变量未初始化，值为 null)"
-                    
-                    raise self._create_error(
-                        HPLTypeError,
-                        f"Cannot convert {arg_type} (value: {arg!r}) to float{suggestion}",
-                        expr.line, expr.column,
-                        local_scope,
-                        error_key='TYPE_CONVERSION_FAILED'
-                    )
-
-            elif expr.func_name == 'str':
-                arg = self.evaluate_expression(expr.args[0], local_scope)
-                return str(arg)
-
-            elif expr.func_name == 'type':
-                arg = self.evaluate_expression(expr.args[0], local_scope)
-                if isinstance(arg, bool):
-                    return 'boolean'
-                elif isinstance(arg, int):
-                    return 'int'
-                elif isinstance(arg, float):
-                    return 'float'
-                elif isinstance(arg, str):
-                    return 'string'
-                elif isinstance(arg, list):
-                    return 'array'
-                elif isinstance(arg, HPLObject):
-                    return arg.hpl_class.name
-                else:
-                    return type(arg).__name__
-            elif expr.func_name == 'abs':
-                arg = self.evaluate_expression(expr.args[0], local_scope)
-                if not isinstance(arg, (int, float)):
-                    raise self._create_error(
-                        HPLTypeError,
-                        f"abs() requires number, got {type(arg).__name__}",
-                        error_key='TYPE_INVALID_OPERATION'
-                    )
-
-                return abs(arg)
-
-            elif expr.func_name == 'max':
-                if len(expr.args) < 1:
-                    raise self._create_error(
-                        HPLValueError,
-                        "max() requires at least one argument",
-                        error_key='RUNTIME_GENERAL'
-                    )
-
-                args = [self.evaluate_expression(arg, local_scope) for arg in expr.args]
-                return max(args)
-            elif expr.func_name == 'min':
-                if len(expr.args) < 1:
-                    raise self._create_error(
-                        HPLValueError,
-                        "min() requires at least one argument",
-                        error_key='RUNTIME_GENERAL'
-                    )
-
-                args = [self.evaluate_expression(arg, local_scope) for arg in expr.args]
-                return min(args)
-
-            elif expr.func_name == 'range':
-                # range 函数实现
-                if len(expr.args) < 1 or len(expr.args) > 3:
-                    raise self._create_error(
-                        HPLValueError,
-                        "range() requires 1 to 3 arguments",
-                        error_key='RUNTIME_GENERAL'
-                    )
-               
-                args = [self.evaluate_expression(arg, local_scope) for arg in expr.args]
-                
-                # 检查所有参数都是整数
-                for arg in args:
-                    if not isinstance(arg, int):
-                        raise self._create_error(
-                            HPLTypeError,
-                            f"range() arguments must be integers, got {type(arg).__name__}",
-                            error_key='TYPE_INVALID_OPERATION'
-                        )
-
-                if len(args) == 1:
-                    # range(stop) -> 0 到 stop-1
-                    return list(range(args[0]))
-                elif len(args) == 2:
-                    # range(start, stop) -> start 到 stop-1
-                    return list(range(args[0], args[1]))
-                else:
-                    # range(start, stop, step)
-                    return list(range(args[0], args[1], args[2]))
-
-            elif expr.func_name == 'input':
-
-                # 获取用户输入
-                if len(expr.args) == 0:
-                    # 无参数：直接读取输入
-                    try:
-                        return input()
-                    except EOFError:
-                        raise self._create_error(
-                            HPLIOError,
-                            "End of file reached while waiting for input",
-                            error_key='IO_READ_ERROR'
-                        )
-
-                elif len(expr.args) == 1:
-                    # 一个参数：显示提示信息后读取输入
-                    prompt = self.evaluate_expression(expr.args[0], local_scope)
-                    if not isinstance(prompt, str):
-                        raise self._create_error(
-                            HPLTypeError,
-                            f"input() requires string prompt, got {type(prompt).__name__}",
-                            error_key='TYPE_INVALID_OPERATION'
-                        )
-
-                    try:
-                        return input(prompt)
-                    except EOFError:
-                        raise self._create_error(
-                            HPLIOError,
-                            "End of file reached while waiting for input",
-                            error_key='IO_READ_ERROR'
-                        )
-
-                else:
-                    raise self._create_error(
-                        HPLValueError,
-                        f"input() requires 0 or 1 arguments, got {len(expr.args)}",
-                        error_key='RUNTIME_GENERAL'
-                    )
-
-            else:
-                # 检查是否是用户定义的函数（从include或其他方式导入）
-                if expr.func_name in self.functions:
-                    # 调用用户定义的函数
-                    target_func = self.functions[expr.func_name]
-                    args = [self.evaluate_expression(arg, local_scope) for arg in expr.args]
-                    # 构建参数作用域
-                    func_scope = {}
-                    for i, param in enumerate(target_func.params):
-                        if i < len(args):
-                            func_scope[param] = args[i]
-                        else:
-                            func_scope[param] = None  # 默认值为 None
-                    return self.execute_function(target_func, func_scope, expr.func_name)
-                else:
-                    raise self._create_error(
-                        HPLNameError,
-                        f"Unknown function '{expr.func_name}'",
-                        error_key='RUNTIME_UNDEFINED_VAR'
-                    )
-
-        elif isinstance(expr, MethodCall):
-            obj = self.evaluate_expression(expr.obj_name, local_scope)
-            if isinstance(obj, HPLObject):
-                # 处理 parent 特殊属性访问
-                if expr.method_name == 'parent':
-                    if obj.hpl_class.parent and obj.hpl_class.parent in self.classes:
-                        parent_class = self.classes[obj.hpl_class.parent]
-                        # 如果后面还有调用（如 this.parent.init()），继续处理
-                        return parent_class
-                    else:
-                        raise self._create_error(
-                            HPLAttributeError,
-                            f"Class '{obj.hpl_class.name}' has no parent class",
-                            error_key='TYPE_MISSING_PROPERTY'
-                        )
-
-                args = [self.evaluate_expression(arg, local_scope) for arg in expr.args]
-                return self._call_method(obj, expr.method_name, args)
-            elif isinstance(obj, HPLClass):
-                # 处理类方法调用（如父类方法）
-                args = [self.evaluate_expression(arg, local_scope) for arg in expr.args]
-                return self._call_method(obj, expr.method_name, args)
-            elif is_hpl_module(obj):
-
-                # 模块函数调用或常量访问
-                if len(expr.args) == 0:
-                    # 可能是模块常量访问，如 math.PI
-                    try:
-                        return self.get_module_constant(obj, expr.method_name)
-                    except HPLAttributeError:
-                        # 不是常量，可能是无参函数调用
-                        return self.call_module_function(obj, expr.method_name, [])
-
-                else:
-                    # 模块函数调用，如 math.sqrt(16)
-                    args = [self.evaluate_expression(arg, local_scope) for arg in expr.args]
-                    return self.call_module_function(obj, expr.method_name, args)
-            else:
-                raise self._create_error(
-                    HPLTypeError,
-                    f"Cannot call method on {type(obj).__name__}",
-                    error_key='TYPE_INVALID_OPERATION'
-                )
-
-        elif isinstance(expr, PostfixIncrement):
-            var_name = expr.var.name
-            value = self._lookup_variable(var_name, local_scope)
-            if not isinstance(value, (int, float)):
-                raise self._create_error(
-                    HPLTypeError,
-                    f"Cannot increment non-numeric value: {type(value).__name__}",
-                    error_key='TYPE_INVALID_OPERATION'
-                )
-
-            new_value = value + 1
-            self._update_variable(var_name, new_value, local_scope)
-            return value
-
-        elif isinstance(expr, ArrayLiteral):
-            return [self.evaluate_expression(elem, local_scope) for elem in expr.elements]
-        elif isinstance(expr, ArrayAccess):
-            array = self.evaluate_expression(expr.array, local_scope)
-            index = self.evaluate_expression(expr.index, local_scope)
-
-            # 处理字典访问
-            if isinstance(array, dict):
-                # 字典键检查 - 使用新的 HPLKeyError
-                if index not in array:
-                    available_keys = list(array.keys())[:10]  # 显示前10个可用键
-                    key_type = type(index).__name__
-
-                    # 查找相似键
-                    similar_keys = []
-                    if available_keys:
-                        key_strs = [str(k) for k in available_keys]
-                        target_str = str(index)
-                        similar = difflib.get_close_matches(target_str, key_strs, n=3, cutoff=0.6)
-                        if similar:
-                            similar_keys = similar
-
-                    # 构建错误消息
-                    parts = [f"Key {index!r} (type: {key_type}) not found in dictionary"]
-
-                    if available_keys:
-                        parts.append(f"Available keys: {available_keys}")
-                    else:
-                        parts.append("Dictionary is empty")
-
-                    if similar_keys:
-                        if len(similar_keys) == 1:
-                            parts.append(f"Did you mean: '{similar_keys[0]}'?")
-                        else:
-                            parts.append(f"Similar keys: {', '.join(similar_keys)}")
-
-                    # 键类型建议
-                    if isinstance(index, int):
-                        str_keys = [k for k in available_keys if isinstance(k, str) and str(index) == k]
-                        if str_keys:
-                            parts.append(f"Try using string key: '{index}'")
-                    elif isinstance(index, str) and index.isdigit():
-                        int_keys = [k for k in available_keys if isinstance(k, int) and str(k) == index]
-                        if int_keys:
-                            parts.append(f"Try using integer key: {int(index)}")
-
-                    # 检查是否是字符串数字的整数键
-                    if isinstance(index, str) and index.isdigit():
-                        int_key = int(index)
-                        if int_key in array:
-                            parts.append(f"Key exists as integer: {int_key}")
-
-                    # 检查是否是整数的字符串键
-                    if isinstance(index, int):
-                        str_key = str(index)
-                        if str_key in array:
-                            parts.append(f"Key exists as string: '{str_key}'")
-
-                    hint = ". ".join(parts)
-
-                    raise HPLKeyError(
-                        hint,
-                        line=expr.line,
-                        column=expr.column,
-                        error_key='RUNTIME_KEY_NOT_FOUND'
-                    )
-
-                return array[index]
-
-            # 处理字符串索引访问
-            elif isinstance(array, str):
-                # 字符串索引类型检查
-                if not isinstance(index, int):
-                    index_type = type(index).__name__
-                    suggestions = []
-
-                    # 智能类型转换建议
-                    if isinstance(index, str) and index.isdigit():
-                        suggestions.append(f"使用 int() 转换: int('{index}')")
-                    elif isinstance(index, float) and index.is_integer():
-                        suggestions.append(f"使用 int() 转换: int({index})")
-                    elif index is None:
-                        suggestions.append("索引不能为 null")
-                    else:
-                        suggestions.append(f"字符串索引必须是整数，得到的是 {index_type}")
-
-                    hint = f" ({'; '.join(suggestions)})" if suggestions else ""
-
-                    raise self._create_error(
-                        HPLTypeError,
-                        f"String index must be integer, got {index_type} (value: {index!r}){hint}",
-                        expr.line, expr.column,
-                        local_scope,
-                        error_key='TYPE_INVALID_OPERATION'
-                    )
-
-                # 字符串边界检查
-                length = len(array)
-                if index < 0 or index >= length:
-                    suggestions = []
-
-                    if index < 0 and length > 0:
-                        reverse_idx = length + index
-                        if 0 <= reverse_idx < length:
-                            suggestions.append(f"使用正向索引 {reverse_idx} 访问第 {abs(index)} 个字符")
-
-                    if index >= length:
-                        suggestions.append(f"字符串长度为 {length}，最大索引是 {length - 1}")
-
-                    if length > 0:
-                        suggestions.append(f"有效索引范围: 0 到 {length - 1}")
-                    else:
-                        suggestions.append("字符串为空")
-
-                    # 字符显示建议
-                    if length > 0 and index >= 0:
-                        if index < length:
-                            char = array[index]
-                            suggestions.append(f"该位置的字符是: '{char}'")
-                        elif index < length + 5:  # 显示超出范围的字符
-                            suggestions.append(f"超出范围，字符串内容: '{array}'")
-
-                    hint = f" ({'; '.join(suggestions)})" if suggestions else ""
-
-                    raise self._create_error(
-                        HPLIndexError,
-                        f"String index {index} out of bounds (length: {length}){hint}",
-                        expr.line, expr.column,
-                        local_scope,
-                        error_key='RUNTIME_INDEX_OUT_OF_BOUNDS'
-                    )
-
-                return array[index]
-
-            # 增强类型检查和错误信息
+        else:
+            # 简单数组赋值
+            array = self._lookup_variable(stmt.array_name, local_scope)
             if not isinstance(array, list):
-                actual_type = type(array).__name__
-                hint = ""
-                if actual_type == 'dict':
-                    hint = " (字典使用键访问，如: dict[key])"
-                elif actual_type == 'int':
-                    hint = " (数字不可索引)"
-                elif actual_type == 'float':
-                    hint = " (浮点数不可索引)"
-                elif actual_type == 'NoneType':
-                    hint = " (变量可能未初始化，为 null)"
-                elif actual_type == 'HPLObject':
-                    hint = " (对象使用属性访问，如: obj.property)"
-                else:
-                    hint = f" (类型 {actual_type} 不支持索引操作)"
-
                 raise self._create_error(
                     HPLTypeError,
-                    f"Cannot index {actual_type} value{hint}",
-                    expr.line, expr.column,
-                    local_scope,
+                    f"Cannot assign to non-array value: {type(array).__name__}",
                     error_key='TYPE_INVALID_OPERATION'
                 )
-
-            # 数组索引类型检查
+         
+            index = self.evaluate_expression(stmt.index_expr, local_scope)
             if not isinstance(index, int):
-                index_type = type(index).__name__
-                suggestions = []
-
-                # 智能类型转换建议
-                if isinstance(index, str) and index.isdigit():
-                    suggestions.append(f"使用 int() 转换: int('{index}')")
-                elif isinstance(index, float) and index.is_integer():
-                    suggestions.append(f"使用 int() 转换: int({index})")
-                elif index is None:
-                    suggestions.append("索引不能为 null")
-                else:
-                    suggestions.append(f"数组索引必须是整数，得到的是 {index_type}")
-
-                hint = f" ({'; '.join(suggestions)})" if suggestions else ""
-
                 raise self._create_error(
                     HPLTypeError,
-                    f"Array index must be integer, got {index_type} (value: {index!r}){hint}",
-                    expr.line, expr.column,
-                    local_scope,
+                    f"Array index must be integer, got {type(index).__name__}",
                     error_key='TYPE_INVALID_OPERATION'
                 )
-
-            # 增强边界检查
-            length = len(array)
-            if index < 0 or index >= length:
-                suggestions = []
-
-                if index < 0 and length > 0:
-                    reverse_idx = length + index
-                    if 0 <= reverse_idx < length:
-                        suggestions.append(f"使用正向索引 {reverse_idx} 访问倒数第 {abs(index)} 个元素")
-
-                if index >= length:
-                    suggestions.append(f"数组长度为 {length}，最大有效索引是 {length - 1}")
-
-                if length > 0:
-                    suggestions.append(f"有效索引范围: 0 到 {length - 1}")
-                else:
-                    suggestions.append("数组为空，无法访问任何索引")
-
-                # 数组内容显示建议
-                if length > 0 and index >= 0 and index < length + 3:
-                    if index < length:
-                        element = array[index]
-                        element_type = type(element).__name__
-                        suggestions.append(f"该位置的元素是: {element!r} (类型: {element_type})")
-                    else:
-                        # 显示数组内容
-                        if length <= 5:
-                            suggestions.append(f"数组内容: {array}")
-                        else:
-                            suggestions.append(f"数组前5个元素: {array[:5]}")
-
-                hint = f" ({'; '.join(suggestions)})" if suggestions else ""
-
+        
+            if index < 0 or index >= len(array):
                 raise self._create_error(
                     HPLIndexError,
-                    f"Array index {index} out of bounds (length: {length}){hint}",
-                    expr.line, expr.column,
-                    local_scope,
+                    f"Array index {index} out of bounds (length: {len(array)})",
                     error_key='RUNTIME_INDEX_OUT_OF_BOUNDS'
                 )
+     
+            value = self.evaluate_expression(stmt.value_expr, local_scope)
+            array[index] = value
+    
+    def _execute_return(self, stmt, local_scope):
+        """执行返回语句"""
+        value = None
+        if stmt.expr:
+            value = self.evaluate_expression(stmt.expr, local_scope)
+        return HPLReturnValue(value)
+    
+    def _execute_if(self, stmt, local_scope):
+        """执行条件语句"""
+        cond = self.evaluate_expression(stmt.condition, local_scope)
+        if cond:
+            result = self.execute_block(stmt.then_block, local_scope)
+            if isinstance(result, HPLReturnValue):
+                return result
+        elif stmt.else_block:
+            result = self.execute_block(stmt.else_block, local_scope)
+            if isinstance(result, HPLReturnValue):
+                return result
+    
+    def _execute_for_in(self, stmt, local_scope):
+        """执行for-in循环语句"""
+        iterable = self.evaluate_expression(stmt.iterable_expr, local_scope)
+        
+        # 根据类型进行迭代
+        if isinstance(iterable, list):
+            iterator = iterable
+        elif isinstance(iterable, dict):
+            iterator = iterable.keys()
+        elif isinstance(iterable, str):
+            iterator = iterable
+        else:
+            raise self._create_error(
+                HPLTypeError,
+                f"'{type(iterable).__name__}' object is not iterable",
+                error_key='TYPE_INVALID_OPERATION'
+            )
+        
+        for item in iterator:
+            local_scope[stmt.var_name] = item
+            try:
+                result = self.execute_block(stmt.body, local_scope)
+                if isinstance(result, HPLReturnValue):
+                    return result
+            except HPLBreakException:
+                break
+            except HPLContinueException:
+                continue
+    
+    def _execute_while(self, stmt, local_scope):
+        """执行while循环语句"""
+        while self.evaluate_expression(stmt.condition, local_scope):
+            try:
+                result = self.execute_block(stmt.body, local_scope)
+                if isinstance(result, HPLReturnValue):
+                    return result
+            except HPLBreakException:
+                break
+            except HPLContinueException:
+                pass
+    
+    def _execute_break(self, stmt, local_scope):
+        """执行break语句"""
+        raise HPLBreakException()
+    
+    def _execute_continue(self, stmt, local_scope):
+        """执行continue语句"""
+        raise HPLContinueException()
+    
+    def _execute_throw(self, stmt, local_scope):
+        """执行throw语句"""
+        value = None
+        if stmt.expr:
+            value = self.evaluate_expression(stmt.expr, local_scope)
+        raise self._create_error(
+            HPLRuntimeError,
+            str(value) if value is not None else "Exception thrown",
+            error_key='RUNTIME_GENERAL'
+        )
+    
+    def _execute_try_catch(self, stmt, local_scope):
+        """执行try-catch-finally语句"""
+        caught = False
+        error_obj = None
+        result = None
+        
+        try:
+            result = self.execute_block(stmt.try_block, local_scope)
+            if isinstance(result, HPLReturnValue):
+                return result
+        except HPLRuntimeError as e:
+            error_obj = e
+            
+            # 尝试匹配特定的 catch 子句
+            for catch in stmt.catch_clauses:
+                if self._matches_error_type(e, catch.error_type):
+                    local_scope[catch.var_name] = error_obj
+                    result = self.execute_block(catch.block, local_scope)
+                    caught = True
+                    if isinstance(result, HPLReturnValue):
+                        return result
+                    break
+            
+            if not caught:
+                if e.line is None and hasattr(stmt.try_block, 'line'):
+                    e.line = stmt.try_block.line
+                raise
+        except HPLControlFlowException:
+            raise
+        finally:
+            if stmt.finally_block:
+                finally_result = self.execute_block(stmt.finally_block, local_scope)
+                if isinstance(finally_result, HPLReturnValue):
+                    return finally_result
+    
+    def _execute_echo(self, stmt, local_scope):
+        """执行echo语句"""
+        message = self.evaluate_expression(stmt.expr, local_scope)
+        echo(message)
+    
+    def _execute_import(self, stmt, local_scope):
+        """执行import语句"""
+        self.execute_import(stmt, local_scope)
+    
+    def _execute_increment(self, stmt, local_scope):
+        """执行自增语句"""
+        value = self._lookup_variable(stmt.var_name, local_scope)
+        if not isinstance(value, (int, float)):
+            raise self._create_error(
+                HPLTypeError,
+                f"Cannot increment non-numeric value: {type(value).__name__}",
+                stmt.line, stmt.column,
+                local_scope,
+                error_key='TYPE_INVALID_OPERATION'
+            )
+        new_value = value + 1
+        self._update_variable(stmt.var_name, new_value, local_scope)
+    
+    def _execute_block_statement(self, stmt, local_scope):
+        """执行块语句"""
+        return self.execute_block(stmt, local_scope)
+    
+    def _execute_expression_statement(self, stmt, local_scope):
+        """执行表达式作为语句"""
+        return self.evaluate_expression(stmt, local_scope)
+    
+    def _execute_method_call_statement(self, stmt, local_scope):
+        """执行方法调用语句（作为独立语句使用）"""
+        return self._eval_method_call(stmt, local_scope)
+    
+    def _execute_function_call_statement(self, stmt, local_scope):
+        """执行函数调用语句（作为独立语句使用）"""
+        return self._eval_function_call(stmt, local_scope)
 
-            return array[index]
 
-        elif isinstance(expr, DictionaryLiteral):
-            # 评估字典字面量，计算所有值表达式
-            result = {}
-            for key, value_expr in expr.pairs.items():
-                result[key] = self.evaluate_expression(value_expr, local_scope)
-            return result
 
+    def _init_expression_handlers(self):
+        """初始化表达式处理器映射表"""
+        self._expression_handlers = {
+            IntegerLiteral: self._eval_integer_literal,
+            FloatLiteral: self._eval_float_literal,
+            StringLiteral: self._eval_string_literal,
+            BooleanLiteral: self._eval_boolean_literal,
+            NullLiteral: self._eval_null_literal,
+            Variable: self._eval_variable,
+            BinaryOp: self._eval_binary_op_expr,
+            UnaryOp: self._eval_unary_op,
+            FunctionCall: self._eval_function_call,
+            MethodCall: self._eval_method_call,
+            PostfixIncrement: self._eval_postfix_increment,
+            ArrayLiteral: self._eval_array_literal,
+            ArrayAccess: self._eval_array_access,
+            DictionaryLiteral: self._eval_dictionary_literal,
+        }
+    
+    def evaluate_expression(self, expr, local_scope):
+        """表达式评估主分发器"""
+        handler = self._expression_handlers.get(type(expr))
+        if handler:
+            return handler(expr, local_scope)
+        raise self._create_error(
+            HPLRuntimeError,
+            f"Unknown expression type: {type(expr).__name__}",
+            error_key='RUNTIME_GENERAL'
+        )
+    
+    # 字面量处理器
+    def _eval_integer_literal(self, expr, local_scope):
+        return expr.value
+    
+    def _eval_float_literal(self, expr, local_scope):
+        return expr.value
+    
+    def _eval_string_literal(self, expr, local_scope):
+        return expr.value
+    
+    def _eval_boolean_literal(self, expr, local_scope):
+        return expr.value
+    
+    def _eval_null_literal(self, expr, local_scope):
+        return None
+    
+    def _eval_variable(self, expr, local_scope):
+        return self._lookup_variable(expr.name, local_scope, expr.line, expr.column)
+    
+    def _eval_binary_op_expr(self, expr, local_scope):
+        left = self.evaluate_expression(expr.left, local_scope)
+        right = self.evaluate_expression(expr.right, local_scope)
+        return self._eval_binary_op(left, expr.op, right, expr.line, expr.column)
+    
+    def _eval_unary_op(self, expr, local_scope):
+        operand = self.evaluate_expression(expr.operand, local_scope)
+        if expr.op == '!':
+            if not isinstance(operand, bool):
+                raise self._create_error(
+                    HPLTypeError,
+                    f"Logical NOT requires boolean operand, got {type(operand).__name__}",
+                    expr.line, expr.column,
+                    local_scope,
+                    error_key='TYPE_INVALID_OPERATION'
+                )
+            return not operand
         else:
             raise self._create_error(
                 HPLRuntimeError,
-                f"Unknown expression type: {type(expr).__name__}",
+                f"Unknown unary operator {expr.op}",
+                expr.line, expr.column,
+                local_scope,
                 error_key='RUNTIME_GENERAL'
             )
+    
+    def _eval_function_call(self, expr, local_scope):
+        """评估函数调用表达式"""
+        # 检查是否是类实例化
+        if expr.func_name in self.classes:
+            args = [self.evaluate_expression(arg, local_scope) for arg in expr.args]
+            obj_name = f"__{expr.func_name}_instance_{id(expr)}__"
+            return self.instantiate_object(expr.func_name, obj_name, args)
         
+        # 内置函数处理
+        builtin_handlers = {
+            'echo': self._builtin_echo,
+            'len': self._builtin_len,
+            'int': self._builtin_int,
+            'float': self._builtin_float,
+            'str': self._builtin_str,
+            'type': self._builtin_type,
+            'abs': self._builtin_abs,
+            'max': self._builtin_max,
+            'min': self._builtin_min,
+            'range': self._builtin_range,
+            'input': self._builtin_input,
+        }
+        
+        if expr.func_name in builtin_handlers:
+            return builtin_handlers[expr.func_name](expr, local_scope)
+        
+        # 用户定义的函数
+        if expr.func_name in self.functions:
+            target_func = self.functions[expr.func_name]
+            args = [self.evaluate_expression(arg, local_scope) for arg in expr.args]
+            func_scope = {}
+            for i, param in enumerate(target_func.params):
+                if i < len(args):
+                    func_scope[param] = args[i]
+                else:
+                    func_scope[param] = None
+            return self.execute_function(target_func, func_scope, expr.func_name)
+        
+        raise self._create_error(
+            HPLNameError,
+            f"Unknown function '{expr.func_name}'",
+            error_key='RUNTIME_UNDEFINED_VAR'
+        )
+    
+    # 内置函数处理器
+    def _builtin_echo(self, expr, local_scope):
+        message = self.evaluate_expression(expr.args[0], local_scope)
+        echo(message)
+        return None
+    
+    def _builtin_len(self, expr, local_scope):
+        arg = self.evaluate_expression(expr.args[0], local_scope)
+        if isinstance(arg, (list, str)):
+            return len(arg)
+        raise self._create_error(
+            HPLTypeError,
+            f"len() requires list or string, got {type(arg).__name__}",
+            error_key='TYPE_INVALID_OPERATION'
+        )
+    
+    def _builtin_int(self, expr, local_scope):
+        arg = self.evaluate_expression(expr.args[0], local_scope)
+        try:
+            return int(arg)
+        except (ValueError, TypeError):
+            arg_type = type(arg).__name__
+            suggestions = {
+                'str': " (确保字符串只包含数字，如: int(\"42\"))",
+                'list': " (不能将数组转换为整数)",
+                'dict': " (不能将字典转换为整数)",
+                'NoneType': " (变量未初始化，值为 null)",
+            }
+            suggestion = suggestions.get(arg_type, "")
+            raise self._create_error(
+                HPLTypeError,
+                f"Cannot convert {arg_type} (value: {arg!r}) to int{suggestion}",
+                expr.line, expr.column,
+                local_scope,
+                error_key='TYPE_CONVERSION_FAILED'
+            )
+    
+    def _builtin_float(self, expr, local_scope):
+        arg = self.evaluate_expression(expr.args[0], local_scope)
+        try:
+            return float(arg)
+        except (ValueError, TypeError):
+            arg_type = type(arg).__name__
+            suggestions = {
+                'str': " (确保字符串是有效的数字格式，如: float(\"3.14\"))",
+                'NoneType': " (变量未初始化，值为 null)",
+            }
+            suggestion = suggestions.get(arg_type, "")
+            raise self._create_error(
+                HPLTypeError,
+                f"Cannot convert {arg_type} (value: {arg!r}) to float{suggestion}",
+                expr.line, expr.column,
+                local_scope,
+                error_key='TYPE_CONVERSION_FAILED'
+            )
+    
+    def _builtin_str(self, expr, local_scope):
+        arg = self.evaluate_expression(expr.args[0], local_scope)
+        return str(arg)
+    
+    def _builtin_type(self, expr, local_scope):
+        arg = self.evaluate_expression(expr.args[0], local_scope)
+        type_map = {
+            bool: 'boolean',
+            int: 'int',
+            float: 'float',
+            str: 'string',
+            list: 'array',
+        }
+        if type(arg) in type_map:
+            return type_map[type(arg)]
+        elif isinstance(arg, HPLObject):
+            return arg.hpl_class.name
+        return type(arg).__name__
+    
+    def _builtin_abs(self, expr, local_scope):
+        arg = self.evaluate_expression(expr.args[0], local_scope)
+        if not isinstance(arg, (int, float)):
+            raise self._create_error(
+                HPLTypeError,
+                f"abs() requires number, got {type(arg).__name__}",
+                error_key='TYPE_INVALID_OPERATION'
+            )
+        return abs(arg)
+    
+    def _builtin_max(self, expr, local_scope):
+        if len(expr.args) < 1:
+            raise self._create_error(
+                HPLValueError,
+                "max() requires at least one argument",
+                error_key='RUNTIME_GENERAL'
+            )
+        args = [self.evaluate_expression(arg, local_scope) for arg in expr.args]
+        return max(args)
+    
+    def _builtin_min(self, expr, local_scope):
+        if len(expr.args) < 1:
+            raise self._create_error(
+                HPLValueError,
+                "min() requires at least one argument",
+                error_key='RUNTIME_GENERAL'
+            )
+        args = [self.evaluate_expression(arg, local_scope) for arg in expr.args]
+        return min(args)
+    
+    def _builtin_range(self, expr, local_scope):
+        if len(expr.args) < 1 or len(expr.args) > 3:
+            raise self._create_error(
+                HPLValueError,
+                "range() requires 1 to 3 arguments",
+                error_key='RUNTIME_GENERAL'
+            )
+        args = [self.evaluate_expression(arg, local_scope) for arg in expr.args]
+        for arg in args:
+            if not isinstance(arg, int):
+                raise self._create_error(
+                    HPLTypeError,
+                    f"range() arguments must be integers, got {type(arg).__name__}",
+                    error_key='TYPE_INVALID_OPERATION'
+                )
+        if len(args) == 1:
+            return list(range(args[0]))
+        elif len(args) == 2:
+            return list(range(args[0], args[1]))
+        else:
+            return list(range(args[0], args[1], args[2]))
+    
+    def _builtin_input(self, expr, local_scope):
+        if len(expr.args) == 0:
+            try:
+                return input()
+            except EOFError:
+                raise self._create_error(
+                    HPLIOError,
+                    "End of file reached while waiting for input",
+                    error_key='IO_READ_ERROR'
+                )
+        elif len(expr.args) == 1:
+            prompt = self.evaluate_expression(expr.args[0], local_scope)
+            if not isinstance(prompt, str):
+                raise self._create_error(
+                    HPLTypeError,
+                    f"input() requires string prompt, got {type(prompt).__name__}",
+                    error_key='TYPE_INVALID_OPERATION'
+                )
+            try:
+                return input(prompt)
+            except EOFError:
+                raise self._create_error(
+                    HPLIOError,
+                    "End of file reached while waiting for input",
+                    error_key='IO_READ_ERROR'
+                )
+        else:
+            raise self._create_error(
+                HPLValueError,
+                f"input() requires 0 or 1 arguments, got {len(expr.args)}",
+                error_key='RUNTIME_GENERAL'
+            )
+    
+    def _eval_method_call(self, expr, local_scope):
+        """评估方法调用表达式"""
+        obj = self.evaluate_expression(expr.obj_name, local_scope)
+        if isinstance(obj, HPLObject):
+            # 处理 parent 特殊属性访问
+            if expr.method_name == 'parent':
+                if obj.hpl_class.parent and obj.hpl_class.parent in self.classes:
+                    parent_class = self.classes[obj.hpl_class.parent]
+                    return parent_class
+                raise self._create_error(
+                    HPLAttributeError,
+                    f"Class '{obj.hpl_class.name}' has no parent class",
+                    error_key='TYPE_MISSING_PROPERTY'
+                )
+            args = [self.evaluate_expression(arg, local_scope) for arg in expr.args]
+            return self._call_method(obj, expr.method_name, args)
+        elif isinstance(obj, HPLClass):
+            args = [self.evaluate_expression(arg, local_scope) for arg in expr.args]
+            return self._call_method(obj, expr.method_name, args)
+        elif is_hpl_module(obj):
+            if len(expr.args) == 0:
+                try:
+                    return self.get_module_constant(obj, expr.method_name)
+                except HPLAttributeError:
+                    return self.call_module_function(obj, expr.method_name, [])
+            else:
+                args = [self.evaluate_expression(arg, local_scope) for arg in expr.args]
+                return self.call_module_function(obj, expr.method_name, args)
+        raise self._create_error(
+            HPLTypeError,
+            f"Cannot call method on {type(obj).__name__}",
+            error_key='TYPE_INVALID_OPERATION'
+        )
+    
+    def _eval_postfix_increment(self, expr, local_scope):
+        var_name = expr.var.name
+        value = self._lookup_variable(var_name, local_scope)
+        if not isinstance(value, (int, float)):
+            raise self._create_error(
+                HPLTypeError,
+                f"Cannot increment non-numeric value: {type(value).__name__}",
+                error_key='TYPE_INVALID_OPERATION'
+            )
+        new_value = value + 1
+        self._update_variable(var_name, new_value, local_scope)
+        return value
+    
+    def _eval_array_literal(self, expr, local_scope):
+        return [self.evaluate_expression(elem, local_scope) for elem in expr.elements]
+    
+    def _eval_dictionary_literal(self, expr, local_scope):
+        """评估字典字面量"""
+        result = {}
+        for key, value_expr in expr.pairs.items():
+            result[key] = self.evaluate_expression(value_expr, local_scope)
+        return result
+    
+    def _eval_array_access(self, expr, local_scope):
+        """评估数组/字典/字符串索引访问"""
+        array = self.evaluate_expression(expr.array, local_scope)
+        index = self.evaluate_expression(expr.index, local_scope)
+        
+        if isinstance(array, dict):
+            return self._access_dict(array, index, expr, local_scope)
+        elif isinstance(array, str):
+            return self._access_string(array, index, expr, local_scope)
+        elif isinstance(array, list):
+            return self._access_list(array, index, expr, local_scope)
+        
+        # 类型错误
+        actual_type = type(array).__name__
+        hints = {
+            'dict': " (字典使用键访问，如: dict[key])",
+            'int': " (数字不可索引)",
+            'float': " (浮点数不可索引)",
+            'NoneType': " (变量可能未初始化，为 null)",
+            'HPLObject': " (对象使用属性访问，如: obj.property)",
+        }
+        hint = hints.get(actual_type, f" (类型 {actual_type} 不支持索引操作)")
+        raise self._create_error(
+            HPLTypeError,
+            f"Cannot index {actual_type} value{hint}",
+            expr.line, expr.column,
+            local_scope,
+            error_key='TYPE_INVALID_OPERATION'
+        )
+    
+    def _access_dict(self, array, index, expr, local_scope):
+        """访问字典"""
+        if index in array:
+            return array[index]
+        
+        # 构建详细的错误信息
+        available_keys = list(array.keys())[:10]
+        key_type = type(index).__name__
+        
+        similar_keys = []
+        if available_keys:
+            key_strs = [str(k) for k in available_keys]
+            similar = difflib.get_close_matches(str(index), key_strs, n=3, cutoff=0.6)
+            similar_keys = similar
+        
+        parts = [f"Key {index!r} (type: {key_type}) not found in dictionary"]
+        if available_keys:
+            parts.append(f"Available keys: {available_keys}")
+        else:
+            parts.append("Dictionary is empty")
+        
+        if similar_keys:
+            if len(similar_keys) == 1:
+                parts.append(f"Did you mean: '{similar_keys[0]}'?")
+            else:
+                parts.append(f"Similar keys: {', '.join(similar_keys)}")
+        
+        # 类型转换建议
+        if isinstance(index, int) and str(index) in [str(k) for k in array.keys() if isinstance(k, str)]:
+            parts.append(f"Try using string key: '{index}'")
+        elif isinstance(index, str) and index.isdigit():
+            int_key = int(index)
+            if int_key in array:
+                parts.append(f"Key exists as integer: {int_key}")
+        
+        hint = ". ".join(parts)
+        raise HPLKeyError(
+            hint,
+            line=expr.line,
+            column=expr.column,
+            error_key='RUNTIME_KEY_NOT_FOUND'
+        )
+    
+    def _access_string(self, array, index, expr, local_scope):
+        """访问字符串"""
+        if not isinstance(index, int):
+            index_type = type(index).__name__
+            suggestions = []
+            if isinstance(index, str) and index.isdigit():
+                suggestions.append(f"使用 int() 转换: int('{index}')")
+            elif isinstance(index, float) and index.is_integer():
+                suggestions.append(f"使用 int() 转换: int({index})")
+            elif index is None:
+                suggestions.append("索引不能为 null")
+            else:
+                suggestions.append(f"字符串索引必须是整数，得到的是 {index_type}")
+            hint = f" ({'; '.join(suggestions)})" if suggestions else ""
+            raise self._create_error(
+                HPLTypeError,
+                f"String index must be integer, got {index_type} (value: {index!r}){hint}",
+                expr.line, expr.column,
+                local_scope,
+                error_key='TYPE_INVALID_OPERATION'
+            )
+        
+        length = len(array)
+        if 0 <= index < length:
+            return array[index]
+        
+        # 边界错误
+        suggestions = []
+        if index < 0 and length > 0:
+            reverse_idx = length + index
+            if 0 <= reverse_idx < length:
+                suggestions.append(f"使用正向索引 {reverse_idx} 访问第 {abs(index)} 个字符")
+        if index >= length:
+            suggestions.append(f"字符串长度为 {length}，最大索引是 {length - 1}")
+        if length > 0:
+            suggestions.append(f"有效索引范围: 0 到 {length - 1}")
+        else:
+            suggestions.append("字符串为空")
+        
+        if length > 0 and index >= 0:
+            if index < length:
+                char = array[index]
+                suggestions.append(f"该位置的字符是: '{char}'")
+            elif index < length + 5:
+                suggestions.append(f"超出范围，字符串内容: '{array}'")
+        
+        hint = f" ({'; '.join(suggestions)})" if suggestions else ""
+        raise self._create_error(
+            HPLIndexError,
+            f"String index {index} out of bounds (length: {length}){hint}",
+            expr.line, expr.column,
+            local_scope,
+            error_key='RUNTIME_INDEX_OUT_OF_BOUNDS'
+        )
+    
+    def _access_list(self, array, index, expr, local_scope):
+        """访问数组"""
+        if not isinstance(index, int):
+            index_type = type(index).__name__
+            suggestions = []
+            if isinstance(index, str) and index.isdigit():
+                suggestions.append(f"使用 int() 转换: int('{index}')")
+            elif isinstance(index, float) and index.is_integer():
+                suggestions.append(f"使用 int() 转换: int({index})")
+            elif index is None:
+                suggestions.append("索引不能为 null")
+            else:
+                suggestions.append(f"数组索引必须是整数，得到的是 {index_type}")
+            hint = f" ({'; '.join(suggestions)})" if suggestions else ""
+            raise self._create_error(
+                HPLTypeError,
+                f"Array index must be integer, got {index_type} (value: {index!r}){hint}",
+                expr.line, expr.column,
+                local_scope,
+                error_key='TYPE_INVALID_OPERATION'
+            )
+        
+        length = len(array)
+        if 0 <= index < length:
+            return array[index]
+        
+        # 边界错误
+        suggestions = []
+        if index < 0 and length > 0:
+            reverse_idx = length + index
+            if 0 <= reverse_idx < length:
+                suggestions.append(f"使用正向索引 {reverse_idx} 访问倒数第 {abs(index)} 个元素")
+        if index >= length:
+            suggestions.append(f"数组长度为 {length}，最大有效索引是 {length - 1}")
+        if length > 0:
+            suggestions.append(f"有效索引范围: 0 到 {length - 1}")
+        else:
+            suggestions.append("数组为空，无法访问任何索引")
+        
+        if length > 0 and index >= 0 and index < length + 3:
+            if index < length:
+                element = array[index]
+                element_type = type(element).__name__
+                suggestions.append(f"该位置的元素是: {element!r} (类型: {element_type})")
+            else:
+                if length <= 5:
+                    suggestions.append(f"数组内容: {array}")
+                else:
+                    suggestions.append(f"数组前5个元素: {array[:5]}")
+        
+        hint = f" ({'; '.join(suggestions)})" if suggestions else ""
+        raise self._create_error(
+            HPLIndexError,
+            f"Array index {index} out of bounds (length: {length}){hint}",
+            expr.line, expr.column,
+            local_scope,
+            error_key='RUNTIME_INDEX_OUT_OF_BOUNDS'
+        )
 
     def _eval_binary_op(self, left, op, right, line=None, column=None):
         # 逻辑运算符
@@ -1008,7 +1004,6 @@ class HPLEvaluator:
                 error_key='RUNTIME_GENERAL'
             )
 
-
     def _lookup_variable(self, name, local_scope, line=None, column=None):
         """统一变量查找逻辑"""
         if name in local_scope:
@@ -1024,7 +1019,6 @@ class HPLEvaluator:
                 error_key='RUNTIME_UNDEFINED_VAR'
             )
 
-
     def _update_variable(self, name, value, local_scope):
         """统一变量更新逻辑"""
         if name in local_scope:
@@ -1038,7 +1032,6 @@ class HPLEvaluator:
     def _call_method(self, obj, method_name, args):
         """统一方法调用逻辑"""
         # 处理父类方法调用（当 obj 是 HPLClass 时）
-
         if isinstance(obj, HPLClass):
             # 支持 init 作为 __init__ 的别名
             actual_method_name = method_name
@@ -1057,7 +1050,6 @@ class HPLEvaluator:
                     error_key='TYPE_MISSING_PROPERTY'
                 )
 
-        
         hpl_class = obj.hpl_class
         # 支持 init 作为 __init__ 的别名
         actual_method_name = method_name
@@ -1082,9 +1074,6 @@ class HPLEvaluator:
                 error_key='TYPE_MISSING_PROPERTY'
             )
 
-
-
-        
         # 为'this'设置current_obj
         prev_obj = self.current_obj
         self.current_obj = obj
@@ -1094,7 +1083,6 @@ class HPLEvaluator:
         method_scope['this'] = obj
         
         # 添加到调用栈
-        # 获取对象名称：HPLObject使用hpl_class.name，HPLClass使用name
         obj_name = obj.hpl_class.name if isinstance(obj, HPLObject) else obj.name
         self.call_stack.append(f"{obj_name}.{method_name}()")
         
@@ -1106,7 +1094,6 @@ class HPLEvaluator:
             self.current_obj = prev_obj
         
         return result
-
 
     def _call_constructor(self, obj, args):
         """调用对象的构造函数（如果存在）"""
@@ -1137,17 +1124,14 @@ class HPLEvaluator:
                 method_scope = {param: args[i] for i, param in enumerate(method.params) if i < len(args)}
                 method_scope['this'] = obj
                 
-                # 获取对象名称
                 obj_name = obj.hpl_class.name if isinstance(obj, HPLObject) else obj.name
                 self.call_stack.append(f"{obj_name}.{parent_constructor_name}()")
-
 
                 try:
                     self.execute_function(method, method_scope)
                 finally:
                     self.call_stack.pop()
                     self.current_obj = prev_obj
-
 
     def instantiate_object(self, class_name, obj_name, init_args=None):
         """实例化对象并调用构造函数"""
@@ -1159,7 +1143,6 @@ class HPLEvaluator:
             )
         
         hpl_class = self.classes[class_name]
-
         obj = HPLObject(obj_name, hpl_class)
         
         # 调用构造函数（如果存在）
@@ -1168,9 +1151,6 @@ class HPLEvaluator:
         self._call_constructor(obj, init_args)
         
         return obj
-
-
-
 
     def execute_import(self, stmt, local_scope):
         """执行 import 语句"""
@@ -1198,7 +1178,6 @@ class HPLEvaluator:
             error_key='IMPORT_MODULE_NOT_FOUND'
         )
 
-
     def call_module_function(self, module, func_name, args):
         """调用模块函数"""
         if is_hpl_module(module):
@@ -1218,7 +1197,6 @@ class HPLEvaluator:
             f"Cannot get constant from non-module object",
             error_key='TYPE_INVALID_OPERATION'
         )
-
 
     def _create_error(self, error_class, message, line=None, column=None, 
                     local_scope=None, error_key=None, **kwargs):
@@ -1242,10 +1220,8 @@ class HPLEvaluator:
         
         return error
 
-
     def _matches_error_type(self, error, error_type):
         """检查错误是否匹配指定的错误类型"""
-
         if error_type is None:
             return True  # 捕获所有错误
         
