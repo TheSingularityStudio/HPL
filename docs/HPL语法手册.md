@@ -861,6 +861,9 @@ HPL 解释器现在包含类型检查，提供清晰的错误信息：
 | `crypto` | 加密哈希和编码功能 |
 | `random` | 随机数生成 |
 | `string` | 字符串处理 |
+| `re` | 正则表达式操作 |
+| `net` | HTTP 网络请求 |
+
 
 
 
@@ -1194,7 +1197,177 @@ HPL 解释器现在包含类型检查，提供清晰的错误信息：
 | `string.pad_end(s, length, pad?)` | string, int, string? | string | 在结尾填充至指定长度 |
 
 
+### 17.9 re 模块 - 正则表达式
+
+提供正则表达式匹配、搜索、替换等功能。
+
+#### 正则表达式标志
+
+| 标志 | 说明 |
+|------|------|
+| `i` | 忽略大小写 (IGNORECASE) |
+| `m` | 多行模式 (MULTILINE) |
+| `s` | 点匹配所有字符包括换行 (DOTALL) |
+| `x` | 详细模式，允许注释和空白 (VERBOSE) |
+| `a` | ASCII 匹配 (ASCII) |
+| `u` | Unicode 匹配，默认开启 (UNICODE) |
+| `l` | 本地化匹配 (LOCALE) |
+
+**使用方式**：将标志字母组合成字符串传入，如 `"im"` 表示忽略大小写且多行模式。
+
+#### 匹配函数
+
+| 函数 | 参数 | 返回值 | 说明 |
+|------|------|--------|------|
+| `re.match(pattern, string, flags?)` | string, string, string? | object/null | 从字符串开头匹配，返回匹配对象或 null |
+| `re.search(pattern, string, flags?)` | string, string, string? | object/null | 在字符串中搜索，返回第一个匹配对象或 null |
+| `re.test(pattern, string, flags?)` | string, string, string? | boolean | 测试字符串是否匹配正则表达式 |
+
+**匹配对象结构**：
+```yaml
+{
+  'group': "匹配的完整字符串",
+  'groups': ["捕获组1", "捕获组2"],  # 捕获组数组
+  'start': 0,  # 匹配开始位置
+  'end': 5,    # 匹配结束位置
+  'span': [0, 5]  # 起止位置数组
+}
+```
+
+#### 查找函数
+
+| 函数 | 参数 | 返回值 | 说明 |
+|------|------|--------|------|
+| `re.find_all(pattern, string, flags?)` | string, string, string? | array | 查找所有匹配项，返回匹配字符串数组 |
+| `re.find_iter(pattern, string, flags?)` | string, string, string? | array | 查找所有匹配项，返回匹配对象数组 |
+
+#### 修改函数
+
+| 函数 | 参数 | 返回值 | 说明 |
+|------|------|--------|------|
+| `re.replace(pattern, repl, string, count?, flags?)` | string, string, string, int?, string? | string | 替换匹配项，count=0 表示替换所有 |
+| `re.split(pattern, string, maxsplit?, flags?)` | string, string, int?, string? | array | 使用正则表达式分割字符串 |
+| `re.escape(string)` | string | string | 转义字符串中的正则表达式特殊字符 |
+
+#### 工具函数
+
+| 函数 | 参数 | 返回值 | 说明 |
+|------|------|--------|------|
+| `re.compile(pattern, flags?)` | string, string? | object | 预编译正则表达式，返回模式对象 |
+| `re.validate(pattern_name, string)` | string, string | boolean | 使用预定义模式验证字符串 |
+
+**支持的预定义模式**：
+- `email` - 邮箱地址
+- `url` - URL 地址
+- `ip` - IP 地址
+- `phone` - 中国大陆手机号
+- `id_card` - 中国大陆身份证
+- `chinese` - 中文字符
+- `english` - 英文字母
+- `number` - 数字
+- `whitespace` - 空白字符
+- `word` - 单词字符
+
+#### 预定义模式常量
+
+| 常量 | 说明 |
+|------|------|
+| `re.PATTERN_EMAIL` | 邮箱匹配模式 |
+| `re.PATTERN_URL` | URL 匹配模式 |
+| `re.PATTERN_IP` | IP 地址匹配模式 |
+| `re.PATTERN_PHONE` | 手机号匹配模式 |
+| `re.PATTERN_ID_CARD` | 身份证匹配模式 |
+| `re.PATTERN_CHINESE` | 中文字符匹配模式 |
+| `re.PATTERN_ENGLISH` | 英文字母匹配模式 |
+| `re.PATTERN_NUMBER` | 数字匹配模式 |
+| `re.PATTERN_WHITESPACE` | 空白字符匹配模式 |
+| `re.PATTERN_WORD` | 单词字符匹配模式 |
+
+
+### 17.10 net 模块 - 网络请求
+
+提供 HTTP 客户端功能，支持 GET、POST 等请求。
+
+#### HTTP 请求函数
+
+| 函数 | 参数 | 返回值 | 说明 |
+|------|------|--------|------|
+| `net.get(url, headers?, timeout?, verify_ssl?)` | string, dict?, number?, boolean? | object | 发送 HTTP GET 请求 |
+| `net.post(url, data?, headers?, timeout?, verify_ssl?)` | string, any?, dict?, number?, boolean? | object | 发送 HTTP POST 请求，data 可为字符串或字典 |
+| `net.put(url, data?, headers?, timeout?, verify_ssl?)` | string, any?, dict?, number?, boolean? | object | 发送 HTTP PUT 请求 |
+| `net.delete(url, headers?, timeout?, verify_ssl?)` | string, dict?, number?, boolean? | object | 发送 HTTP DELETE 请求 |
+| `net.head(url, headers?, timeout?, verify_ssl?)` | string, dict?, number?, boolean? | object | 发送 HTTP HEAD 请求 |
+| `net.request(method, url, data?, headers?, timeout?, verify_ssl?)` | string, string, any?, dict?, number?, boolean? | object | 发送任意 HTTP 请求 |
+
+**响应对象结构**：
+```yaml
+{
+  'status': 200,        # HTTP 状态码
+  'reason': "OK",       # 状态描述
+  'headers': {},        # 响应头字典
+  'body': "响应内容",    # 响应体字符串
+  'url': "最终URL"      # 实际请求的 URL（可能经过重定向）
+}
+```
+
+#### URL 处理函数
+
+| 函数 | 参数 | 返回值 | 说明 |
+|------|------|--------|------|
+| `net.encode_url(params)` | dict | string | 将参数字典编码为 URL 查询字符串 |
+| `net.decode_url(query_string)` | string | dict | 解码 URL 查询字符串为字典 |
+| `net.parse_url(url)` | string | object | 解析 URL 组件 |
+| `net.build_url(base, params?)` | string, dict? | string | 构建完整 URL |
+
+**parse_url 返回结构**：
+```yaml
+{
+  'scheme': "https",     # 协议
+  'netloc': "api.example.com",  # 网络位置
+  'path': "/users",      # 路径
+  'params': "",          # 参数
+  'query': "id=123",     # 查询字符串
+  'fragment': "",        # 片段
+  'username': null,      # 用户名
+  'password': null,      # 密码
+  'hostname': "api.example.com",  # 主机名
+  'port': null           # 端口
+}
+```
+
+#### HTTP 状态码检查函数
+
+| 函数 | 参数 | 返回值 | 说明 |
+|------|------|--------|------|
+| `net.is_success(status_code)` | int | boolean | 检查是否为 2xx 成功状态码 |
+| `net.is_redirect(status_code)` | int | boolean | 检查是否为 3xx 重定向状态码 |
+| `net.is_client_error(status_code)` | int | boolean | 检查是否为 4xx 客户端错误状态码 |
+| `net.is_server_error(status_code)` | int | boolean | 检查是否为 5xx 服务器错误状态码 |
+
+#### HTTP 状态码常量
+
+| 常量 | 值 | 说明 |
+|------|-----|------|
+| `net.STATUS_OK` | 200 | 请求成功 |
+| `net.STATUS_CREATED` | 201 | 已创建 |
+| `net.STATUS_ACCEPTED` | 202 | 已接受 |
+| `net.STATUS_NO_CONTENT` | 204 | 无内容 |
+| `net.STATUS_MOVED_PERMANENTLY` | 301 | 永久重定向 |
+| `net.STATUS_FOUND` | 302 | 临时重定向 |
+| `net.STATUS_NOT_MODIFIED` | 304 | 未修改 |
+| `net.STATUS_BAD_REQUEST` | 400 | 请求错误 |
+| `net.STATUS_UNAUTHORIZED` | 401 | 未授权 |
+| `net.STATUS_FORBIDDEN` | 403 | 禁止访问 |
+| `net.STATUS_NOT_FOUND` | 404 | 未找到 |
+| `net.STATUS_METHOD_NOT_ALLOWED` | 405 | 方法不允许 |
+| `net.STATUS_INTERNAL_ERROR` | 500 | 服务器内部错误 |
+| `net.STATUS_NOT_IMPLEMENTED` | 501 | 未实现 |
+| `net.STATUS_BAD_GATEWAY` | 502 | 网关错误 |
+| `net.STATUS_SERVICE_UNAVAILABLE` | 503 | 服务不可用 |
+
+
 ## 18. 标准库使用示例
+
 
 
 以下示例展示了如何使用标准库模块：
@@ -1281,9 +1454,63 @@ main: () => {
     words = string.split("apple,banana,cherry", ",")
     echo "Split: " + words
     echo "Join: " + string.join(words, " - ")
+    
+    # === Re 模块 ===
+    echo ""
+    echo "=== Re Module ==="
+    # 测试字符串是否匹配
+    if (re.test("\\d+", "Hello123")) :
+      echo "字符串包含数字"
+    
+    # 查找所有匹配
+    numbers = re.find_all("\\d+", "a1b2c3")
+    echo "找到的数字: " + numbers
+    
+    # 替换匹配项
+    result = re.replace("\\d+", "X", "a1b2c3")
+    echo "替换后: " + result
+    
+    # 分割字符串
+    parts = re.split("\\s+", "hello   world  test")
+    echo "分割结果: " + parts
+    
+    # 验证邮箱格式
+    email = "user@example.com"
+    if (re.validate("email", email)) :
+      echo "邮箱格式正确: " + email
+    
+    # 使用预定义模式常量
+    echo "邮箱模式: " + re.PATTERN_EMAIL
+    
+    # === Net 模块 ===
+    echo ""
+    echo "=== Net Module ==="
+    # URL 解析
+    url_info = net.parse_url("https://api.example.com/users?id=123")
+    echo "协议: " + url_info["scheme"]
+    echo "主机: " + url_info["hostname"]
+    
+    # URL 编码
+    params = {"name": "张三", "age": "25"}
+    query = net.encode_url(params)
+    echo "编码后: " + query
+    
+    # 构建完整 URL
+    full_url = net.build_url("https://api.example.com/search", {"q": "hpl"})
+    echo "完整URL: " + full_url
+    
+    # HTTP 状态码检查
+    status = 200
+    if (net.is_success(status)) :
+      echo "请求成功"
+    
+    # 使用 HTTP 状态码常量
+    echo "OK状态码: " + net.STATUS_OK
+    echo "Not Found状态码: " + net.STATUS_NOT_FOUND
   }
 
 call: main()
+
 
 ```
 

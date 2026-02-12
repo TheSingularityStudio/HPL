@@ -447,8 +447,35 @@ HPLError (基类)
 
 **注意：** `HPLControlFlowException` 及其子类是内部控制流机制，不是真正的错误，不应被用户代码捕获。
 
+### 错误代码体系
+
+HPL Runtime 使用统一的错误代码格式：`HPL-类别-编号`
+
+| 错误代码 | 说明 |
+|---------|------|
+| HPL-SYNTAX-101 | 意外的 token |
+| HPL-SYNTAX-102 | 缺少括号 |
+| HPL-SYNTAX-103 | 缩进错误 |
+| HPL-SYNTAX-150 | YAML 语法错误 |
+| HPL-RUNTIME-201 | 未定义变量 |
+| HPL-RUNTIME-202 | 类型不匹配 |
+| HPL-RUNTIME-203 | 数组越界 |
+| HPL-RUNTIME-204 | 除零错误 |
+| HPL-RUNTIME-205 | 空指针 |
+| HPL-RUNTIME-206 | 递归深度超限 |
+| HPL-TYPE-301 | 无效操作 |
+| HPL-TYPE-302 | 类型转换失败 |
+| HPL-TYPE-303 | 缺少属性 |
+| HPL-IMPORT-401 | 模块未找到 |
+| HPL-IMPORT-402 | 循环导入 |
+| HPL-IMPORT-403 | 版本不匹配 |
+| HPL-IO-501 | 文件未找到 |
+| HPL-IO-502 | 权限不足 |
+| HPL-IO-503 | 读取错误 |
+
 
 ### 统一错误处理
+
 
 ```python
 from hpl_runtime import (
@@ -497,8 +524,32 @@ error_message = format_error_for_user(error)
 error_message = format_error_for_user(error, source_code=source_code)
 ```
 
+### 错误处理器 (HPLErrorHandler)
+
+```python
+from hpl_runtime.utils.error_handler import create_error_handler
+
+# 创建错误处理器
+handler = create_error_handler(hpl_file, debug_mode=True)
+handler.set_parser(parser)
+handler.set_evaluator(evaluator)
+
+# 处理错误
+report = handler.handle(error, exit_on_error=False)
+```
+
+### 设置当前文件上下文
+
+```python
+from hpl_runtime.modules.loader import set_current_hpl_file
+
+# 在执行前设置当前文件路径，用于正确的错误定位
+set_current_hpl_file(hpl_file)
+```
+
 
 ### 错误上下文获取
+
 
 ```python
 from hpl_runtime.debug import ErrorAnalyzer
@@ -912,9 +963,10 @@ if __name__ == '__main__':
 
 ## 版本信息
 
-- 文档版本: 1.0.1
-- 对应 HPL Runtime 版本: 1.1.1
+- 文档版本: 1.0.2
+- 对应 HPL Runtime 版本: 1.1.2
 - 最后更新: 2026-02-12
+
 
 
 ## 相关资源
