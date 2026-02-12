@@ -97,9 +97,12 @@ class HPLParser:
 - `objects`: 对象实例字典 `{obj_name: HPLObject}`
 - `functions`: 顶层函数字典 `{func_name: HPLFunction}`
 - `main_func`: main 函数对象（HPLFunction 或 None）
-- `call_target`: call 键指定的目标函数名
-- `call_args`: call 键的参数列表
+- `call_target`: call 键指定的目标函数名（如果存在 call 键）
+- `call_args`: call 键的参数列表（如果存在 call 键）
 - `imports`: 导入语句列表 `[{'module': str, 'alias': str}]`
+
+**注意：** 如果 HPL 文件中没有 `call` 键，`call_target` 和 `call_args` 将返回 `None` 和空列表 `[]`。
+
 
 **使用示例：**
 
@@ -182,15 +185,17 @@ class DebugInterpreter:
     'file': str,              # 执行的文件路径
     'error': Exception,       # 错误对象（如果有）
     'debug_info': {
-        'execution_trace': List[Dict],      # 执行跟踪记录
-        'variable_snapshots': List[Dict],   # 变量状态快照
-        'call_stack_history': List[str],    # 调用栈历史
-        'error_report': str,                # 错误报告（如果有）
-        'error_context': Dict,              # 错误上下文（如果有）
-        'report': str                       # 完整调试报告
+        'execution_trace': List[Dict],      # 执行跟踪记录（成功时）
+        'variable_snapshots': List[Dict],   # 变量状态快照（成功时）
+        'call_stack_history': List[str],    # 调用栈历史（成功时）
+        'error_report': str,                # 错误处理器报告（错误时）
+        'error_context': Dict,              # 错误分析上下文（错误时）
+        'report': str,                      # 完整调试报告（错误时）
+        'execution_trace': List[Dict]       # 执行跟踪记录（错误时，如果有）
     }
 }
 ```
+
 
 ---
 
@@ -215,8 +220,9 @@ def check_syntax(file_path: str) -> Optional[Dict]:
             'column': e.column,       # 错误列号（1-based）
             'message': e.message,     # 错误描述
             'file': e.file,           # 文件路径
-            'error_key': e.error_key  # 错误类型标识
+            'error_code': e.error_code  # 错误代码（如 HPL-SYNTAX-101）
         }
+
 ```
 
 **IDE 应用：**
@@ -246,8 +252,9 @@ def run_with_error_capture(file_path: str):
             'column': e.column,
             'file': e.file,
             'call_stack': e.call_stack,  # 调用栈列表
-            'error_key': e.error_key
+            'error_code': e.error_code
         }
+
         
         # 格式化调用栈显示
         print("调用栈:")
@@ -277,20 +284,21 @@ def monitor_variables(file_path: str):
     if result['debug_info'].get('variable_snapshots'):
         for snapshot in result['debug_info']['variable_snapshots']:
             print(f"Line {snapshot['line']}:")
-            print(f"  Local scope: {snapshot['local_scope']}")
-            print(f"  Global scope: {snapshot['global_scope']}")
+            print(f"  Local variables: {snapshot['local']}")
+            print(f"  Global variables: {snapshot['global']}")
 ```
 
 **变量快照结构：**
 
 ```python
 {
-    'line': int,                    # 代码行号
-    'local_scope': Dict[str, Any],  # 局部变量
-    'global_scope': Dict[str, Any], # 全局变量（对象）
-    'timestamp': float              # 时间戳
+    'line': int,                # 代码行号
+    'local': Dict[str, Any],    # 局部变量
+    'global': Dict[str, Any],   # 全局变量（对象）
+    'timestamp': float          # 时间戳
 }
 ```
+
 
 **IDE 应用：**
 - 调试器变量视图
@@ -392,14 +400,15 @@ time_module = load_module('time')
 ### 模块搜索路径管理
 
 ```python
-from hpl_runtime.modules.loader import add_module_path, HPL_MODULE_PATHS
+from hpl_runtime.modules.loader import add_module_path, get_module_paths
 
 # 添加自定义模块搜索路径
 add_module_path("/path/to/custom/modules")
 
 # 查看当前搜索路径
-print(HPL_MODULE_PATHS)
+print(get_module_paths())
 ```
+
 
 ### 模块缓存控制
 
@@ -429,8 +438,15 @@ HPLError (基类)
 │   ├── HPLValueError   # 值错误
 │   ├── HPLIOError      # IO 错误
 │   └── HPLRecursionError   # 递归错误
-└── HPLImportError      # 导入错误
+├── HPLImportError      # 导入错误
+└── HPLControlFlowException  # 控制流异常（内部使用）
+    ├── HPLBreakException    # break 语句
+    ├── HPLContinueException # continue 语句
+    └── HPLReturnValue       # return 语句
 ```
+
+**注意：** `HPLControlFlowException` 及其子类是内部控制流机制，不是真正的错误，不应被用户代码捕获。
+
 
 ### 统一错误处理
 
@@ -469,6 +485,19 @@ def run_hpl_safe(file_path: str):
         show_error_dialog("内部错误", f"未预期的错误: {str(e)}")
 ```
 
+### format_error_for_user 函数
+
+```python
+from hpl_runtime.utils.exceptions import format_error_for_user
+
+# 基本用法
+error_message = format_error_for_user(error)
+
+# 带源代码上下文（显示错误行及前后代码）
+error_message = format_error_for_user(error, source_code=source_code)
+```
+
+
 ### 错误上下文获取
 
 ```python
@@ -493,7 +522,13 @@ def analyze_error(error, source_code: str):
 
 ### 1. 断点支持（基础版）
 
-虽然当前 DebugInterpreter 不支持真正的断点，但可以通过执行跟踪实现类似功能：
+虽然当前 DebugInterpreter 不支持真正的断点，但可以通过执行跟踪实现类似功能。注意：`DebugInterpreter` 还支持 `verbose` 参数用于启用详细输出：
+
+```python
+# 启用详细调试输出
+interpreter = DebugInterpreter(debug_mode=True, verbose=True)
+```
+
 
 ```python
 class BreakpointDebugger:
@@ -730,8 +765,9 @@ class HPLEngine:
                 column=e.column or 1,
                 severity='error',
                 message=e.message,
-                code=e.error_key
+                code=e.error_code
             ))
+
         except Exception as e:
             diagnostics.append(Diagnostic(
                 line=1, column=1,
@@ -876,9 +912,10 @@ if __name__ == '__main__':
 
 ## 版本信息
 
-- 文档版本: 1.0.0
+- 文档版本: 1.0.1
 - 对应 HPL Runtime 版本: 1.1.1
-- 最后更新: 2024
+- 最后更新: 2026-02-12
+
 
 ## 相关资源
 
