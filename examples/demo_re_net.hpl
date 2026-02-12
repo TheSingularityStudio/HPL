@@ -1,0 +1,76 @@
+# re 和 net 模块使用示例
+
+imports:
+  - re
+  - net
+
+main: () => {
+    # ========== 正则表达式模块 (re) ==========
+    echo "=== re 模块示例 ==="
+    
+    # 测试字符串是否匹配模式
+    text = "Hello123"
+    if (re.test("\\d+", text)) :
+      echo "字符串包含数字"
+    
+    # 查找所有匹配
+    numbers = re.find_all("\\d+", "a1b2c3")
+    echo "找到的数字: " + numbers
+    
+    # 替换匹配项
+    result = re.replace("\\d+", "X", "a1b2c3")
+    echo "替换后: " + result
+    
+    # 分割字符串
+    parts = re.split("\\s+", "hello   world  test")
+    echo "分割结果: " + parts
+
+    
+    # 验证邮箱格式
+    email = "user@example.com"
+    if (re.validate("email", email)) :
+      echo "邮箱格式正确: " + email
+    else :
+      echo "邮箱格式错误"
+    
+    # 转义特殊字符
+    escaped = re.escape("a.b*c?")
+    echo "转义后: " + escaped
+    
+    # ========== 网络模块 (net) ==========
+    echo ""
+    echo "=== net 模块示例 ==="
+    
+    # URL解析
+    url_info = net.parse_url("https://api.example.com/users?id=123")
+    echo "协议: " + url_info["scheme"]
+    echo "主机: " + url_info["hostname"]
+    echo "路径: " + url_info["path"]
+    
+    # URL编码
+    params = {"name": "张三", "age": "25"}
+    query = net.encode_url(params)
+    echo "编码后: " + query
+    
+    # 构建完整URL
+    full_url = net.build_url("https://api.example.com/search", {"q": "hpl"})
+    echo "完整URL: " + full_url
+    
+    # HTTP状态码检查
+    status = 200
+    if (net.is_success(status)) :
+      echo "请求成功"
+    
+    status = 404
+    if (net.is_client_error(status)) :
+      echo "客户端错误: " + status
+    
+    # 使用HTTP状态码常量
+    echo "OK状态码: " + net.STATUS_OK
+    echo "Not Found状态码: " + net.STATUS_NOT_FOUND
+    
+    echo ""
+    echo "示例完成！"
+  }
+
+call: main()

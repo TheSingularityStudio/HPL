@@ -26,8 +26,11 @@ except ImportError:
 # 确保 hpl_runtime 目录在 Python 路径中
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
-if script_dir not in sys.path:
-    sys.path.insert(0, script_dir)
+# Get parent directory (project root) for proper imports
+project_dir = os.path.dirname(script_dir)
+if project_dir not in sys.path:
+    sys.path.insert(0, project_dir)
+
 
 try:
     from hpl_runtime.core.parser import HPLParser

@@ -10,4 +10,6 @@ HPL 标准库包
 - string: 字符串处理
 - random: 随机数生成
 - crypto: 加密哈希和编码
+- re: 正则表达式操作
+- net: HTTP网络操作
 """
