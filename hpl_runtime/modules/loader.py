@@ -143,12 +143,17 @@ def load_module(module_name, search_paths=None):
         _module_cache[module_name] = module
         return module
     
-    # 2. 尝试加载 Python 第三方包
-    module = _load_python_package(module_name)
-    if module:
-        logger.debug(f"Module '{module_name}' loaded from Python packages")
-        _module_cache[module_name] = module
-        return module
+    # 检查是否是文件路径（相对路径或绝对路径）
+    # 文件路径包含 / 或 \，或以 ./ 或 ../ 开头
+    is_file_path = '/' in module_name or '\\' in module_name or module_name.startswith(('./', '../'))
+    
+    # 2. 尝试加载 Python 第三方包（仅对非文件路径的模块名）
+    if not is_file_path:
+        module = _load_python_package(module_name)
+        if module:
+            logger.debug(f"Module '{module_name}' loaded from Python packages")
+            _module_cache[module_name] = module
+            return module
     
     # 3. 尝试加载本地 HPL 模块文件
     module = _load_hpl_module(module_name, search_paths)
@@ -214,11 +219,36 @@ def _load_hpl_module(module_name, search_paths=None):
     加载本地 HPL 模块文件 (.hpl)
     搜索路径: 当前HPL文件目录 -> 当前目录 -> HPL_MODULE_PATHS -> search_paths
     """
+    # 获取当前 HPL 文件所在目录（使用上下文管理器替代全局变量）
+    current_file_dir = _loader_context.get_current_file_dir()
+    
+    # 检查是否是相对路径或绝对路径
+    if '/' in module_name or '\\' in module_name or module_name.startswith(('./', '../')):
+        # 这是一个文件路径，直接解析
+        if current_file_dir:
+            # 相对于当前 HPL 文件目录解析
+            module_path = (current_file_dir / module_name).resolve()
+        else:
+            # 相对于当前工作目录解析
+            module_path = Path(module_name).resolve()
+        
+        # 尝试作为 .hpl 文件
+        hpl_file = module_path.with_suffix('.hpl')
+        if hpl_file.exists():
+            return _parse_hpl_module(module_name, hpl_file)
+        
+        # 尝试作为目录 (module_name/index.hpl)
+        if module_path.is_dir():
+            index_file = module_path / "index.hpl"
+            if index_file.exists():
+                return _parse_hpl_module(module_name, index_file)
+        
+        return None
+    
+    # 普通模块名，使用搜索路径
     # 构建搜索路径列表
     paths = []
     
-    # 首先搜索当前 HPL 文件所在目录（使用上下文管理器替代全局变量）
-    current_file_dir = _loader_context.get_current_file_dir()
     if current_file_dir:
         paths.append(current_file_dir)
     
@@ -248,11 +278,36 @@ def _load_python_module(module_name, search_paths=None):
     加载本地 Python 模块文件 (.py)
     搜索路径: 当前HPL文件目录 -> 当前目录 -> HPL_MODULE_PATHS -> search_paths
     """
+    # 获取当前 HPL 文件所在目录（使用上下文管理器替代全局变量）
+    current_file_dir = _loader_context.get_current_file_dir()
+    
+    # 检查是否是相对路径或绝对路径
+    if '/' in module_name or '\\' in module_name or module_name.startswith(('./', '../')):
+        # 这是一个文件路径，直接解析
+        if current_file_dir:
+            # 相对于当前 HPL 文件目录解析
+            module_path = (current_file_dir / module_name).resolve()
+        else:
+            # 相对于当前工作目录解析
+            module_path = Path(module_name).resolve()
+        
+        # 尝试作为 .py 文件
+        py_file = module_path.with_suffix('.py')
+        if py_file.exists():
+            return _parse_python_module_file(module_name, py_file)
+        
+        # 尝试作为目录 (module_name/__init__.py)
+        if module_path.is_dir():
+            init_file = module_path / "__init__.py"
+            if init_file.exists():
+                return _parse_python_module_file(module_name, init_file)
+        
+        return None
+    
+    # 普通模块名，使用搜索路径
     # 构建搜索路径列表
     paths = []
     
-    # 首先搜索当前 HPL 文件所在目录（使用上下文管理器替代全局变量）
-    current_file_dir = _loader_context.get_current_file_dir()
     if current_file_dir:
         paths.append(current_file_dir)
     
@@ -472,28 +527,81 @@ def _parse_python_module_file(module_name, file_path):
     返回 HPLModule 实例
     """
     try:
-        # 动态加载 Python 文件
-        spec = importlib.util.spec_from_file_location(module_name, file_path)
-        if spec is None or spec.loader is None:
-            return None
+        # 对于包含路径的模块名，创建一个安全的导入名称
+        # 将路径分隔符和特殊字符替换为下划线
+        safe_module_name = module_name.replace('/', '_').replace('\\', '_').replace('.', '_').replace('-', '_')
         
-        python_module = importlib.util.module_from_spec(spec)
-        sys.modules[module_name] = python_module
-        spec.loader.exec_module(python_module)
+        # 读取 Python 文件内容
+        file_path = Path(file_path)
+        with open(file_path, 'r', encoding='utf-8') as f:
+            source_code = f.read()
+        
+        # 处理相对导入：将 from .xxx import 转换为 from absolute_path import
+        # 计算当前模块所在目录的父目录（用于解析相对导入）
+        current_dir = file_path.parent
+        parent_dir = current_dir.parent
+        
+        # 替换相对导入
+        # from .module import ... -> from parent_dir.module import ...
+        import re
+        
+        # 处理 from . import xxx (相对导入当前包)
+        source_code = re.sub(
+            r'from\s+\.\s+import\s+([^#\n]+)',
+            lambda m: f'from {parent_dir.name}.{current_dir.name} import {m.group(1)}',
+            source_code
+        )
+        
+        # 处理 from .module import ... (相对导入子模块)
+        def replace_relative_import(match):
+            dots = match.group(1)
+            rel_module = match.group(2)
+            imports = match.group(3)
+            
+            # 计算相对路径
+            if dots == '.':
+                # 同级目录
+                abs_module = f"{parent_dir.name}.{current_dir.name}.{rel_module}"
+            elif dots == '..':
+                # 上级目录
+                abs_module = f"{parent_dir.name}.{rel_module}"
+            else:
+                # 更多级，暂不处理
+                return match.group(0)
+            
+            return f'from {abs_module} import {imports}'
+        
+        source_code = re.sub(
+            r'from\s+(\.+)([a-zA-Z_][a-zA-Z0-9_]*)\s+import\s+([^#\n]+)',
+            replace_relative_import,
+            source_code
+        )
+        
+        # 动态编译并执行修改后的代码
+        compiled_code = compile(source_code, str(file_path), 'exec')
+        
+        # 创建模块命名空间
+        module_namespace = {
+            '__name__': safe_module_name,
+            '__file__': str(file_path),
+            '__package__': None,
+        }
+        
+        # 执行代码
+        exec(compiled_code, module_namespace)
         
         # 创建 HPL 包装模块
         hpl_module = HPLModule(module_name, f"Python module: {module_name}")
         
         # 检查是否有 HPL_MODULE 定义（显式 HPL 接口）
-        if hasattr(python_module, 'HPL_MODULE'):
-            hpl_interface = python_module.HPL_MODULE
+        if 'HPL_MODULE' in module_namespace:
+            hpl_interface = module_namespace['HPL_MODULE']
             if isinstance(hpl_interface, HPLModule):
                 return hpl_interface
         
         # 自动注册所有可调用对象
-        for attr_name in dir(python_module):
+        for attr_name, attr in module_namespace.items():
             if not attr_name.startswith('_'):
-                attr = getattr(python_module, attr_name)
                 if callable(attr):
                     hpl_module.register_function(attr_name, attr, None, f"Python function: {attr_name}")
                 else:
