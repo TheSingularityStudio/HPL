@@ -127,9 +127,11 @@ class PostfixIncrement(Expression):
 
 
 class UnaryOp(Expression):
-    def __init__(self, op, operand):
+    def __init__(self, op, operand, line=None, column=None):
+        super().__init__(line, column)
         self.op = op
         self.operand = operand
+
 
 
 class ArrayLiteral(Expression):
@@ -140,9 +142,11 @@ class ArrayLiteral(Expression):
 
 
 class ArrayAccess(Expression):
-    def __init__(self, array, index):
+    def __init__(self, array, index, line=None, column=None):
+        super().__init__(line, column)
         self.array = array
         self.index = index
+
 
 
 class DictionaryLiteral(Expression):
