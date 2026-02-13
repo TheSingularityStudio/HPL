@@ -375,7 +375,8 @@ class HPLEvaluator:
     
     def _execute_import(self, stmt, local_scope):
         """执行import语句"""
-        self.execute_import(stmt, local_scope)
+        return self.execute_import(stmt, local_scope)
+
     
     def _execute_increment(self, stmt, local_scope):
         """执行自增语句"""

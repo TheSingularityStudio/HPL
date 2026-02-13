@@ -120,8 +120,10 @@ class MethodCall(Expression):
 
 
 class PostfixIncrement(Expression):
-    def __init__(self, var):
+    def __init__(self, var, line=None, column=None):
+        super().__init__(line, column)
         self.var = var
+
 
 
 class UnaryOp(Expression):
@@ -131,8 +133,10 @@ class UnaryOp(Expression):
 
 
 class ArrayLiteral(Expression):
-    def __init__(self, elements):
+    def __init__(self, elements, line=None, column=None):
+        super().__init__(line, column)
         self.elements = elements
+
 
 
 class ArrayAccess(Expression):
@@ -142,8 +146,10 @@ class ArrayAccess(Expression):
 
 
 class DictionaryLiteral(Expression):
-    def __init__(self, pairs):
+    def __init__(self, pairs, line=None, column=None):
+        super().__init__(line, column)
         self.pairs = pairs  # 字典：键 -> 值表达式
+
 
 
 # 语句
