@@ -144,8 +144,12 @@ class HPLEvaluator:
         raise self._create_error(
             HPLRuntimeError,
             f"Unknown statement type: {type(stmt).__name__}",
+            line=stmt.line if hasattr(stmt, 'line') else None,
+            column=stmt.column if hasattr(stmt, 'column') else None,
+            local_scope=local_scope,
             error_key='RUNTIME_GENERAL'
         )
+
     
     def _execute_assignment(self, stmt, local_scope):
         """执行赋值语句"""
@@ -165,10 +169,12 @@ class HPLEvaluator:
                 raise self._create_error(
                     HPLTypeError,
                     f"Cannot set property on non-object value: {type(obj).__name__}",
-                    stmt.line, stmt.column,
-                    local_scope,
+                    line=stmt.line,
+                    column=stmt.column,
+                    local_scope=local_scope,
                     error_key='TYPE_MISSING_PROPERTY'
                 )
+
         else:
             local_scope[stmt.var_name] = value
     
@@ -189,8 +195,12 @@ class HPLEvaluator:
                 raise self._create_error(
                     HPLTypeError,
                     f"Cannot access property on non-object value: {type(obj).__name__}",
-                    error_key='TYPE_MISSING_PROPERTY'
+                    line=stmt.line if hasattr(stmt, 'line') else None,
+                    column=stmt.column if hasattr(stmt, 'column') else None,
+                    local_scope=local_scope,
+                    error_key='TYPE_INVALID_OPERATION'
                 )
+
 
             # 获取属性（应该是数组/字典）
             if prop_name not in obj.attributes:
@@ -224,8 +234,12 @@ class HPLEvaluator:
                 raise self._create_error(
                     HPLTypeError,
                     f"Cannot index non-array and non-dict value: {type(array).__name__}",
+                    line=stmt.line if hasattr(stmt, 'line') else None,
+                    column=stmt.column if hasattr(stmt, 'column') else None,
+                    local_scope=local_scope,
                     error_key='TYPE_INVALID_OPERATION'
                 )
+
         else:
             # 简单数组赋值
             array = self._lookup_variable(stmt.array_name, local_scope)
@@ -233,8 +247,12 @@ class HPLEvaluator:
                 raise self._create_error(
                     HPLTypeError,
                     f"Cannot assign to non-array value: {type(array).__name__}",
+                    line=stmt.line if hasattr(stmt, 'line') else None,
+                    column=stmt.column if hasattr(stmt, 'column') else None,
+                    local_scope=local_scope,
                     error_key='TYPE_INVALID_OPERATION'
                 )
+
          
             index = self.evaluate_expression(stmt.index_expr, local_scope)
             if not isinstance(index, int):
@@ -288,8 +306,12 @@ class HPLEvaluator:
             raise self._create_error(
                 HPLTypeError,
                 f"'{type(iterable).__name__}' object is not iterable",
+                line=stmt.line if hasattr(stmt, 'line') else None,
+                column=stmt.column if hasattr(stmt, 'column') else None,
+                local_scope=local_scope,
                 error_key='TYPE_INVALID_OPERATION'
             )
+
         
         for item in iterator:
             local_scope[stmt.var_name] = item
@@ -460,8 +482,12 @@ class HPLEvaluator:
         raise self._create_error(
             HPLRuntimeError,
             f"Unknown expression type: {type(expr).__name__}",
+            line=expr.line if hasattr(expr, 'line') else None,
+            column=expr.column if hasattr(expr, 'column') else None,
+            local_scope=local_scope,
             error_key='RUNTIME_GENERAL'
         )
+
     
     # 字面量处理器
     def _eval_integer_literal(self, expr, local_scope):
@@ -503,10 +529,12 @@ class HPLEvaluator:
             raise self._create_error(
                 HPLRuntimeError,
                 f"Unknown unary operator {expr.op}",
-                expr.line, expr.column,
-                local_scope,
+                line=expr.line,
+                column=expr.column,
+                local_scope=local_scope,
                 error_key='RUNTIME_GENERAL'
             )
+
     
     def _eval_function_call(self, expr, local_scope):
         """评估函数调用表达式"""
@@ -565,8 +593,12 @@ class HPLEvaluator:
         raise self._create_error(
             HPLTypeError,
             f"len() requires list or string, got {type(arg).__name__}",
+            line=expr.line if hasattr(expr, 'line') else None,
+            column=expr.column if hasattr(expr, 'column') else None,
+            local_scope=local_scope,
             error_key='TYPE_INVALID_OPERATION'
         )
+
     
     def _builtin_int(self, expr, local_scope):
         arg = self.evaluate_expression(expr.args[0], local_scope)
@@ -633,8 +665,12 @@ class HPLEvaluator:
             raise self._create_error(
                 HPLTypeError,
                 f"abs() requires number, got {type(arg).__name__}",
+                line=expr.line if hasattr(expr, 'line') else None,
+                column=expr.column if hasattr(expr, 'column') else None,
+                local_scope=local_scope,
                 error_key='TYPE_INVALID_OPERATION'
             )
+
         return abs(arg)
     
     def _builtin_max(self, expr, local_scope):
@@ -642,8 +678,12 @@ class HPLEvaluator:
             raise self._create_error(
                 HPLValueError,
                 "max() requires at least one argument",
+                line=expr.line if hasattr(expr, 'line') else None,
+                column=expr.column if hasattr(expr, 'column') else None,
+                local_scope=local_scope,
                 error_key='RUNTIME_GENERAL'
             )
+
         args = [self.evaluate_expression(arg, local_scope) for arg in expr.args]
         return max(args)
     
@@ -652,8 +692,12 @@ class HPLEvaluator:
             raise self._create_error(
                 HPLValueError,
                 "min() requires at least one argument",
+                line=expr.line if hasattr(expr, 'line') else None,
+                column=expr.column if hasattr(expr, 'column') else None,
+                local_scope=local_scope,
                 error_key='RUNTIME_GENERAL'
             )
+
         args = [self.evaluate_expression(arg, local_scope) for arg in expr.args]
         return min(args)
     
@@ -662,8 +706,12 @@ class HPLEvaluator:
             raise self._create_error(
                 HPLValueError,
                 "range() requires 1 to 3 arguments",
+                line=expr.line if hasattr(expr, 'line') else None,
+                column=expr.column if hasattr(expr, 'column') else None,
+                local_scope=local_scope,
                 error_key='RUNTIME_GENERAL'
             )
+
         args = [self.evaluate_expression(arg, local_scope) for arg in expr.args]
         for arg in args:
             if not isinstance(arg, int):
@@ -743,8 +791,12 @@ class HPLEvaluator:
         raise self._create_error(
             HPLTypeError,
             f"Cannot call method on {type(obj).__name__}",
+            line=expr.line if hasattr(expr, 'line') else None,
+            column=expr.column if hasattr(expr, 'column') else None,
+            local_scope=local_scope,
             error_key='TYPE_INVALID_OPERATION'
         )
+
     
     def _eval_postfix_increment(self, expr, local_scope):
         var_name = expr.var.name
@@ -753,8 +805,12 @@ class HPLEvaluator:
             raise self._create_error(
                 HPLTypeError,
                 f"Cannot increment non-numeric value: {type(value).__name__}",
+                line=expr.line if hasattr(expr, 'line') else None,
+                column=expr.column if hasattr(expr, 'column') else None,
+                local_scope=local_scope,
                 error_key='TYPE_INVALID_OPERATION'
             )
+
         new_value = value + 1
         self._update_variable(var_name, new_value, local_scope)
         return value
