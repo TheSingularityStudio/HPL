@@ -53,41 +53,72 @@ def build_exe():
         "--onefile",  # 单文件模式
         "--name", "HPL",  # 输出文件名
         "--clean",  # 清理临时文件
-        "--hidden-import", "yaml",  # 显式包含yaml模块
-        "--hidden-import", "platform",  # 显式包含platform模块
-        "--hidden-import", "difflib",  # 显式包含difflib模块
-        "--hidden-import", "json",  # 显式包含json模块
-        "--hidden-import", "logging",  # 显式包含logging模块
-        "--hidden-import", "pathlib",  # 显式包含pathlib模块
-        "--hidden-import", "importlib",  # 显式包含importlib模块
-        "--hidden-import", "importlib.util",  # 显式包含importlib.util模块
-        "--hidden-import", "subprocess",  # 显式包含subprocess模块
-        "--hidden-import", "shutil",  # 显式包含shutil模块
-        "--hidden-import", "traceback",  # 显式包含traceback模块
-        "--hidden-import", "re",  # 显式包含re模块
-        "--hidden-import", "urllib",  # 显式包含urllib模块
-        "--hidden-import", "urllib.request",  # 显式包含urllib.request模块
-        "--hidden-import", "urllib.parse",  # 显式包含urllib.parse模块
-        "--hidden-import", "urllib.error",  # 显式包含urllib.error模块
-        "--hidden-import", "http.client",  # 显式包含http.client模块
-        "--hidden-import", "ssl",  # 显式包含ssl模块
-        "--hidden-import", "hashlib",  # 显式包含hashlib模块
-        "--hidden-import", "base64",  # 显式包含base64模块
-        "--hidden-import", "secrets",  # 显式包含secrets模块
-        "--hidden-import", "random",  # 显式包含random模块
-        "--hidden-import", "string",  # 显式包含string模块
-        "--hidden-import", "datetime",  # 显式包含datetime模块
-        "--hidden-import", "time",  # 显式包含time模块
-        "--hidden-import", "math",  # 显式包含math模块
-        "--hidden-import", "os",  # 显式包含os模块
-        "--hidden-import", "sys",  # 显式包含sys模块
-        "--hidden-import", "uuid",  # 显式包含uuid模块
-        "--hidden-import", "hmac",  # 显式包含hmac模块
-        "--exclude-module", "tests",  # 排除测试模块
-        "--exclude-module", "docs",  # 排除文档模块
-        "--exclude-module", "examples",  # 排除示例模块
-        "--exclude-module", "src",  # 排除遗留src模块
+        # 基础模块
+        "--hidden-import", "yaml",
+        "--hidden-import", "platform",
+        "--hidden-import", "difflib",
+        "--hidden-import", "json",
+        "--hidden-import", "logging",
+        "--hidden-import", "pathlib",
+        "--hidden-import", "importlib",
+        "--hidden-import", "importlib.util",
+        "--hidden-import", "subprocess",
+        "--hidden-import", "shutil",
+        "--hidden-import", "traceback",
+        "--hidden-import", "re",
+        "--hidden-import", "urllib",
+        "--hidden-import", "urllib.request",
+        "--hidden-import", "urllib.parse",
+        "--hidden-import", "urllib.error",
+        "--hidden-import", "http.client",
+        "--hidden-import", "ssl",
+        "--hidden-import", "hashlib",
+        "--hidden-import", "base64",
+        "--hidden-import", "secrets",
+        "--hidden-import", "random",
+        "--hidden-import", "string",
+        "--hidden-import", "datetime",
+        "--hidden-import", "time",
+        "--hidden-import", "math",
+        "--hidden-import", "os",
+        "--hidden-import", "sys",
+        "--hidden-import", "uuid",
+        "--hidden-import", "hmac",
+        # HPL运行时核心模块 - 确保打包后能找到
+        "--hidden-import", "hpl_runtime",
+        "--hidden-import", "hpl_runtime.core",
+        "--hidden-import", "hpl_runtime.core.parser",
+        "--hidden-import", "hpl_runtime.core.evaluator",
+        "--hidden-import", "hpl_runtime.core.lexer",
+        "--hidden-import", "hpl_runtime.core.models",
+        "--hidden-import", "hpl_runtime.core.ast_parser",
+        "--hidden-import", "hpl_runtime.utils.exceptions",
+        "--hidden-import", "hpl_runtime.utils.error_handler",
+        "--hidden-import", "hpl_runtime.utils.path_utils",
+        "--hidden-import", "hpl_runtime.utils.io_utils",
+        "--hidden-import", "hpl_runtime.utils.type_utils",
+        "--hidden-import", "hpl_runtime.utils.text_utils",
+        "--hidden-import", "hpl_runtime.utils.parse_utils",
+        "--hidden-import", "hpl_runtime.modules.loader",
+        "--hidden-import", "hpl_runtime.modules.base",
+        "--hidden-import", "hpl_runtime.stdlib",
+        "--hidden-import", "hpl_runtime.stdlib.io",
+        "--hidden-import", "hpl_runtime.stdlib.math",
+        "--hidden-import", "hpl_runtime.stdlib.string_mod",
+        "--hidden-import", "hpl_runtime.stdlib.time_mod",
+        "--hidden-import", "hpl_runtime.stdlib.random_mod",
+        "--hidden-import", "hpl_runtime.stdlib.json_mod",
+        "--hidden-import", "hpl_runtime.stdlib.os_mod",
+        "--hidden-import", "hpl_runtime.stdlib.re_mod",
+        "--hidden-import", "hpl_runtime.stdlib.net_mod",
+        "--hidden-import", "hpl_runtime.stdlib.crypto_mod",
+        # 排除不需要的模块
+        "--exclude-module", "tests",
+        "--exclude-module", "docs",
+        "--exclude-module", "examples",
+        "--exclude-module", "src",
     ]
+
 
     
     # 添加图标（如果存在）
@@ -106,8 +137,12 @@ def build_exe():
     cmd.append(launcher_path)
     
     print("执行命令:")
-    print(" ".join(cmd))
+    # 打印命令，但隐藏导入可以简化显示
+    display_cmd = cmd.copy()
+    print(" ".join(display_cmd[:15]) + " ... (更多参数)")
+    print(f"总共 {len(cmd)} 个参数")
     print()
+
     
     try:
         # 执行打包命令
@@ -179,7 +214,12 @@ def main():
         print("  2. 将.hpl文件拖放到HPL.exe上运行")
         print("  3. 或在命令行中: HPL.exe <hpl_file>")
         print()
+        print("调试模式:")
+        print("  设置环境变量 HPL_DEBUG=1 可启用调试输出")
+        print("  例如: set HPL_DEBUG=1 && HPL.exe example.hpl")
+        print()
         print("提示: 可以将HPL.exe添加到系统PATH中")
+
         return 0
     else:
         return 1
