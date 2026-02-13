@@ -180,18 +180,22 @@ class HPLParser:
                         raise HPLSyntaxError(
                             f"YAML syntax error in included file '{include_file}': {e}",
                             line=line_num,
-                            file=include_path
+                            file=include_path,
+                            error_key='SYNTAX_YAML_ERROR'
                         ) from e
                     except Exception as e:
                         raise HPLImportError(
                             f"Failed to include '{include_file}': {e}",
-                            file=include_path
+                            file=include_path,
+                            error_key='IMPORT_MODULE_NOT_FOUND'
                         ) from e
                 else:
                     raise HPLImportError(
                         f"Include file '{include_file}' not found in any search path",
-                        file=self.hpl_file
+                        file=self.hpl_file,
+                        error_key='IMPORT_MODULE_NOT_FOUND'
                     )
+
         
         return data
 
@@ -384,7 +388,8 @@ class HPLParser:
         if arrow_pos == -1:
             raise HPLSyntaxError(
                 "Arrow function syntax error: => not found",
-                file=self.hpl_file
+                file=self.hpl_file,
+                error_key='SYNTAX_MISSING_BRACKET'
             )
         
         # 找到函数体
@@ -393,8 +398,10 @@ class HPLParser:
         if body_start == -1 or body_end == -1:
             raise HPLSyntaxError(
                 "Arrow function syntax error: braces not found",
-                file=self.hpl_file
+                file=self.hpl_file,
+                error_key='SYNTAX_MISSING_BRACKET'
             )
+
 
         body_str = func_str[body_start+1:body_end].strip()
         
