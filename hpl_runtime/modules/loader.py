@@ -27,7 +27,6 @@ except ImportError:
     from hpl_runtime.utils.exceptions import HPLImportError, HPLValueError, HPLRuntimeError
 
 
-
 # 配置日志
 logger = logging.getLogger('hpl.module_loader')
 
@@ -95,8 +94,6 @@ def set_current_hpl_file(file_path):
 def get_loader_context():
     """获取模块加载器上下文，用于高级用法（如嵌套导入管理）"""
     return _loader_context
-
-
 
 
 def register_module(name, module_instance):
@@ -180,7 +177,6 @@ def load_module(module_name, search_paths=None):
     )
 
 
-
 def _load_python_package(module_name):
     """
     加载 Python 第三方包
@@ -215,8 +211,6 @@ def _load_python_package(module_name):
     except Exception as e:
         logger.warning(f"Failed to load Python package '{module_name}': {e}")
         raise HPLImportError(f"Failed to load Python package '{module_name}': {e}") from e
-
-
 
 
 def _load_hpl_module(module_name, search_paths=None):
@@ -304,6 +298,11 @@ def _parse_hpl_module(module_name, file_path):
     # 标记模块正在加载中
     _loading_modules.add(module_name)
     
+    # 保存当前上下文，并设置新上下文为当前模块所在目录
+    previous_context = _loader_context.get_current_file_dir()
+    file_path = Path(file_path)
+    _loader_context.set_current_file(str(file_path))
+    
     try:
         # 延迟导入以避免循环依赖
         try:
@@ -316,7 +315,6 @@ def _parse_hpl_module(module_name, file_path):
             from hpl_runtime.core.models import HPLObject
 
         # 检查文件是否存在
-        file_path = Path(file_path)
         if not file_path.exists():
             raise HPLImportError(f"Module file not found: {file_path}")
 
@@ -329,6 +327,8 @@ def _parse_hpl_module(module_name, file_path):
         
         # 创建 evaluator 用于执行构造函数和函数
         evaluator = HPLEvaluator(classes, objects, functions, main_func)
+        
+        # 注意：evaluator.global_scope 就是 objects，后续导入的模块需要同时注册到这里
         
         # 将类注册为模块函数（构造函数）
         for class_name, hpl_class in classes.items():
@@ -436,6 +436,8 @@ def _parse_hpl_module(module_name, file_path):
             )
         
         # 处理导入的模块
+        # 注意：此时_loader_context已经设置为当前模块所在目录
+        # 所以嵌套导入会正确继承当前模块的搜索路径
         for imp in imports:
             module_name_to_import = imp['module']
             alias = imp['alias']
@@ -443,7 +445,10 @@ def _parse_hpl_module(module_name, file_path):
                 imported_module = load_module(module_name_to_import)
                 # 使用别名或原始名称注册
                 register_name = alias if alias else module_name_to_import
+                # 注册到 HPLModule，供外部访问
                 hpl_module.register_constant(register_name, imported_module, f"Imported module: {module_name_to_import}")
+                # 同时注册到 evaluator 的全局作用域，供模块内部函数访问
+                evaluator.global_scope[register_name] = imported_module
             except ImportError as e:
                 print(f"Warning: Failed to import '{module_name_to_import}' in module '{module_name}': {e}")
                 raise HPLImportError(f"Failed to import '{module_name_to_import}' in module '{module_name}': {e}") from e
@@ -461,9 +466,8 @@ def _parse_hpl_module(module_name, file_path):
     finally:
         # 无论成功还是失败，都从加载中集合移除
         _loading_modules.discard(module_name)
-
-
-
+        # 恢复之前的上下文
+        _loader_context._current_file_dir = previous_context
 
 
 def _parse_python_module_file(module_name, file_path):
@@ -506,8 +510,6 @@ def _parse_python_module_file(module_name, file_path):
         raise HPLImportError(f"Failed to load Python module '{module_name}': {e}") from e
 
 
-
-
 def install_package(package_name, version=None):
     """
     安装 Python 包到 HPL 包目录
@@ -539,8 +541,6 @@ def install_package(package_name, version=None):
         raise HPLRuntimeError(f"Error installing package '{package_name}': {e}") from e
 
 
-
-
 def uninstall_package(package_name):
     """
     卸载 Python 包
@@ -568,8 +568,6 @@ def uninstall_package(package_name):
     except Exception as e:
         logger.error(f"Error uninstalling package: {e}")
         raise HPLRuntimeError(f"Error uninstalling package '{package_name}': {e}") from e
-
-
 
 
 def list_installed_packages():
@@ -627,9 +625,6 @@ def init_stdlib():
     except ImportError as e:
         # 如果某些模块导入失败，记录错误但不中断
         logger.warning(f"Some stdlib modules failed to load: {e}")
-
-
-
 
 
 # 初始化标准库
