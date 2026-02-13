@@ -530,13 +530,13 @@ def format_error_for_user(error, source_code=None):
     # 显示帮助链接
     help_url = error.get_help_url()
     if help_url:
-        lines.append(f"\n   [DOC] 帮助文档: {help_url}")
+        lines.append(f"\n   [DOC] {help_url}")
 
     
     # 显示错误解决建议
     suggestion = get_error_suggestion(error)
     if suggestion:
-        lines.append(f"\n   [TIP] 建议: {suggestion}")
+        lines.append(f"\n   [TIP] {suggestion}")
 
     
     return '\n'.join(lines)

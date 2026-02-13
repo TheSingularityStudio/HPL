@@ -144,8 +144,12 @@ class HPLEvaluator:
         raise self._create_error(
             HPLRuntimeError,
             f"Unknown statement type: {type(stmt).__name__}",
+            line=stmt.line if hasattr(stmt, 'line') else None,
+            column=stmt.column if hasattr(stmt, 'column') else None,
+            local_scope=local_scope,
             error_key='RUNTIME_GENERAL'
         )
+
     
     def _execute_assignment(self, stmt, local_scope):
         """执行赋值语句"""
@@ -165,10 +169,12 @@ class HPLEvaluator:
                 raise self._create_error(
                     HPLTypeError,
                     f"Cannot set property on non-object value: {type(obj).__name__}",
-                    stmt.line, stmt.column,
-                    local_scope,
+                    line=stmt.line,
+                    column=stmt.column,
+                    local_scope=local_scope,
                     error_key='TYPE_MISSING_PROPERTY'
                 )
+
         else:
             local_scope[stmt.var_name] = value
     
@@ -189,8 +195,12 @@ class HPLEvaluator:
                 raise self._create_error(
                     HPLTypeError,
                     f"Cannot access property on non-object value: {type(obj).__name__}",
-                    error_key='TYPE_MISSING_PROPERTY'
+                    line=stmt.line if hasattr(stmt, 'line') else None,
+                    column=stmt.column if hasattr(stmt, 'column') else None,
+                    local_scope=local_scope,
+                    error_key='TYPE_INVALID_OPERATION'
                 )
+
 
             # 获取属性（应该是数组/字典）
             if prop_name not in obj.attributes:
@@ -224,8 +234,12 @@ class HPLEvaluator:
                 raise self._create_error(
                     HPLTypeError,
                     f"Cannot index non-array and non-dict value: {type(array).__name__}",
+                    line=stmt.line if hasattr(stmt, 'line') else None,
+                    column=stmt.column if hasattr(stmt, 'column') else None,
+                    local_scope=local_scope,
                     error_key='TYPE_INVALID_OPERATION'
                 )
+
         else:
             # 简单数组赋值
             array = self._lookup_variable(stmt.array_name, local_scope)
@@ -233,8 +247,12 @@ class HPLEvaluator:
                 raise self._create_error(
                     HPLTypeError,
                     f"Cannot assign to non-array value: {type(array).__name__}",
+                    line=stmt.line if hasattr(stmt, 'line') else None,
+                    column=stmt.column if hasattr(stmt, 'column') else None,
+                    local_scope=local_scope,
                     error_key='TYPE_INVALID_OPERATION'
                 )
+
          
             index = self.evaluate_expression(stmt.index_expr, local_scope)
             if not isinstance(index, int):
@@ -288,8 +306,12 @@ class HPLEvaluator:
             raise self._create_error(
                 HPLTypeError,
                 f"'{type(iterable).__name__}' object is not iterable",
+                line=stmt.line if hasattr(stmt, 'line') else None,
+                column=stmt.column if hasattr(stmt, 'column') else None,
+                local_scope=local_scope,
                 error_key='TYPE_INVALID_OPERATION'
             )
+
         
         for item in iterator:
             local_scope[stmt.var_name] = item
@@ -330,8 +352,12 @@ class HPLEvaluator:
         raise self._create_error(
             HPLRuntimeError,
             str(value) if value is not None else "Exception thrown",
+            line=stmt.line if hasattr(stmt, 'line') else None,
+            column=stmt.column if hasattr(stmt, 'column') else None,
+            local_scope=local_scope,
             error_key='RUNTIME_GENERAL'
         )
+
     
     def _execute_try_catch(self, stmt, local_scope):
         """执行try-catch-finally语句"""
@@ -375,7 +401,31 @@ class HPLEvaluator:
     
     def _execute_import(self, stmt, local_scope):
         """执行import语句"""
-        self.execute_import(stmt, local_scope)
+        module_name = stmt.module_name
+        alias = stmt.alias or module_name
+        
+        try:
+            # 加载模块
+            module = load_module(module_name)
+            if module:
+                # 存储模块引用
+                self.imported_modules[alias] = module
+                local_scope[alias] = module
+                return None
+        except ImportError as e:
+            raise self._create_error(
+                HPLImportError,
+                f"Cannot import module '{module_name}': {e}",
+                error_key='IMPORT_MODULE_NOT_FOUND'
+            ) from e
+        
+        raise self._create_error(
+            HPLImportError,
+            f"Module '{module_name}' not found",
+            error_key='IMPORT_MODULE_NOT_FOUND'
+        )
+
+
     
     def _execute_increment(self, stmt, local_scope):
         """执行自增语句"""
@@ -436,8 +486,12 @@ class HPLEvaluator:
         raise self._create_error(
             HPLRuntimeError,
             f"Unknown expression type: {type(expr).__name__}",
+            line=expr.line if hasattr(expr, 'line') else None,
+            column=expr.column if hasattr(expr, 'column') else None,
+            local_scope=local_scope,
             error_key='RUNTIME_GENERAL'
         )
+
     
     # 字面量处理器
     def _eval_integer_literal(self, expr, local_scope):
@@ -479,10 +533,12 @@ class HPLEvaluator:
             raise self._create_error(
                 HPLRuntimeError,
                 f"Unknown unary operator {expr.op}",
-                expr.line, expr.column,
-                local_scope,
+                line=expr.line,
+                column=expr.column,
+                local_scope=local_scope,
                 error_key='RUNTIME_GENERAL'
             )
+
     
     def _eval_function_call(self, expr, local_scope):
         """评估函数调用表达式"""
@@ -525,8 +581,12 @@ class HPLEvaluator:
         raise self._create_error(
             HPLNameError,
             f"Unknown function '{expr.func_name}'",
+            line=expr.line if hasattr(expr, 'line') else None,
+            column=expr.column if hasattr(expr, 'column') else None,
+            local_scope=local_scope,
             error_key='RUNTIME_UNDEFINED_VAR'
         )
+
     
     # 内置函数处理器
     def _builtin_echo(self, expr, local_scope):
@@ -541,8 +601,12 @@ class HPLEvaluator:
         raise self._create_error(
             HPLTypeError,
             f"len() requires list or string, got {type(arg).__name__}",
+            line=expr.line if hasattr(expr, 'line') else None,
+            column=expr.column if hasattr(expr, 'column') else None,
+            local_scope=local_scope,
             error_key='TYPE_INVALID_OPERATION'
         )
+
     
     def _builtin_int(self, expr, local_scope):
         arg = self.evaluate_expression(expr.args[0], local_scope)
@@ -551,11 +615,12 @@ class HPLEvaluator:
         except (ValueError, TypeError):
             arg_type = type(arg).__name__
             suggestions = {
-                'str': " (确保字符串只包含数字，如: int(\"42\"))",
-                'list': " (不能将数组转换为整数)",
-                'dict': " (不能将字典转换为整数)",
-                'NoneType': " (变量未初始化，值为 null)",
+                'str': " (Ensure string contains only digits, e.g., int(\"42\"))",
+                'list': " (Cannot convert array to integer)",
+                'dict': " (Cannot convert dictionary to integer)",
+                'NoneType': " (Variable not initialized, value is null)",
             }
+
             suggestion = suggestions.get(arg_type, "")
             raise self._create_error(
                 HPLTypeError,
@@ -572,9 +637,10 @@ class HPLEvaluator:
         except (ValueError, TypeError):
             arg_type = type(arg).__name__
             suggestions = {
-                'str': " (确保字符串是有效的数字格式，如: float(\"3.14\"))",
-                'NoneType': " (变量未初始化，值为 null)",
+                'str': " (Ensure string is valid numeric format, e.g., float(\"3.14\"))",
+                'NoneType': " (Variable not initialized, value is null)",
             }
+
             suggestion = suggestions.get(arg_type, "")
             raise self._create_error(
                 HPLTypeError,
@@ -609,8 +675,12 @@ class HPLEvaluator:
             raise self._create_error(
                 HPLTypeError,
                 f"abs() requires number, got {type(arg).__name__}",
+                line=expr.line if hasattr(expr, 'line') else None,
+                column=expr.column if hasattr(expr, 'column') else None,
+                local_scope=local_scope,
                 error_key='TYPE_INVALID_OPERATION'
             )
+
         return abs(arg)
     
     def _builtin_max(self, expr, local_scope):
@@ -618,8 +688,12 @@ class HPLEvaluator:
             raise self._create_error(
                 HPLValueError,
                 "max() requires at least one argument",
+                line=expr.line if hasattr(expr, 'line') else None,
+                column=expr.column if hasattr(expr, 'column') else None,
+                local_scope=local_scope,
                 error_key='RUNTIME_GENERAL'
             )
+
         args = [self.evaluate_expression(arg, local_scope) for arg in expr.args]
         return max(args)
     
@@ -628,8 +702,12 @@ class HPLEvaluator:
             raise self._create_error(
                 HPLValueError,
                 "min() requires at least one argument",
+                line=expr.line if hasattr(expr, 'line') else None,
+                column=expr.column if hasattr(expr, 'column') else None,
+                local_scope=local_scope,
                 error_key='RUNTIME_GENERAL'
             )
+
         args = [self.evaluate_expression(arg, local_scope) for arg in expr.args]
         return min(args)
     
@@ -638,8 +716,12 @@ class HPLEvaluator:
             raise self._create_error(
                 HPLValueError,
                 "range() requires 1 to 3 arguments",
+                line=expr.line if hasattr(expr, 'line') else None,
+                column=expr.column if hasattr(expr, 'column') else None,
+                local_scope=local_scope,
                 error_key='RUNTIME_GENERAL'
             )
+
         args = [self.evaluate_expression(arg, local_scope) for arg in expr.args]
         for arg in args:
             if not isinstance(arg, int):
@@ -663,6 +745,9 @@ class HPLEvaluator:
                 raise self._create_error(
                     HPLIOError,
                     "End of file reached while waiting for input",
+                    line=expr.line if hasattr(expr, 'line') else None,
+                    column=expr.column if hasattr(expr, 'column') else None,
+                    local_scope=local_scope,
                     error_key='IO_READ_ERROR'
                 )
         elif len(expr.args) == 1:
@@ -671,6 +756,9 @@ class HPLEvaluator:
                 raise self._create_error(
                     HPLTypeError,
                     f"input() requires string prompt, got {type(prompt).__name__}",
+                    line=expr.line if hasattr(expr, 'line') else None,
+                    column=expr.column if hasattr(expr, 'column') else None,
+                    local_scope=local_scope,
                     error_key='TYPE_INVALID_OPERATION'
                 )
             try:
@@ -679,14 +767,21 @@ class HPLEvaluator:
                 raise self._create_error(
                     HPLIOError,
                     "End of file reached while waiting for input",
+                    line=expr.line if hasattr(expr, 'line') else None,
+                    column=expr.column if hasattr(expr, 'column') else None,
+                    local_scope=local_scope,
                     error_key='IO_READ_ERROR'
                 )
         else:
             raise self._create_error(
                 HPLValueError,
                 f"input() requires 0 or 1 arguments, got {len(expr.args)}",
+                line=expr.line if hasattr(expr, 'line') else None,
+                column=expr.column if hasattr(expr, 'column') else None,
+                local_scope=local_scope,
                 error_key='RUNTIME_GENERAL'
             )
+
     
     def _eval_method_call(self, expr, local_scope):
         """评估方法调用表达式"""
@@ -700,8 +795,12 @@ class HPLEvaluator:
                 raise self._create_error(
                     HPLAttributeError,
                     f"Class '{obj.hpl_class.name}' has no parent class",
+                    line=expr.line if hasattr(expr, 'line') else None,
+                    column=expr.column if hasattr(expr, 'column') else None,
+                    local_scope=local_scope,
                     error_key='TYPE_MISSING_PROPERTY'
                 )
+
             args = [self.evaluate_expression(arg, local_scope) for arg in expr.args]
             return self._call_method(obj, expr.method_name, args)
         elif isinstance(obj, HPLClass):
@@ -719,8 +818,12 @@ class HPLEvaluator:
         raise self._create_error(
             HPLTypeError,
             f"Cannot call method on {type(obj).__name__}",
+            line=expr.line if hasattr(expr, 'line') else None,
+            column=expr.column if hasattr(expr, 'column') else None,
+            local_scope=local_scope,
             error_key='TYPE_INVALID_OPERATION'
         )
+
     
     def _eval_postfix_increment(self, expr, local_scope):
         var_name = expr.var.name
@@ -729,8 +832,12 @@ class HPLEvaluator:
             raise self._create_error(
                 HPLTypeError,
                 f"Cannot increment non-numeric value: {type(value).__name__}",
+                line=expr.line if hasattr(expr, 'line') else None,
+                column=expr.column if hasattr(expr, 'column') else None,
+                local_scope=local_scope,
                 error_key='TYPE_INVALID_OPERATION'
             )
+
         new_value = value + 1
         self._update_variable(var_name, new_value, local_scope)
         return value
@@ -760,13 +867,14 @@ class HPLEvaluator:
         # 类型错误
         actual_type = type(array).__name__
         hints = {
-            'dict': " (字典使用键访问，如: dict[key])",
-            'int': " (数字不可索引)",
-            'float': " (浮点数不可索引)",
-            'NoneType': " (变量可能未初始化，为 null)",
-            'HPLObject': " (对象使用属性访问，如: obj.property)",
+            'dict': " (Dictionary uses key access, e.g., dict[key])",
+            'int': " (Number is not indexable)",
+            'float': " (Float is not indexable)",
+            'NoneType': " (Variable may not be initialized, is null)",
+            'HPLObject': " (Object uses property access, e.g., obj.property)",
         }
-        hint = hints.get(actual_type, f" (类型 {actual_type} 不支持索引操作)")
+        hint = hints.get(actual_type, f" (Type {actual_type} does not support indexing)")
+
         raise self._create_error(
             HPLTypeError,
             f"Cannot index {actual_type} value{hint}",
@@ -811,12 +919,14 @@ class HPLEvaluator:
                 parts.append(f"Key exists as integer: {int_key}")
         
         hint = ". ".join(parts)
-        raise HPLKeyError(
+        raise self._create_error(
+            HPLKeyError,
             hint,
-            line=expr.line,
-            column=expr.column,
+            expr.line, expr.column,
+            local_scope,
             error_key='RUNTIME_KEY_NOT_FOUND'
         )
+
     
     def _access_string(self, array, index, expr, local_scope):
         """访问字符串"""
@@ -824,13 +934,14 @@ class HPLEvaluator:
             index_type = type(index).__name__
             suggestions = []
             if isinstance(index, str) and index.isdigit():
-                suggestions.append(f"使用 int() 转换: int('{index}')")
+                suggestions.append(f"Use int() to convert: int('{index}')")
             elif isinstance(index, float) and index.is_integer():
-                suggestions.append(f"使用 int() 转换: int({index})")
+                suggestions.append(f"Use int() to convert: int({index})")
             elif index is None:
-                suggestions.append("索引不能为 null")
+                suggestions.append("Index cannot be null")
             else:
-                suggestions.append(f"字符串索引必须是整数，得到的是 {index_type}")
+                suggestions.append(f"String index must be integer, got {index_type}")
+
             hint = f" ({'; '.join(suggestions)})" if suggestions else ""
             raise self._create_error(
                 HPLTypeError,
@@ -849,20 +960,22 @@ class HPLEvaluator:
         if index < 0 and length > 0:
             reverse_idx = length + index
             if 0 <= reverse_idx < length:
-                suggestions.append(f"使用正向索引 {reverse_idx} 访问第 {abs(index)} 个字符")
+                suggestions.append(f"Use positive index {reverse_idx} to access character at position {abs(index)}")
         if index >= length:
-            suggestions.append(f"字符串长度为 {length}，最大索引是 {length - 1}")
+            suggestions.append(f"String length is {length}, max index is {length - 1}")
         if length > 0:
-            suggestions.append(f"有效索引范围: 0 到 {length - 1}")
+            suggestions.append(f"Valid index range: 0 to {length - 1}")
         else:
-            suggestions.append("字符串为空")
+            suggestions.append("String is empty")
+
         
         if length > 0 and index >= 0:
             if index < length:
                 char = array[index]
-                suggestions.append(f"该位置的字符是: '{char}'")
+                suggestions.append(f"Character at this position is: '{char}'")
             elif index < length + 5:
-                suggestions.append(f"超出范围，字符串内容: '{array}'")
+                suggestions.append(f"Out of range, string content: '{array}'")
+
         
         hint = f" ({'; '.join(suggestions)})" if suggestions else ""
         raise self._create_error(
@@ -879,13 +992,14 @@ class HPLEvaluator:
             index_type = type(index).__name__
             suggestions = []
             if isinstance(index, str) and index.isdigit():
-                suggestions.append(f"使用 int() 转换: int('{index}')")
+                suggestions.append(f"Use int() to convert: int('{index}')")
             elif isinstance(index, float) and index.is_integer():
-                suggestions.append(f"使用 int() 转换: int({index})")
+                suggestions.append(f"Use int() to convert: int({index})")
             elif index is None:
-                suggestions.append("索引不能为 null")
+                suggestions.append("Index cannot be null")
             else:
-                suggestions.append(f"数组索引必须是整数，得到的是 {index_type}")
+                suggestions.append(f"Array index must be integer, got {index_type}")
+
             hint = f" ({'; '.join(suggestions)})" if suggestions else ""
             raise self._create_error(
                 HPLTypeError,
@@ -904,24 +1018,26 @@ class HPLEvaluator:
         if index < 0 and length > 0:
             reverse_idx = length + index
             if 0 <= reverse_idx < length:
-                suggestions.append(f"使用正向索引 {reverse_idx} 访问倒数第 {abs(index)} 个元素")
+                suggestions.append(f"Use positive index {reverse_idx} to access element at position {abs(index)} from end")
         if index >= length:
-            suggestions.append(f"数组长度为 {length}，最大有效索引是 {length - 1}")
+            suggestions.append(f"Array length is {length}, max valid index is {length - 1}")
         if length > 0:
-            suggestions.append(f"有效索引范围: 0 到 {length - 1}")
+            suggestions.append(f"Valid index range: 0 to {length - 1}")
         else:
-            suggestions.append("数组为空，无法访问任何索引")
+            suggestions.append("Array is empty, cannot access any index")
+
         
         if length > 0 and index >= 0 and index < length + 3:
             if index < length:
                 element = array[index]
                 element_type = type(element).__name__
-                suggestions.append(f"该位置的元素是: {element!r} (类型: {element_type})")
+                suggestions.append(f"Element at this position is: {element!r} (type: {element_type})")
             else:
                 if length <= 5:
-                    suggestions.append(f"数组内容: {array}")
+                    suggestions.append(f"Array content: {array}")
                 else:
-                    suggestions.append(f"数组前5个元素: {array[:5]}")
+                    suggestions.append(f"First 5 elements of array: {array[:5]}")
+
         
         hint = f" ({'; '.join(suggestions)})" if suggestions else ""
         raise self._create_error(
@@ -962,20 +1078,22 @@ class HPLEvaluator:
             if right == 0:
                 raise self._create_error(
                     HPLDivisionError,
-                    "Division by zero. 建议: 添加检查 if (divisor != 0) : result = dividend / divisor",
+                    "Division by zero. Hint: Add check if (divisor != 0) : result = dividend / divisor",
                     line, column,
                     error_key='RUNTIME_DIVISION_BY_ZERO'
                 )
+
 
             return left / right
         elif op == '%':
             if right == 0:
                 raise self._create_error(
                     HPLDivisionError,
-                    "Modulo by zero. 建议: 添加检查 if (divisor != 0) : result = dividend % divisor",
+                    "Modulo by zero. Hint: Add check if (divisor != 0) : result = dividend % divisor",
                     line, column,
                     error_key='RUNTIME_DIVISION_BY_ZERO'
                 )
+
 
             return left % right
 
@@ -1131,6 +1249,7 @@ class HPLEvaluator:
                     error_key='TYPE_MISSING_PROPERTY'
                 )
 
+
         hpl_class = obj.hpl_class
         
         # 在类继承层次结构中查找方法
@@ -1145,6 +1264,7 @@ class HPLEvaluator:
                 f"Method or attribute '{method_name}' not found in class '{hpl_class.name}'",
                 error_key='TYPE_MISSING_PROPERTY'
             )
+
 
 
         # 为'this'设置current_obj
@@ -1225,6 +1345,7 @@ class HPLEvaluator:
             )
         
         hpl_class = self.classes[class_name]
+
         obj = HPLObject(obj_name, hpl_class)
         
         # 调用构造函数（如果存在）
@@ -1279,6 +1400,8 @@ class HPLEvaluator:
             f"Cannot get constant from non-module object",
             error_key='TYPE_INVALID_OPERATION'
         )
+
+
 
     def _create_error(self, error_class, message, line=None, column=None, 
                     local_scope=None, error_key=None, **kwargs):

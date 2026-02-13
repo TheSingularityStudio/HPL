@@ -246,14 +246,25 @@ class HPLLexer:
             if self.current_char == '&':
                 self.advance()
                 return Token('AND', '&&', token_line, token_column)
-            raise HPLSyntaxError(f"Invalid character '&'", line=self.line, column=self.column)
+            raise HPLSyntaxError(
+                f"Invalid character '&'",
+                line=self.line,
+                column=self.column,
+                error_key='SYNTAX_UNEXPECTED_TOKEN'
+            )
         
         if char == '|':
             self.advance()
             if self.current_char == '|':
                 self.advance()
                 return Token('OR', '||', token_line, token_column)
-            raise HPLSyntaxError(f"Invalid character '|'", line=self.line, column=self.column)
+            raise HPLSyntaxError(
+                f"Invalid character '|'",
+                line=self.line,
+                column=self.column,
+                error_key='SYNTAX_UNEXPECTED_TOKEN'
+            )
+
         
         # 使用映射表处理标准运算符
         self.advance()
@@ -321,8 +332,10 @@ class HPLLexer:
                 raise HPLSyntaxError(
                     f"Invalid character '{char}'",
                     line=self.line,
-                    column=self.column
+                    column=self.column,
+                    error_key='SYNTAX_UNEXPECTED_TOKEN'
                 )
+
         
         # 文件结束时，弹出所有缩进级别
         while len(self.indent_stack) > 1:

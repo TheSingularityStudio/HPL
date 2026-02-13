@@ -223,7 +223,7 @@ class HPLErrorHandler:
         
         # 添加智能建议
         if analysis.get('suggestions'):
-            result += "\n\n   [TIP] 智能建议:"
+            result += "\n\n   [TIP] "
 
             for i, suggestion in enumerate(analysis['suggestions'], 1):
                 # 处理多行建议
@@ -234,7 +234,7 @@ class HPLErrorHandler:
         
         # 添加快速修复代码
         if analysis.get('quick_fix'):
-            result += f"\n\n   [FIX] 快速修复:\n   ```\n   {analysis['quick_fix']}\n   ```"
+            result += f"\n\n   [FIX] \n   ```\n   {analysis['quick_fix']}\n   ```"
 
         
         return result
