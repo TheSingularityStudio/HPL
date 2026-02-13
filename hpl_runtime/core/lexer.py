@@ -10,12 +10,8 @@ HPL 词法分析器模块
 - HPLLexer: 词法分析器，将源代码字符串转换为 Token 列表
 """
 
-try:
-    from hpl_runtime.utils.exceptions import HPLSyntaxError
-    from hpl_runtime.utils.text_utils import skip_whitespace, skip_comment
-except ImportError:
-    from hpl_runtime.utils.exceptions import HPLSyntaxError
-    from hpl_runtime.utils.text_utils import skip_whitespace, skip_comment
+from hpl_runtime.utils.exceptions import HPLSyntaxError
+from hpl_runtime.utils.text_utils import skip_whitespace, skip_comment
 
 
 class Token:

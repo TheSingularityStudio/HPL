@@ -31,26 +31,15 @@ project_dir = os.path.dirname(script_dir)
 if project_dir not in sys.path:
     sys.path.insert(0, project_dir)
 
-try:
-    from hpl_runtime.core.parser import HPLParser
-    from hpl_runtime.core.evaluator import HPLEvaluator
-    from hpl_runtime.core.models import ImportStatement, HPLObject
-    from hpl_runtime.modules.loader import set_current_hpl_file
-    from hpl_runtime.utils.exceptions import (
-        HPLError, HPLSyntaxError, HPLRuntimeError, HPLImportError,
-        format_error_for_user
-    )
-    from hpl_runtime.utils.error_handler import HPLErrorHandler, create_error_handler
-except ImportError:
-    from hpl_runtime.core.parser import HPLParser
-    from hpl_runtime.core.evaluator import HPLEvaluator
-    from hpl_runtime.core.models import ImportStatement, HPLObject
-    from hpl_runtime.modules.loader import set_current_hpl_file
-    from hpl_runtime.utils.exceptions import (
-        HPLError, HPLSyntaxError, HPLRuntimeError, HPLImportError,
-        format_error_for_user
-    )
-    from hpl_runtime.utils.error_handler import HPLErrorHandler, create_error_handler
+from hpl_runtime.core.parser import HPLParser
+from hpl_runtime.core.evaluator import HPLEvaluator
+from hpl_runtime.core.models import ImportStatement, HPLObject
+from hpl_runtime.modules.loader import set_current_hpl_file
+from hpl_runtime.utils.exceptions import (
+    HPLError, HPLSyntaxError, HPLRuntimeError, HPLImportError,
+    format_error_for_user
+)
+from hpl_runtime.utils.error_handler import HPLErrorHandler, create_error_handler
 
 
 def _instantiate_objects(evaluator, handler):

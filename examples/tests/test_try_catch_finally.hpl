@@ -13,7 +13,7 @@ main: () => {
       # 这里会抛出类型错误
       arr = [1, 2, 3]
       val = arr["invalid"]  # 类型错误：索引必须是整数
-    catch HPLTypeError (type_err) :
+    catch (HPLTypeError type_err) :
       echo "类型错误: " + type_err
     catch (other_err) :
       echo "其他错误: " + other_err

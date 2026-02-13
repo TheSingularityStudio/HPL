@@ -15,24 +15,14 @@ import subprocess
 from pathlib import Path
 
 # 导入模块加载器中的包管理功能
-try:
-    from hpl_runtime.modules.loader import (
-        install_package, 
-        uninstall_package, 
-        list_installed_packages,
-        HPL_PACKAGES_DIR,
-        add_module_path
-    )
-    from hpl_runtime.utils.exceptions import HPLRuntimeError
-except ImportError:
-    from hpl_runtime.modules.loader import (
-        install_package, 
-        uninstall_package, 
-        list_installed_packages,
-        HPL_PACKAGES_DIR,
-        add_module_path
-    )
-    from hpl_runtime.utils.exceptions import HPLRuntimeError
+from hpl_runtime.modules.loader import (
+    install_package, 
+    uninstall_package, 
+    list_installed_packages,
+    HPL_PACKAGES_DIR,
+    add_module_path
+)
+from hpl_runtime.utils.exceptions import HPLRuntimeError
 
 
 

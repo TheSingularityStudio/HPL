@@ -5,11 +5,7 @@ HPL 模块基类
 避免循环导入问题。
 """
 
-try:
-    from hpl_runtime.utils.exceptions import HPLNameError, HPLAttributeError, HPLValueError
-except ImportError:
-    from hpl_runtime.utils.exceptions import HPLNameError, HPLAttributeError, HPLValueError
-
+from hpl_runtime.utils.exceptions import HPLNameError, HPLAttributeError, HPLValueError
 
 
 class HPLModule:

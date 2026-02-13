@@ -18,7 +18,7 @@ HPL (H Programming Language) 是一种基于 YAML 格式的面向对象编程语
     from hpl_runtime import HPLError, HPLSyntaxError
 """
 
-__version__ = "1.1.3"
+__version__ = "1.1.4"
 __author__ = "奇点工作室"
 
 # 导出主要类，方便外部使用
