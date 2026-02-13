@@ -15,20 +15,12 @@ from typing import Dict, List, Any, Optional, Callable
 from dataclasses import dataclass, field
 from datetime import datetime
 
-try:
-    from hpl_runtime.utils.exceptions import (
-        HPLError, HPLSyntaxError, HPLRuntimeError, 
-        HPLControlFlowException, format_error_for_user
-    )
-    from hpl_runtime.core.evaluator import HPLEvaluator
-    from hpl_runtime.core.models import HPLFunction, HPLObject
-except ImportError:
-    from hpl_runtime.utils.exceptions import (
-        HPLError, HPLSyntaxError, HPLRuntimeError,
-        HPLControlFlowException, format_error_for_user
-    )
-    from hpl_runtime.core.evaluator import HPLEvaluator
-    from hpl_runtime.core.models import HPLFunction, HPLObject
+from hpl_runtime.utils.exceptions import (
+    HPLError, HPLSyntaxError, HPLRuntimeError, 
+    HPLControlFlowException, format_error_for_user
+)
+from hpl_runtime.core.evaluator import HPLEvaluator
+from hpl_runtime.core.models import HPLFunction, HPLObject
 
 
 @dataclass

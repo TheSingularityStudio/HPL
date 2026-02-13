@@ -12,33 +12,17 @@ import sys
 import os
 from typing import Optional, Dict, Any, List, Callable
 
-try:
-    from hpl_runtime.interpreter import main as standard_main
-    from hpl_runtime.core.parser import HPLParser
-    from hpl_runtime.core.evaluator import HPLEvaluator
-    from hpl_runtime.core.models import ImportStatement, HPLObject
-    from hpl_runtime.modules.loader import set_current_hpl_file
-    from hpl_runtime.utils.exceptions import (
-        HPLError, HPLSyntaxError, HPLRuntimeError, HPLImportError,
-        format_error_for_user
-    )
-    from hpl_runtime.utils.error_handler import HPLErrorHandler, create_error_handler
-    from .error_analyzer import ErrorAnalyzer, ExecutionLogger, VariableInspector
-except ImportError:
-    from hpl_runtime.interpreter import main as standard_main
-    from hpl_runtime.core.parser import HPLParser
-    from hpl_runtime.core.evaluator import HPLEvaluator
-    from hpl_runtime.core.models import ImportStatement, HPLObject
-    from hpl_runtime.modules.loader import set_current_hpl_file
-    from hpl_runtime.utils.exceptions import (
-        HPLError, HPLSyntaxError, HPLRuntimeError, HPLImportError,
-        format_error_for_user
-    )
-    from hpl_runtime.utils.error_handler import HPLErrorHandler, create_error_handler
-    from hpl_runtime.debug.error_analyzer import (
-        ErrorAnalyzer, ExecutionLogger, VariableInspector
-    )
-
+from hpl_runtime.interpreter import main as standard_main
+from hpl_runtime.core.parser import HPLParser
+from hpl_runtime.core.evaluator import HPLEvaluator
+from hpl_runtime.core.models import ImportStatement, HPLObject
+from hpl_runtime.modules.loader import set_current_hpl_file
+from hpl_runtime.utils.exceptions import (
+    HPLError, HPLSyntaxError, HPLRuntimeError, HPLImportError,
+    format_error_for_user
+)
+from hpl_runtime.utils.error_handler import HPLErrorHandler, create_error_handler
+from .error_analyzer import ErrorAnalyzer, ExecutionLogger, VariableInspector
 
 
 class DebugEvaluator(HPLEvaluator):
