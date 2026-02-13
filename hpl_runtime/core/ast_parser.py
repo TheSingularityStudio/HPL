@@ -87,7 +87,37 @@ class HPLASTParser:
         if self.current_token and self.current_token.type == 'INDENT':
             self.expect('INDENT')
 
+    def _parse_argument_list(self):
+        """统一解析参数列表：解析 (arg1, arg2, ...) 中的参数"""
+        args = []
+        if self.current_token and self.current_token.type != 'RPAREN':
+            args.append(self.parse_expression())
+            while self.current_token and self.current_token.type == 'COMMA':
+                self.advance()
+                args.append(self.parse_expression())
+        self.expect('RPAREN')
+        return args
+
+    def _with_indent_level(self, new_level):
+        """上下文管理器风格的缩进级别管理"""
+        class IndentContext:
+            def __init__(ctx_self, parser, level):
+                ctx_self.parser = parser
+                ctx_self.new_level = level
+                ctx_self.old_level = None
+            
+            def __enter__(ctx_self):
+                ctx_self.old_level = ctx_self.parser.indent_level
+                ctx_self.parser.indent_level = ctx_self.new_level
+                return ctx_self.parser
+            
+            def __exit__(ctx_self, *args):
+                ctx_self.parser.indent_level = ctx_self.old_level
+        
+        return IndentContext(self, new_level)
+
     # ==================== 语句处理方法 ====================
+
     
     def _parse_return_statement(self):
         """解析 return 语句"""
@@ -253,13 +283,7 @@ class HPLASTParser:
                     # 方法调用
                     call_line, call_column = self._get_position()
                     self.advance()
-                    args = []
-                    if self.current_token and self.current_token.type != 'RPAREN':
-                        args.append(self.parse_expression())
-                        while self.current_token and self.current_token.type == 'COMMA':
-                            self.advance()
-                            args.append(self.parse_expression())
-                    self.expect('RPAREN')
+                    args = self._parse_argument_list()
                     current_expr = MethodCall(current_expr, member_name, args, call_line, call_column)
                 else:
                     # 属性访问
@@ -271,13 +295,7 @@ class HPLASTParser:
                 # 方法调用（无点号，直接调用）
                 call_line, call_column = self._get_position()
                 self.advance()
-                args = []
-                if self.current_token and self.current_token.type != 'RPAREN':
-                    args.append(self.parse_expression())
-                    while self.current_token and self.current_token.type == 'COMMA':
-                        self.advance()
-                        args.append(self.parse_expression())
-                self.expect('RPAREN')
+                args = self._parse_argument_list()
                 # 如果 current_expr 是 MethodCall（属性访问），转换为带参数的方法调用
                 if isinstance(current_expr, MethodCall):
                     current_expr = MethodCall(current_expr.obj_name, current_expr.method_name, args, call_line, call_column)
@@ -375,100 +393,66 @@ class HPLASTParser:
             if self.current_token:
                 statements.append(self.parse_statement())
         
-        return statements    
+        return statements
+    
+    def _parse_indent_block(self):
+        """解析缩进块（INDENT ... DEDENT）"""
+        block_indent_level = self.current_token.value
+        with self._with_indent_level(block_indent_level):
+            self.expect('INDENT')
+            statements = self._parse_statements_until_end()
+        # 跳过块结束后的DEDENT
+        self._skip_dedents(self.indent_level)
+        return BlockStatement(statements)
+    
+    def _parse_colon_block(self):
+        """解析冒号开始的块（: INDENT ... 或 : { ... } 或单行语句）"""
+        self.expect('COLON')
+        
+        # 情况1b: 冒号后跟花括号 {: ... }
+        if self.current_token and self.current_token.type == 'LBRACE':
+            return self._parse_brace_block()
+        
+        # 情况1a: 冒号后跟缩进
+        if self.current_token and self.current_token.type == 'INDENT':
+            return self._parse_indent_block()
+        
+        # 单行语句块
+        statements = []
+        block_terminators = ['else', 'catch', 'elif', 'finally']
+        while self.current_token and self.current_token.type not in ['RBRACE', 'EOF']:
+            if self.current_token.type == 'KEYWORD' and self.current_token.value in block_terminators:
+                break
+            if self.current_token.type == 'DEDENT':
+                if hasattr(self.current_token, 'value') and self.current_token.value is not None:
+                    if self.current_token.value < self.indent_level:
+                        break
+                else:
+                    break
+            
+            statements.append(self.parse_statement())
+            if len(statements) >= 1:
+                break
+        
+        self._skip_dedents(self.indent_level)
+        return BlockStatement(statements)
     
     def parse_block(self):
         """解析语句块，支持多种语法格式"""
-        statements = []
-        
-        # 首先检查并处理开头的 INDENT token
-        # 这处理函数体以 INDENT 开始的情况（如箭头函数体）
+        # 情况1: 以INDENT开始（函数体、箭头函数体等）
         if self.current_token and self.current_token.type == 'INDENT':
-            saved_indent_level = self.indent_level
-            block_indent_level = self.current_token.value
-            self.indent_level = block_indent_level
-            self.expect('INDENT')
-            statements = self._parse_statements_until_end()
-            # 恢复之前的缩进级别
-            self.indent_level = saved_indent_level
-            # 跳过所有连续的 DEDENT token，直到遇到非 DEDENT 或缩进级别小于父级
-            while self.current_token and self.current_token.type == 'DEDENT':
-                if hasattr(self.current_token, 'value') and self.current_token.value < saved_indent_level:
-                    self.advance()
-                else:
-                    break
-            return BlockStatement(statements)
+            return self._parse_indent_block()
         
-        # 情况1: 以冒号开始（缩进敏感语法）- 优先检查，因为冒号是明确的块开始标记
+        # 情况2: 以冒号开始（缩进敏感语法）
         if self.current_token and self.current_token.type == 'COLON':
-            self.expect('COLON')
-            # 如果冒号后面跟着花括号，处理为花括号块
-            if self.current_token and self.current_token.type == 'LBRACE':
-                # 情况1b: 冒号后跟花括号 {: ... }
-                return self._parse_brace_block()
-            elif self.current_token and self.current_token.type == 'INDENT':
-
-                # 保存当前缩进级别并设置新的缩进级别
-                saved_indent_level = self.indent_level
-                block_indent_level = self.current_token.value
-                self.indent_level = block_indent_level
-                self.expect('INDENT')
-                statements = self._parse_statements_until_end()
-                # 恢复之前的缩进级别
-                self.indent_level = saved_indent_level
-                # 跳过所有连续的 DEDENT token，直到遇到非 DEDENT 或缩进级别小于父级
-                while self.current_token and self.current_token.type == 'DEDENT':
-                    if hasattr(self.current_token, 'value') and self.current_token.value < saved_indent_level:
-                        self.advance()
-                    else:
-                        break
-            else:
-                # 单行语句
-                # 只在这些特定关键字处停止（块终止符）
-                block_terminators = ['else', 'catch', 'elif', 'finally']
-                while self.current_token and self.current_token.type not in ['RBRACE', 'EOF']:
-                    if self.current_token.type == 'KEYWORD' and self.current_token.value in block_terminators:
-                        break
-                    # 检查DEDENT作为块终止符 - 使用小于当前缩进级别
-                    if self.current_token.type == 'DEDENT':
-                        if hasattr(self.current_token, 'value') and self.current_token.value is not None:
-                            if self.current_token.value < self.indent_level:
-                                break
-                        else:
-                            break
-
-                    statements.append(self.parse_statement())
-                    # 如果已经解析了一个语句，就退出（单行语句块只包含一个语句）
-                    if len(statements) >= 1:
-                        break
-                # 跳过块结束后的DEDENT
-                self._skip_dedents(self.indent_level)
+            return self._parse_colon_block()
         
-        # 情况2: 以花括号开始
-        elif self.current_token and self.current_token.type == 'LBRACE':
+        # 情况3: 以花括号开始
+        if self.current_token and self.current_token.type == 'LBRACE':
             return self._parse_brace_block()
         
-        # 情况3: 以 INDENT 开始（函数体等情况）
-        elif self.current_token and self.current_token.type == 'INDENT':
-            # 保存当前缩进级别并设置新的缩进级别
-            saved_indent_level = self.indent_level
-            block_indent_level = self.current_token.value
-            self.indent_level = block_indent_level
-            self.expect('INDENT')
-            statements = self._parse_statements_until_end()
-            # 恢复之前的缩进级别
-            self.indent_level = saved_indent_level
-            # 跳过所有连续的 DEDENT token，直到遇到非 DEDENT 或缩进级别小于父级
-            while self.current_token and self.current_token.type == 'DEDENT':
-                if hasattr(self.current_token, 'value') and self.current_token.value < saved_indent_level:
-                    self.advance()
-                else:
-                    break
-
         # 情况4: 没有花括号也没有冒号，直接解析单个语句或语句序列
-        else:
-            statements = self._parse_statements_until_end()
-        
+        statements = self._parse_statements_until_end()
         return BlockStatement(statements)
 
 
@@ -800,13 +784,7 @@ class HPLASTParser:
         """解析函数调用表达式"""
         line, column = self._get_position()
         self.advance()  # 跳过 '('
-        args = []
-        if self.current_token and self.current_token.type != 'RPAREN':
-            args.append(self.parse_expression())
-            while self.current_token and self.current_token.type == 'COMMA':
-                self.advance()
-                args.append(self.parse_expression())
-        self.expect('RPAREN')
+        args = self._parse_argument_list()
         return FunctionCall(name, args, line, column)
 
     
@@ -823,13 +801,7 @@ class HPLASTParser:
                 # 方法调用
                 call_line, call_column = self._get_position()
                 self.advance()
-                args = []
-                if self.current_token and self.current_token.type != 'RPAREN':
-                    args.append(self.parse_expression())
-                    while self.current_token and self.current_token.type == 'COMMA':
-                        self.advance()
-                        args.append(self.parse_expression())
-                self.expect('RPAREN')
+                args = self._parse_argument_list()
                 current_expr = MethodCall(current_expr, member_name, args, call_line, call_column)
             else:
                 # 属性访问
