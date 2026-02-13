@@ -89,8 +89,6 @@ def build_exe():
         "--exclude-module", "src",  # 排除遗留src模块
     ]
 
-
-
     
     # 添加图标（如果存在）
 

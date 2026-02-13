@@ -1172,19 +1172,15 @@ class HPLEvaluator:
     def _call_constructor(self, obj, args):
         """调用对象的构造函数（如果存在）"""
         hpl_class = obj.hpl_class
-        # 支持 init 和 __init__ 作为构造函数名
-        constructor_name = None
-        if 'init' in hpl_class.methods:
-            constructor_name = 'init'
-        elif '__init__' in hpl_class.methods:
-            constructor_name = '__init__'
         
-        if constructor_name:
-            self._call_method(obj, constructor_name, args)
+        # 在类继承层次结构中查找构造函数（支持 init 和 __init__）
+        # 优先查找 init，然后是 __init__
+        constructor = self._find_method_in_class_hierarchy(hpl_class, 'init')
+        if constructor is None:
+            constructor = self._find_method_in_class_hierarchy(hpl_class, '__init__')
         
-        # 注意：父类构造函数不再自动调用
-        # 子类需要通过 this.parent.init(...) 显式调用父类构造函数
-        # 这样可以确保参数传递正确，避免父类构造函数被错误地调用两次
+        if constructor:
+            self._call_method(obj, 'init' if self._find_method_in_class_hierarchy(hpl_class, 'init') else '__init__', args)
 
     
     def _call_parent_constructors_recursive(self, obj, parent_class, args):

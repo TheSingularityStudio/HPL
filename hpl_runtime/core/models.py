@@ -35,6 +35,7 @@ class HPLFunction:
 
 
 # 表达式和语句的基类
+
 class Expression:
     def __init__(self, line=None, column=None):
         self.line = line
@@ -47,7 +48,16 @@ class Statement:
         self.column = column
 
 
+class ArrowFunction(Expression):
+    """箭头函数表达式: () => { ... } 或 (params) => { ... }"""
+    def __init__(self, params, body, line=None, column=None):
+        super().__init__(line, column)
+        self.params = params  # 参数名列表
+        self.body = body  # 函数体（BlockStatement）
+
+
 # 字面量
+
 class IntegerLiteral(Expression):
     def __init__(self, value, line=None, column=None):
         super().__init__(line, column)
