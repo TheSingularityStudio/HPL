@@ -502,10 +502,15 @@ def format_error_for_user(error, source_code=None):
             
             # 显示错误位置指示器（动态计算位置）
             if error.column is not None:
-                # 计算前缀长度：4位行号 + 3位分隔符 = 7，再加上前缀"    "或">>> "
-                base_offset = 7 + 4  # 7 for "    " + "4d | ", 4 for prefix
-                indicator = " " * (base_offset + error.column) + "^"
+                # 动态计算前缀长度：根据行号的实际位数
+                # 格式: ">>> " 或 "    " (4字符) + 行号 (变长) + " | " (3字符)
+                line_num_str = str(error.line)
+                prefix_len = 4  # ">>> " 或 "    "
+                separator_len = 3  # " | "
+                base_offset = prefix_len + len(line_num_str) + separator_len
+                indicator = " " * (base_offset + error.column - 1) + "^"  # -1因为column从1开始
                 lines.append(indicator)
+
     
     # 显示调用栈（改为 most recent first）
     if isinstance(error, HPLRuntimeError) and error.call_stack:

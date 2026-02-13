@@ -104,16 +104,19 @@ class Variable(Expression):
 
 
 class FunctionCall(Expression):
-    def __init__(self, func_name, args):
+    def __init__(self, func_name, args, line=None, column=None):
+        super().__init__(line, column)
         self.func_name = func_name
         self.args = args
 
 
 class MethodCall(Expression):
-    def __init__(self, obj_name, method_name, args):
+    def __init__(self, obj_name, method_name, args, line=None, column=None):
+        super().__init__(line, column)
         self.obj_name = obj_name
         self.method_name = method_name
         self.args = args
+
 
 
 class PostfixIncrement(Expression):

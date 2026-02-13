@@ -14,6 +14,8 @@ import sys
 import os
 import subprocess
 import time
+import traceback
+
 
 def wait_for_exit(message="\n按回车键退出..."):
     """
@@ -35,7 +37,6 @@ def wait_for_exit(message="\n按回车键退出..."):
         time.sleep(3)
 
 def get_resource_path(relative_path):
-
     """获取资源文件的绝对路径（支持打包后的exe）"""
     if hasattr(sys, '_MEIPASS'):
         # PyInstaller打包后的临时目录
@@ -45,8 +46,44 @@ def get_resource_path(relative_path):
         base_path = os.path.dirname(os.path.abspath(__file__))
     return os.path.join(base_path, relative_path)
 
+def find_hpl_runtime():
+    """查找hpl_runtime目录的多种方法"""
+    # 方法1: 打包后的资源路径
+    if hasattr(sys, '_MEIPASS'):
+        runtime_path = os.path.join(sys._MEIPASS, 'hpl_runtime')
+        if os.path.exists(runtime_path):
+            return runtime_path
+    
+    # 方法2: 当前脚本所在目录
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    runtime_path = os.path.join(script_dir, 'hpl_runtime')
+    if os.path.exists(runtime_path):
+        return runtime_path
+    
+    # 方法3: 当前工作目录
+    runtime_path = os.path.join(os.getcwd(), 'hpl_runtime')
+    if os.path.exists(runtime_path):
+        return runtime_path
+    
+    # 方法4: 从sys.path中查找
+    for path in sys.path:
+        runtime_path = os.path.join(path, 'hpl_runtime')
+        if os.path.exists(runtime_path):
+            return runtime_path
+    
+    return None
+
+
 def run_hpl_file(hpl_file):
     """运行HPL文件"""
+    # 调试信息
+    debug_mode = os.environ.get('HPL_DEBUG', '0') == '1'
+    
+    if debug_mode:
+        print(f"[DEBUG] 尝试运行文件: {hpl_file}")
+        print(f"[DEBUG] 当前工作目录: {os.getcwd()}")
+        print(f"[DEBUG] sys.path: {sys.path[:3]}...")
+    
     # 检查文件是否存在
     if not os.path.exists(hpl_file):
         print(f"错误: 文件不存在 - {hpl_file}")
@@ -56,20 +93,23 @@ def run_hpl_file(hpl_file):
     if not hpl_file.endswith('.hpl'):
         print(f"警告: 文件扩展名不是.hpl - {hpl_file}")
     
-    # 获取解释器路径
-    script_dir = get_resource_path('hpl_runtime')
-    interpreter_path = os.path.join(script_dir, 'interpreter.py')
+    # 查找hpl_runtime目录
+    runtime_dir = find_hpl_runtime()
+    if runtime_dir is None:
+        print("错误: 无法找到hpl_runtime目录")
+        print("请确保hpl_runtime目录与HPL.exe在同一目录下")
+        return 1
     
-    # 如果hpl_runtime目录不存在（打包后），使用当前目录
-    if not os.path.exists(interpreter_path):
-        # 尝试从当前工作目录找到hpl_runtime
-        interpreter_path = os.path.join(os.getcwd(), 'hpl_runtime', 'interpreter.py')
+    if debug_mode:
+        print(f"[DEBUG] 找到hpl_runtime目录: {runtime_dir}")
     
-    # 如果还是找不到，尝试使用PYTHONPATH中的模块
+    # 尝试运行解释器
     try:
         # 将hpl_runtime添加到Python路径
-        if script_dir not in sys.path:
-            sys.path.insert(0, script_dir)
+        if runtime_dir not in sys.path:
+            sys.path.insert(0, runtime_dir)
+            if debug_mode:
+                print(f"[DEBUG] 已添加路径: {runtime_dir}")
         
         # 导入并运行解释器
         from interpreter import main as interpreter_main
@@ -77,22 +117,29 @@ def run_hpl_file(hpl_file):
         # 设置命令行参数
         sys.argv = ['interpreter.py', os.path.abspath(hpl_file)]
         
+        if debug_mode:
+            print(f"[DEBUG] 调用解释器: sys.argv = {sys.argv}")
+        
         # 运行解释器
         interpreter_main()
         return 0
         
     except SystemExit as e:
         # 捕获解释器调用的sys.exit()，返回退出码
-        # 这样可以让上层函数控制何时退出，确保wait_for_exit()能执行
         return e.code if isinstance(e.code, int) else 1
         
     except ImportError as e:
         print(f"错误: 无法加载HPL解释器 - {e}")
-        print("请确保hpl_runtime目录在正确的位置")
+        print(f"请确保hpl_runtime目录在正确的位置: {runtime_dir}")
+        if debug_mode:
+            traceback.print_exc()
         return 1
     except Exception as e:
         print(f"运行时错误: {e}")
+        if debug_mode:
+            traceback.print_exc()
         return 1
+
 
 
 def show_usage():
@@ -115,19 +162,49 @@ def show_usage():
 
 def main():
     """主函数"""
+    # 调试模式检测
+    debug_mode = os.environ.get('HPL_DEBUG', '0') == '1'
+    
+    if debug_mode:
+        print(f"[DEBUG] sys.argv = {sys.argv}")
+        print(f"[DEBUG] 参数数量: {len(sys.argv)}")
+    
     # 检查命令行参数
     if len(sys.argv) < 2:
         show_usage()
         print("\n错误: 未提供HPL文件路径")
+        print(f"调试信息: sys.argv = {sys.argv}")
         wait_for_exit()
         return 1
-
     
     # 获取HPL文件路径（支持多个文件，但只处理第一个）
+    # 注意：拖放文件时，Windows会自动处理带空格的路径
     hpl_file = sys.argv[1]
     
+    # 清理路径（去除可能的引号）
+    hpl_file = hpl_file.strip('"\'')
+    
     # 转换为绝对路径
-    hpl_file = os.path.abspath(hpl_file)
+    if not os.path.isabs(hpl_file):
+        hpl_file = os.path.abspath(hpl_file)
+    
+    if debug_mode:
+        print(f"[DEBUG] 处理后的文件路径: {hpl_file}")
+        print(f"[DEBUG] 文件是否存在: {os.path.exists(hpl_file)}")
+    
+    # 再次检查文件是否存在（处理拖放时的路径问题）
+    if not os.path.exists(hpl_file):
+        # 尝试从当前工作目录解析
+        alt_path = os.path.join(os.getcwd(), os.path.basename(hpl_file))
+        if os.path.exists(alt_path):
+            hpl_file = alt_path
+            if debug_mode:
+                print(f"[DEBUG] 使用替代路径: {hpl_file}")
+        else:
+            print(f"错误: 无法找到文件 - {hpl_file}")
+            print(f"当前工作目录: {os.getcwd()}")
+            wait_for_exit()
+            return 1
     
     print(f"正在运行: {hpl_file}")
     print("-" * 50)
@@ -139,13 +216,15 @@ def main():
     except Exception as e:
         # 捕获任何未处理的异常
         print(f"\n未处理的错误: {e}")
+        if debug_mode:
+            traceback.print_exc()
         result = 1
     finally:
         # 确保无论是否出错，都暂停让用户看到输出
-        # 这是解决exe窗口自动关闭问题的关键
         wait_for_exit()
     
     return result
+
 
 
 if __name__ == "__main__":

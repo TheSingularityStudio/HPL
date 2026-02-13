@@ -30,22 +30,24 @@ class Token:
 
 
 class HPLLexer:
-    def __init__(self, text):
+    def __init__(self, text, start_line=1, start_column=1):
         self.text = text
         self.pos = 0
         self.current_char = self.text[0] if self.text else None
         # 行号和列号跟踪
-        self.line = 1
-        self.column = 0
+        self.line = start_line
+        self.column = start_column - 1  # 减1是因为advance()会先增加column
         # 缩进跟踪
         self.indent_stack = [0]  # 缩进级别栈，初始为0
         self.at_line_start = True  # 标记是否在行首
 
 
+
+
     def advance(self):
         if self.current_char == '\n':
             self.line += 1
-            self.column = 0
+            self.column = 0  # 换行后重置为0，下一个字符会变为1
         else:
             self.column += 1
         
@@ -54,6 +56,7 @@ class HPLLexer:
             self.current_char = None
         else:
             self.current_char = self.text[self.pos]
+
 
 
     def peek(self):
