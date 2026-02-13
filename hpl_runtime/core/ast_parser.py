@@ -171,7 +171,6 @@ class HPLASTParser:
         
         # 使用 peek 进行 lookahead，避免保存/恢复位置
         next_token = self.peek(1)
-
         
         # 检查是否是简单赋值：var = value
         if next_token and next_token.type == 'ASSIGN':
@@ -219,8 +218,6 @@ class HPLASTParser:
                     prop_access = MethodCall(Variable(name, line, column), prop_name, [], line, column)
                     array_access = ArrayAccess(prop_access, index_expr)
                     return self._parse_expression_suffix(array_access)
-
-
             
             # 检查是否是属性赋值：obj.prop = value
             if self.current_token and self.current_token.type == 'ASSIGN':
@@ -232,8 +229,6 @@ class HPLASTParser:
             prop_access = MethodCall(Variable(name, line, column), prop_name, [], line, column)
             return self._parse_expression_suffix(prop_access)
 
-
-        
         # 检查是否是自增：var++
         if next_token and next_token.type == 'INCREMENT':
             self.advance()  # 跳过变量名
@@ -243,6 +238,7 @@ class HPLASTParser:
         # 否则是表达式语句（函数调用、方法调用等）
         return self.parse_expression()
     
+
     def _parse_expression_suffix(self, expr):
         """解析表达式后缀（方法调用链、数组访问等）"""
         current_expr = expr

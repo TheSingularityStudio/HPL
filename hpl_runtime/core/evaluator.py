@@ -135,7 +135,6 @@ class HPLEvaluator:
             FunctionCall: self._execute_function_call_statement,
         }
 
-
     
     def execute_statement(self, stmt, local_scope):
         """语句执行主分发器"""
@@ -1214,7 +1213,6 @@ class HPLEvaluator:
                 
                 # 继续递归向上
                 self._call_parent_constructors_recursive(obj, grandparent_class, args)
-
 
 
     def instantiate_object(self, class_name, obj_name, init_args=None):
