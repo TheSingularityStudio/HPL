@@ -375,7 +375,30 @@ class HPLEvaluator:
     
     def _execute_import(self, stmt, local_scope):
         """执行import语句"""
-        return self.execute_import(stmt, local_scope)
+        module_name = stmt.module_name
+        alias = stmt.alias or module_name
+        
+        try:
+            # 加载模块
+            module = load_module(module_name)
+            if module:
+                # 存储模块引用
+                self.imported_modules[alias] = module
+                local_scope[alias] = module
+                return None
+        except ImportError as e:
+            raise self._create_error(
+                HPLImportError,
+                f"Cannot import module '{module_name}': {e}",
+                error_key='IMPORT_MODULE_NOT_FOUND'
+            ) from e
+        
+        raise self._create_error(
+            HPLImportError,
+            f"Module '{module_name}' not found",
+            error_key='IMPORT_MODULE_NOT_FOUND'
+        )
+
 
     
     def _execute_increment(self, stmt, local_scope):
@@ -812,12 +835,14 @@ class HPLEvaluator:
                 parts.append(f"Key exists as integer: {int_key}")
         
         hint = ". ".join(parts)
-        raise HPLKeyError(
+        raise self._create_error(
+            HPLKeyError,
             hint,
-            line=expr.line,
-            column=expr.column,
+            expr.line, expr.column,
+            local_scope,
             error_key='RUNTIME_KEY_NOT_FOUND'
         )
+
     
     def _access_string(self, array, index, expr, local_scope):
         """访问字符串"""
