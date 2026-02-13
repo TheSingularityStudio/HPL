@@ -1,0 +1,58 @@
+# 测试修复功能文件
+# 测试返回值、算术运算、字符串拼接、逻辑非和自增
+
+# 测试返回值
+return_test: () => {
+    result = 42
+    echo("Return test: " + str(result))
+    return result
+}
+
+# 测试算术运算
+arithmetic_test: () => {
+    a = 10
+    b = 20
+    sum = a + b
+    echo("Sum: " + str(sum))
+    return sum
+}
+
+# 测试字符串拼接
+string_concat_test: () => {
+    str1 = "Hello"
+    str2 = "World"
+    concat = str1 + " " + str2
+    echo("Concat: " + concat)
+    return concat
+}
+
+# 测试逻辑非
+logical_not_test: () => {
+    flag = false
+    if (!flag) {
+        echo("NOT operator works!")
+    }
+    return !flag
+}
+
+# 测试自增
+increment_test: () => {
+    counter = 0
+    counter++
+    echo("Counter after increment: " + str(counter))
+    return counter
+}
+
+# 主函数 - 运行所有测试
+main: () => {
+    echo("=== Testing Fixes ===")
+    
+    # 运行所有测试
+    return_test()
+    arithmetic_test()
+    string_concat_test()
+    logical_not_test()
+    increment_test()
+    
+    echo("=== All Tests Completed ===")
+}

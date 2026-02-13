@@ -31,6 +31,39 @@ BreakException = HPLBreakException
 ContinueException = HPLContinueException
 
 
+class HPLArrowFunction:
+    """HPL 箭头函数（闭包）"""
+    def __init__(self, params, body, closure_scope, evaluator):
+        self.params = params  # 参数名列表
+        self.body = body      # 函数体（BlockStatement）
+        self.closure_scope = closure_scope.copy()  # 捕获定义时的作用域
+        self.evaluator = evaluator  # 执行器引用
+    
+    def call(self, args):
+        """调用箭头函数"""
+        # 创建新的局部作用域，基于闭包作用域
+        func_scope = self.closure_scope.copy()
+        
+        # 绑定参数
+        for i, param in enumerate(self.params):
+            if i < len(args):
+                func_scope[param] = args[i]
+            else:
+                func_scope[param] = None  # 默认值为 None
+        
+        # 执行函数体
+        result = self.evaluator.execute_block(self.body, func_scope)
+        
+        # 解包返回值（如果是ReturnValue包装器）
+        if isinstance(result, HPLReturnValue):
+            return result.value
+        return result
+
+    
+    def __repr__(self):
+        return f"<arrow function ({', '.join(self.params)}) => {{...}}>"
+
+
 class HPLEvaluator:
     def __init__(self, classes, objects, functions=None, main_func=None, call_target=None, call_args=None):
         self.classes = classes
@@ -49,6 +82,7 @@ class HPLEvaluator:
         self._init_statement_handlers()
         # 初始化表达式处理器映射表
         self._init_expression_handlers()
+
 
     def run(self):
         # 如果指定了 call_target，执行对应的函数
@@ -469,7 +503,9 @@ class HPLEvaluator:
             ArrayLiteral: self._eval_array_literal,
             ArrayAccess: self._eval_array_access,
             DictionaryLiteral: self._eval_dictionary_literal,
+            ArrowFunction: self._eval_arrow_function,
         }
+
     
     def evaluate_expression(self, expr, local_scope):
         """表达式评估主分发器"""
@@ -535,11 +571,39 @@ class HPLEvaluator:
     
     def _eval_function_call(self, expr, local_scope):
         """评估函数调用表达式"""
-        # 检查是否是类实例化
-        if expr.func_name in self.classes:
-            args = [self.evaluate_expression(arg, local_scope) for arg in expr.args]
-            obj_name = f"__{expr.func_name}_instance_{id(expr)}__"
-            return self.instantiate_object(expr.func_name, obj_name, args)
+        # 首先评估函数表达式（可能是变量、箭头函数等）
+        func = None
+        func_name = None
+        
+        if isinstance(expr.func_name, str):
+            # 字符串函数名
+            func_name = expr.func_name
+            
+            # 检查是否是类实例化
+            if func_name in self.classes:
+                args = [self.evaluate_expression(arg, local_scope) for arg in expr.args]
+                obj_name = f"__{func_name}_instance_{id(expr)}__"
+                return self.instantiate_object(func_name, obj_name, args)
+            
+            # 检查是否是用户定义的函数
+            if func_name in self.functions:
+                func = self.functions[func_name]
+            else:
+                # 尝试从作用域查找（可能是箭头函数变量）
+                try:
+                    func = self._lookup_variable(func_name, local_scope)
+                except HPLNameError:
+                    func = None
+        elif isinstance(expr.func_name, Variable):
+            # 变量引用，查找变量值
+            func_name = expr.func_name.name
+            try:
+                func = self._lookup_variable(func_name, local_scope)
+            except HPLNameError:
+                func = None
+        else:
+            # 其他表达式（如直接是箭头函数字面量）
+            func = self.evaluate_expression(expr.func_name, local_scope)
         
         # 内置函数处理
         builtin_handlers = {
@@ -556,29 +620,36 @@ class HPLEvaluator:
             'input': self._builtin_input,
         }
         
-        if expr.func_name in builtin_handlers:
-            return builtin_handlers[expr.func_name](expr, local_scope)
+        if func_name and func_name in builtin_handlers:
+            return builtin_handlers[func_name](expr, local_scope)
         
-        # 用户定义的函数
-        if expr.func_name in self.functions:
-            target_func = self.functions[expr.func_name]
+        # 处理用户定义的函数
+        if func:
             args = [self.evaluate_expression(arg, local_scope) for arg in expr.args]
+            
+            # 如果是箭头函数
+            if isinstance(func, HPLArrowFunction):
+                return func.call(args)
+            
+            # 普通函数
             func_scope = {}
-            for i, param in enumerate(target_func.params):
+            for i, param in enumerate(func.params):
                 if i < len(args):
                     func_scope[param] = args[i]
                 else:
                     func_scope[param] = None
-            return self.execute_function(target_func, func_scope, expr.func_name)
+            return self.execute_function(func, func_scope, func_name)
         
         raise self._create_error(
             HPLNameError,
-            f"Unknown function '{expr.func_name}'",
+            f"Unknown function '{func_name or expr.func_name}'",
             line=expr.line if hasattr(expr, 'line') else None,
             column=expr.column if hasattr(expr, 'column') else None,
             local_scope=local_scope,
             error_key='RUNTIME_UNDEFINED_VAR'
         )
+
+
 
     
     # 内置函数处理器
@@ -844,6 +915,11 @@ class HPLEvaluator:
         for key, value_expr in expr.pairs.items():
             result[key] = self.evaluate_expression(value_expr, local_scope)
         return result
+    
+    def _eval_arrow_function(self, expr, local_scope):
+        """评估箭头函数表达式，返回可调用对象"""
+        return HPLArrowFunction(expr.params, expr.body, local_scope, self)
+
     
     def _eval_array_access(self, expr, local_scope):
         """评估数组/字典/字符串索引访问"""
