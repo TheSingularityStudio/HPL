@@ -30,16 +30,17 @@ class Token:
 
 
 class HPLLexer:
-    def __init__(self, text):
+    def __init__(self, text, start_line=1):
         self.text = text
         self.pos = 0
         self.current_char = self.text[0] if self.text else None
         # 行号和列号跟踪
-        self.line = 1
+        self.line = start_line
         self.column = 0
         # 缩进跟踪
         self.indent_stack = [0]  # 缩进级别栈，初始为0
         self.at_line_start = True  # 标记是否在行首
+
 
 
     def advance(self):

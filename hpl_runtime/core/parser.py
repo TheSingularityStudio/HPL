@@ -260,12 +260,28 @@ class HPLParser:
             
             # 检查值是否是函数定义（包含 =>）
             if isinstance(value, str) and '=>' in value:
-                func = self.parse_function(value)
+                # 找到函数在源代码中的行号
+                start_line = self._find_function_line(key)
+                func = self.parse_function(value, start_line)
                 self.functions[key] = func
                 
                 # 特别处理 main 函数
                 if key == 'main':
                     self.main_func = func
+
+    def _find_function_line(self, func_name):
+        """找到函数定义在源代码中的行号"""
+        if not self.source_code:
+            return 1
+        
+        lines = self.source_code.split('\n')
+        for i, line in enumerate(lines, 1):
+            # 匹配函数定义模式：func_name: (...) => {
+            stripped = line.strip()
+            if stripped.startswith(f"{func_name}:") and '=>' in stripped:
+                return i
+        return 1
+
 
 
     def parse_imports(self):
@@ -291,8 +307,44 @@ class HPLParser:
                     if key == 'parent':
                         parent = value
                     else:
-                        methods[key] = self.parse_function(value)
+                        # 找到类方法在源代码中的行号
+                        start_line = self._find_method_line(class_name, key)
+                        methods[key] = self.parse_function(value, start_line)
                 self.classes[class_name] = HPLClass(class_name, methods, parent)
+
+    def _find_method_line(self, class_name, method_name):
+        """找到类方法定义在源代码中的行号"""
+        if not self.source_code:
+            return 1
+        
+        lines = self.source_code.split('\n')
+        in_target_class = False
+        class_indent = 0
+        
+        for i, line in enumerate(lines, 1):
+            stripped = line.strip()
+            
+            # 检查是否是类定义开始
+            if stripped.startswith(f"{class_name}:"):
+                in_target_class = True
+                class_indent = len(line) - len(line.lstrip())
+                continue
+            
+            if in_target_class:
+                # 检查是否离开当前类（遇到相同或更少缩进的非空行）
+                if stripped and not stripped.startswith('#'):
+                    current_indent = len(line) - len(line.lstrip())
+                    if current_indent <= class_indent and not stripped.startswith(f"{method_name}:"):
+                        # 离开了当前类
+                        in_target_class = False
+                        continue
+                
+                # 在当前类中查找方法
+                if stripped.startswith(f"{method_name}:") and '=>' in stripped:
+                    return i
+        
+        return 1
+
 
     def parse_objects(self):
         for obj_name, obj_def in self.data['objects'].items():
@@ -310,7 +362,7 @@ class HPLParser:
                 # 创建对象，稍后由 evaluator 调用构造函数
                 self.objects[obj_name] = HPLObject(obj_name, hpl_class, {'__init_args__': args})
 
-    def parse_function(self, func_str):
+    def parse_function(self, func_str, start_line=1):
         func_str = func_str.strip()
         
         # 新语法: (params) => { body }
@@ -338,8 +390,16 @@ class HPLParser:
 
         body_str = func_str[body_start+1:body_end].strip()
         
-        # 标记化和解析AST
-        lexer = HPLLexer(body_str)
+        # 计算函数体在原始文件中的起始行号
+        # 计算函数定义字符串中，函数体开始位置 '{'' 之前有多少个换行符
+        body_start_in_func = func_str.find('{', arrow_pos)
+        newlines_before_body = func_str[:body_start_in_func].count('\n')
+        # +1 because the body content starts on the line after the opening brace
+        # In the extracted function string, the body is on line 2 (after '\n' following '{')
+        actual_start_line = start_line + newlines_before_body + 1
+        
+        # 标记化和解析AST，传递起始行号
+        lexer = HPLLexer(body_str, start_line=actual_start_line)
         tokens = lexer.tokenize()
         ast_parser = HPLASTParser(tokens)
         body_ast = ast_parser.parse_block()
