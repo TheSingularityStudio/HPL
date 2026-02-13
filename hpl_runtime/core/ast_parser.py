@@ -837,8 +837,10 @@ class HPLASTParser:
 
     
     def _parse_paren_expression(self):
-        """解析括号表达式"""
+        """解析括号表达式或箭头函数参数列表"""
+        line, column = self._get_position()
         self.advance()  # 跳过 '('
+        
         # 检查是否是空括号 ()，如果是则检查是否是箭头函数
         if self.current_token and self.current_token.type == 'RPAREN':
             self.advance()  # 跳过 ')'
@@ -846,12 +848,48 @@ class HPLASTParser:
             if self.current_token and self.current_token.type == 'ARROW':
                 self.advance()  # 跳过 =>
                 body = self.parse_block()
-                return ArrowFunction([], body)
+                return ArrowFunction([], body, line, column)
             # 否则返回 None 表示空表达式
             return None
+        
+        # 检查是否是箭头函数参数列表 (param1, param2, ...) => { ... }
+        # 通过lookahead判断：如果括号内是逗号分隔的标识符，后跟 ) 和 =>
+        params = []
+        is_arrow_function = False
+        
+        # 尝试解析参数列表
+        if self.current_token and self.current_token.type == 'IDENTIFIER':
+            params.append(self.current_token.value)
+            self.advance()
+            
+            # 继续解析更多参数
+            while self.current_token and self.current_token.type == 'COMMA':
+                self.advance()  # 跳过 ','
+                if self.current_token and self.current_token.type == 'IDENTIFIER':
+                    params.append(self.current_token.value)
+                    self.advance()
+                else:
+                    # 不是标识符，说明不是箭头函数参数列表
+                    break
+            
+            # 检查是否以 ) 结束，并且后面跟着 =>
+            if self.current_token and self.current_token.type == 'RPAREN':
+                # 向前看一个token检查是否是 =>
+                next_token = self.peek(1)
+                if next_token and next_token.type == 'ARROW':
+                    is_arrow_function = True
+        
+        if is_arrow_function:
+            self.expect('RPAREN')  # 跳过 ')'
+            self.advance()  # 跳过 =>
+            body = self.parse_block()
+            return ArrowFunction(params, body, line, column)
+        
+        # 不是箭头函数，作为普通括号表达式解析
         expr = self.parse_expression()
         self.expect('RPAREN')
         return expr
+
 
     
     def _parse_arrow_function(self):
