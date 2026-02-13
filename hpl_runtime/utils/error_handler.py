@@ -17,19 +17,11 @@ HPL 统一错误处理模块
 import sys
 import os
 
-try:
-    from hpl_runtime.utils.exceptions import (
-        HPLError, HPLSyntaxError, HPLRuntimeError, HPLImportError,
-        format_error_for_user, format_error_with_suggestions
-    )
-    from hpl_runtime.utils.error_suggestions import ErrorSuggestionEngine
-except ImportError:
-    from hpl_runtime.utils.exceptions import (
-        HPLError, HPLSyntaxError, HPLRuntimeError, HPLImportError,
-        format_error_for_user, format_error_with_suggestions
-    )
-    from hpl_runtime.utils.error_suggestions import ErrorSuggestionEngine
-
+from hpl_runtime.utils.exceptions import (
+    HPLError, HPLSyntaxError, HPLRuntimeError, HPLImportError,
+    format_error_for_user, format_error_with_suggestions
+)
+from hpl_runtime.utils.error_suggestions import ErrorSuggestionEngine
 
 
 class HPLErrorHandler:

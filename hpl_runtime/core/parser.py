@@ -21,22 +21,13 @@ import os
 import re
 from pathlib import Path
 
-try:
-    from hpl_runtime.core.models import HPLClass, HPLObject, HPLFunction
-    from hpl_runtime.core.lexer import HPLLexer
-    from hpl_runtime.core.ast_parser import HPLASTParser
-    from hpl_runtime.modules.loader import HPL_MODULE_PATHS
-    from hpl_runtime.utils.exceptions import HPLSyntaxError, HPLImportError
-    from hpl_runtime.utils.path_utils import resolve_include_path
-    from hpl_runtime.utils.text_utils import preprocess_functions, parse_call_expression
-except ImportError:
-    from hpl_runtime.core.models import HPLClass, HPLObject, HPLFunction
-    from hpl_runtime.core.lexer import HPLLexer
-    from hpl_runtime.core.ast_parser import HPLASTParser
-    from hpl_runtime.modules.loader import HPL_MODULE_PATHS
-    from hpl_runtime.utils.exceptions import HPLSyntaxError, HPLImportError
-    from hpl_runtime.utils.path_utils import resolve_include_path
-    from hpl_runtime.utils.text_utils import preprocess_functions, parse_call_expression
+from hpl_runtime.core.models import HPLClass, HPLObject, HPLFunction
+from hpl_runtime.core.lexer import HPLLexer
+from hpl_runtime.core.ast_parser import HPLASTParser
+from hpl_runtime.modules.loader import HPL_MODULE_PATHS
+from hpl_runtime.utils.exceptions import HPLSyntaxError, HPLImportError
+from hpl_runtime.utils.path_utils import resolve_include_path
+from hpl_runtime.utils.text_utils import preprocess_functions, parse_call_expression
 
 
 class HPLParser:

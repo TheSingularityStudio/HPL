@@ -14,14 +14,9 @@ HPL AST 解析器模块
 - 表达式：二元运算、函数调用、方法调用、变量、字面量、逻辑运算
 """
 
-try:
-    from hpl_runtime.core.models import *
-    from hpl_runtime.utils.exceptions import HPLSyntaxError
-    from hpl_runtime.utils.parse_utils import get_token_position, is_block_terminator, skip_dedents
-except ImportError:
-    from hpl_runtime.core.models import *
-    from hpl_runtime.utils.exceptions import HPLSyntaxError
-    from hpl_runtime.utils.parse_utils import get_token_position, is_block_terminator, skip_dedents
+from hpl_runtime.core.models import *
+from hpl_runtime.utils.exceptions import HPLSyntaxError
+from hpl_runtime.utils.parse_utils import get_token_position, is_block_terminator, skip_dedents
 
 
 class HPLASTParser:

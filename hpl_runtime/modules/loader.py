@@ -19,12 +19,8 @@ import logging
 from pathlib import Path
 
 # 从 module_base 导入 HPLModule 基类
-try:
-    from hpl_runtime.modules.base import HPLModule
-    from hpl_runtime.utils.exceptions import HPLImportError, HPLValueError, HPLRuntimeError
-except ImportError:
-    from hpl_runtime.modules.base import HPLModule
-    from hpl_runtime.utils.exceptions import HPLImportError, HPLValueError, HPLRuntimeError
+from hpl_runtime.modules.base import HPLModule
+from hpl_runtime.utils.exceptions import HPLImportError, HPLValueError, HPLRuntimeError
 
 
 # 配置日志
