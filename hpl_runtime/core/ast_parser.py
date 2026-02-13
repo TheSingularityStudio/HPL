@@ -375,6 +375,24 @@ class HPLASTParser:
         """解析语句块，支持多种语法格式"""
         statements = []
         
+        # 首先检查并处理开头的 INDENT token
+        # 这处理函数体以 INDENT 开始的情况（如箭头函数体）
+        if self.current_token and self.current_token.type == 'INDENT':
+            saved_indent_level = self.indent_level
+            block_indent_level = self.current_token.value
+            self.indent_level = block_indent_level
+            self.expect('INDENT')
+            statements = self._parse_statements_until_end()
+            # 恢复之前的缩进级别
+            self.indent_level = saved_indent_level
+            # 跳过所有连续的 DEDENT token，直到遇到非 DEDENT 或缩进级别小于父级
+            while self.current_token and self.current_token.type == 'DEDENT':
+                if hasattr(self.current_token, 'value') and self.current_token.value < saved_indent_level:
+                    self.advance()
+                else:
+                    break
+            return BlockStatement(statements)
+        
         # 情况1: 以冒号开始（缩进敏感语法）- 优先检查，因为冒号是明确的块开始标记
         if self.current_token and self.current_token.type == 'COLON':
             self.expect('COLON')
@@ -838,9 +856,47 @@ class HPLASTParser:
     def _parse_paren_expression(self):
         """解析括号表达式"""
         self.advance()  # 跳过 '('
+        # 检查是否是空括号 ()，如果是则检查是否是箭头函数
+        if self.current_token and self.current_token.type == 'RPAREN':
+            self.advance()  # 跳过 ')'
+            # 检查是否是箭头函数 () => { ... }
+            if self.current_token and self.current_token.type == 'ARROW':
+                self.advance()  # 跳过 =>
+                body = self.parse_block()
+                return ArrowFunction([], body)
+            # 否则返回 None 表示空表达式
+            return None
         expr = self.parse_expression()
         self.expect('RPAREN')
         return expr
+
+    
+    def _parse_arrow_function(self):
+        """解析箭头函数: () => { ... } 或 (params) => { ... }"""
+        line, column = self._get_position()
+        
+        # 解析参数列表
+        params = []
+        if self.current_token and self.current_token.type == 'LPAREN':
+            self.advance()  # 跳过 '('
+            if self.current_token and self.current_token.type != 'RPAREN':
+                # 解析参数
+                params.append(self.current_token.value)
+                self.advance()
+                while self.current_token and self.current_token.type == 'COMMA':
+                    self.advance()
+                    params.append(self.current_token.value)
+                    self.advance()
+            self.expect('RPAREN')
+        
+        # 期望箭头 =>
+        self.expect('ARROW')
+        
+        # 解析函数体
+        body = self.parse_block()
+        
+        return ArrowFunction(params, body, line, column)
+
     
     def _parse_array_literal_expr(self):
         """解析数组字面量"""
