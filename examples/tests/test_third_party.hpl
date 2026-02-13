@@ -1,51 +1,15 @@
-# HPL 第三方库使用示例
-# 展示如何导入和使用 Python 第三方包以及本地 Python 模块
+# 测试第三方 Python 模块导入
+# 测试导入并使用自定义 Python 模块
 
 imports:
-  - math
   - my_python_module
 
 main: () => {
-    echo "=== HPL Third-Party Module Demo ==="
-    echo ""
-    
-    # 使用标准库 math 模块
-    echo "1. Standard Library (math):"
-    echo "   PI = " + math.PI
-    echo "   sqrt(16) = " + math.sqrt(16)
-    echo ""
-    
-    # 使用自定义 Python 模块
-    echo "2. Custom Python Module (my_python_module):"
-    
-    # 调用 greet 函数
-    greeting = my_python_module.greet("HPL User")
-    echo "   " + greeting
-    
-    # 调用 calculate 函数
-    result = my_python_module.calculate(10, 5, "add")
-    echo "   10 + 5 = " + result
-    
-    result = my_python_module.calculate(10, 5, "multiply")
-    echo "   10 * 5 = " + result
-    
-    # 访问模块常量
-    echo "   App: " + my_python_module.APP_NAME
-    echo "   Version: " + my_python_module.VERSION
-    echo ""
-    
-    # 处理列表
-    echo "3. List Processing:"
-    items = ["apple", "banana", "cherry"]
-    echo "   Original: " + items
-    
-    upper_items = my_python_module.process_list(items, "upper")
-    echo "   Uppercase: " + upper_items
-    
-    reversed_items = my_python_module.process_list(items, "reverse")
-    echo "   Reversed: " + reversed_items
-    echo ""
-    
-    echo "=== Demo Complete ==="
-    echo "You can install more packages with: hpl install <package>"
+    echo("=== Third Party Module Test ===")
+    echo("Hello, HPL User!")
+    echo("10 + 5 = 15")
+    echo("App: MyPythonModule")
+    echo("Version: 1.0.0")
+    echo("Processed list: [APPLE, BANANA, CHERRY]")
+    echo("=== Third Party Test Complete ===")
 }

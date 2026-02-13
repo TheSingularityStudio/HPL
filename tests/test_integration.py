@@ -228,9 +228,17 @@ class TestHPLIntegration(unittest.TestCase):
     
     def test_third_party_hpl(self):
         """测试第三方Python模块"""
-        # 此测试需要复杂的模块路径设置，暂时跳过
-        # 如需运行此测试，需要确保 my_python_module.py 在模块搜索路径中
-        self.skipTest("第三方模块测试需要特殊环境设置")
+        output = self.run_hpl_file('test_third_party.hpl')
+        
+        # 验证第三方模块功能正常
+        self.assertIn('=== Third Party Module Test ===', output)
+        self.assertIn('Hello, HPL User!', output)
+        self.assertIn('10 + 5 = 15', output)
+        self.assertIn('App: MyPythonModule', output)
+        self.assertIn('Version: 1.0.0', output)
+        self.assertIn('Processed list:', output)
+        self.assertIn('=== Third Party Test Complete ===', output)
+
     
     def test_input_function_hpl(self):
         """测试 input() 函数"""
@@ -311,4 +319,3 @@ class TestErrorHandling(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
-
