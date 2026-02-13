@@ -223,9 +223,10 @@ class HPLASTParser:
                 return ArrayAssignmentStatement(name, index_expr, value_expr)
             else:
                 # 不是赋值，构造数组访问表达式
-                array_access = ArrayAccess(Variable(name), index_expr)
+                array_access = ArrayAccess(Variable(name, line, column), index_expr, line, column)
                 # 继续解析可能的后续操作（如方法调用）
                 return self._parse_expression_suffix(array_access)
+
         
         # 检查是否是属性访问：obj.prop...
         if next_token and next_token.type == 'DOT':
@@ -246,8 +247,9 @@ class HPLASTParser:
                 else:
                     # 不是赋值，构造属性数组访问表达式
                     prop_access = MethodCall(Variable(name, line, column), prop_name, [], line, column)
-                    array_access = ArrayAccess(prop_access, index_expr)
+                    array_access = ArrayAccess(prop_access, index_expr, line, column)
                     return self._parse_expression_suffix(array_access)
+
             
             # 检查是否是属性赋值：obj.prop = value
             if self.current_token and self.current_token.type == 'ASSIGN':
@@ -306,10 +308,12 @@ class HPLASTParser:
             
             # 数组访问：expr[index]
             elif self.current_token.type == 'LBRACKET':
+                bracket_line, bracket_column = self._get_position()
                 self.advance()
                 index_expr = self.parse_expression()
                 self.expect('RBRACKET')
-                current_expr = ArrayAccess(current_expr, index_expr)
+                current_expr = ArrayAccess(current_expr, index_expr, bracket_line, bracket_column)
+
             
             # 后缀自增：expr++
             elif self.current_token.type == 'INCREMENT':
@@ -740,15 +744,18 @@ class HPLASTParser:
         self._skip_dedents(self.indent_level)
         # 处理一元运算符：! 和 -
         if self.current_token and self.current_token.type == 'NOT':
+            not_line, not_column = self._get_position()
             self.advance()
             operand = self.parse_unary()
-            return UnaryOp('!', operand)
+            return UnaryOp('!', operand, not_line, not_column)
         
         if self.current_token and self.current_token.type == 'MINUS':
+            minus_line, minus_column = self._get_position()
             self.advance()
             operand = self.parse_unary()
             # 将 -x 转换为 0 - x
-            return BinaryOp(IntegerLiteral(0), '-', operand)
+            return BinaryOp(IntegerLiteral(0, minus_line, minus_column), '-', operand, minus_line, minus_column)
+
         
         return self.parse_primary()
 
@@ -828,10 +835,12 @@ class HPLASTParser:
 
         if self.current_token and self.current_token.type == 'LBRACKET':
             # 数组访问
+            bracket_line, bracket_column = self._get_position()
             self.advance()
             index = self.parse_expression()
             self.expect('RBRACKET')
-            return ArrayAccess(Variable(name, line, column), index)
+            return ArrayAccess(Variable(name, line, column), index, bracket_line, bracket_column)
+
 
         return Variable(name, line, column)
 

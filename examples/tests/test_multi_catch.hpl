@@ -5,9 +5,10 @@ main: () => {
     try :
       arr = [1, 2, 3]
       val = arr["bad"]  # 类型错误
-    catch HPLTypeError (type_err) :
+    catch (HPLTypeError type_err) :
       echo "类型错误: " + type_err
     catch (other) :
+
       echo "其他错误: " + other
     
     echo ""
