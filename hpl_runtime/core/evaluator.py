@@ -71,8 +71,11 @@ class HPLArrowFunction:
 
 
 class HPLEvaluator:
-    # 最大递归深度限制（比 Python 的递归限制小 10，留出安全余量）
-    MAX_RECURSION_DEPTH: int = sys.getrecursionlimit() - 10
+    # 最大递归深度限制（保守设置，确保在 Python 递归限制前触发）
+    # 每个 HPL 函数调用会使用约 7-8 个 Python 栈帧，Python默认限制1000，因此设为100留出安全余量
+    MAX_RECURSION_DEPTH: int = 100
+    # 最大表达式求值深度限制（防止深层嵌套表达式导致的栈溢出）
+    MAX_EXPR_DEPTH: int = 200
     
     def __init__(self, classes: dict[str, HPLClass], objects: dict[str, HPLObject], 
                  functions: Optional[dict[str, HPLFunction]] = None, 
@@ -90,11 +93,13 @@ class HPLEvaluator:
         self.current_obj: Optional[HPLObject] = None  # 用于方法中的'this'
         self.call_stack: list[str] = []  # 调用栈，用于错误跟踪
         self.imported_modules: dict[str, Any] = {}  # 导入的模块 {alias/name: module}
+        self.expr_eval_depth: int = 0  # 表达式求值深度计数器
         
         # 初始化语句处理器映射表
         self._init_statement_handlers()
         # 初始化表达式处理器映射表
         self._init_expression_handlers()
+
 
 
 
@@ -540,18 +545,35 @@ class HPLEvaluator:
     
     def evaluate_expression(self, expr: Expression, local_scope: dict[str, Any]) -> Any:
         """表达式评估主分发器"""
-        handler = self._expression_handlers.get(type(expr))
-        if handler:
-            return handler(expr, local_scope)
+        # 检查表达式求值深度，防止深层嵌套导致的栈溢出
+        self.expr_eval_depth += 1
+        if self.expr_eval_depth > self.MAX_EXPR_DEPTH:
+            self.expr_eval_depth -= 1
+            raise self._create_error(
+                HPLRecursionError,
+                f"Maximum expression evaluation depth exceeded ({self.MAX_EXPR_DEPTH}). "
+                f"Hint: Check for deeply nested expressions or cyclic references.",
+                line=expr.line if hasattr(expr, 'line') else None,
+                column=expr.column if hasattr(expr, 'column') else None,
+                local_scope=local_scope,
+                error_key='RUNTIME_RECURSION_DEPTH'
+            )
+        
+        try:
+            handler = self._expression_handlers.get(type(expr))
+            if handler:
+                return handler(expr, local_scope)
 
-        raise self._create_error(
-            HPLRuntimeError,
-            f"Unknown expression type: {type(expr).__name__}",
-            line=expr.line if hasattr(expr, 'line') else None,
-            column=expr.column if hasattr(expr, 'column') else None,
-            local_scope=local_scope,
-            error_key='RUNTIME_GENERAL'
-        )
+            raise self._create_error(
+                HPLRuntimeError,
+                f"Unknown expression type: {type(expr).__name__}",
+                line=expr.line if hasattr(expr, 'line') else None,
+                column=expr.column if hasattr(expr, 'column') else None,
+                local_scope=local_scope,
+                error_key='RUNTIME_GENERAL'
+            )
+        finally:
+            self.expr_eval_depth -= 1
 
     
     # 字面量处理器
@@ -1473,8 +1495,10 @@ class HPLEvaluator:
                         self.call_stack.pop()
                         self.current_obj = prev_obj
                 
-                # 继续递归向上
-                self._call_parent_constructors_recursive(obj, grandparent_class, args)
+                # 只有当祖父类还有父类时才继续递归向上
+                if grandparent_class.parent:
+                    self._call_parent_constructors_recursive(obj, grandparent_class, args)
+
 
 
     def instantiate_object(self, class_name: str, obj_name: str, init_args: Optional[list[Any]] = None) -> HPLObject:
