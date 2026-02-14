@@ -21,8 +21,11 @@ class TestHPLIntegration(unittest.TestCase):
     
     def setUp(self):
         """测试前准备"""
-        self.examples_dir = os.path.join(os.path.dirname(__file__), '..', 'examples')
+        # 获取项目根目录（tests/integration/ 的上两级目录）
+        self.project_root = os.path.join(os.path.dirname(__file__), '..', '..')
+        self.examples_dir = os.path.join(self.project_root, 'examples')
         self.tests_dir = os.path.join(self.examples_dir, 'tests')
+
 
     
     def run_hpl_file(self, filename):
