@@ -261,6 +261,21 @@ class HPLParser:
         # 预定义的保留键，不是函数
         reserved_keys = {'includes', 'imports', 'classes', 'objects', 'call'}
         
+        # 首先检查是否有 functions 块
+        if 'functions' in self.data and isinstance(self.data['functions'], dict):
+            for key, value in self.data['functions'].items():
+                # 检查值是否是函数定义（包含 =>）
+                if isinstance(value, str) and '=>' in value:
+                    # 找到函数在源代码中的行号和列号
+                    start_line, start_column = self._find_function_line(key)
+                    func = self.parse_function(value, start_line, start_column)
+                    self.functions[key] = func
+                    
+                    # 特别处理 main 函数
+                    if key == 'main':
+                        self.main_func = func
+        
+        # 然后处理顶层函数定义（向后兼容）
         for key, value in self.data.items():
             if key in reserved_keys:
                 continue
@@ -275,6 +290,7 @@ class HPLParser:
                 # 特别处理 main 函数
                 if key == 'main':
                     self.main_func = func
+
 
 
     def _find_function_line(self, func_name: str) -> tuple[int, int]:
@@ -315,7 +331,7 @@ class HPLParser:
                 methods: dict[str, HPLFunction] = {}
                 parent: Optional[str] = None
                 for key, value in class_def.items():
-                    if key == 'parent':
+                    if key == 'parent' or key == 'extends':
                         parent = value
                     else:
                         # 找到类方法在源代码中的行号和列号
@@ -323,6 +339,7 @@ class HPLParser:
                         methods[key] = self.parse_function(value, start_line, start_column)
 
                 self.classes[class_name] = HPLClass(class_name, methods, parent)
+
 
 
 

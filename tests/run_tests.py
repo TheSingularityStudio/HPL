@@ -8,8 +8,12 @@ import sys
 import os
 import unittest
 
+# 添加项目根目录到路径
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 # 添加 hpl_runtime 到路径
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'hpl_runtime'))
+# 添加 tests 目录到路径，以便正确导入 stdlib 测试
+sys.path.insert(0, os.path.dirname(__file__))
 
 def run_tests():
     """运行所有测试"""
