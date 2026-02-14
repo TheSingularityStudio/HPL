@@ -15,7 +15,9 @@ HPL 代码执行器模块
 - 内置函数：echo 输出等
 """
 
+import sys
 import difflib
+
 
 from hpl_runtime.core.models import *
 from hpl_runtime.modules.loader import load_module, HPLModule
@@ -65,6 +67,9 @@ class HPLArrowFunction:
 
 
 class HPLEvaluator:
+    # 最大递归深度限制（比 Python 的递归限制小 10，留出安全余量）
+    MAX_RECURSION_DEPTH = sys.getrecursionlimit() - 10
+    
     def __init__(self, classes, objects, functions=None, main_func=None, call_target=None, call_args=None):
         self.classes = classes
         self.objects = objects
@@ -82,6 +87,7 @@ class HPLEvaluator:
         self._init_statement_handlers()
         # 初始化表达式处理器映射表
         self._init_expression_handlers()
+
 
 
     def run(self):
@@ -111,6 +117,15 @@ class HPLEvaluator:
             self.execute_function(self.main_func, {}, 'main')
 
     def execute_function(self, func, local_scope, func_name=None):
+        # 检查递归深度限制
+        if len(self.call_stack) >= self.MAX_RECURSION_DEPTH:
+            raise self._create_error(
+                HPLRecursionError,
+                f"Maximum recursion depth exceeded ({self.MAX_RECURSION_DEPTH}). "
+                f"Hint: Check for infinite recursion in function calls.",
+                error_key='RUNTIME_RECURSION_DEPTH'
+            )
+        
         # 执行语句块并返回结果
         # 添加到调用栈（如果提供了函数名）
         if func_name:
@@ -126,6 +141,7 @@ class HPLEvaluator:
             # 从调用栈移除
             if func_name:
                 self.call_stack.pop()
+
 
     def execute_block(self, block, local_scope):
         for stmt in block.statements:

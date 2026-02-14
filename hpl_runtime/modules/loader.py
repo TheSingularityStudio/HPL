@@ -17,6 +17,8 @@ import subprocess
 import json
 import logging
 from pathlib import Path
+from collections import OrderedDict
+
 
 # 从 module_base 导入 HPLModule 基类
 from hpl_runtime.modules.base import HPLModule
@@ -27,20 +29,65 @@ from hpl_runtime.utils.exceptions import HPLImportError, HPLValueError, HPLRunti
 logger = logging.getLogger('hpl.module_loader')
 
 
-# 模块缓存
-_module_cache = {}
+# LRU 模块缓存实现
+class ModuleCache:
+    """
+    带 LRU 淘汰机制的模块缓存
+    
+    限制缓存大小，防止内存无限增长。
+    默认最大缓存 100 个模块。
+    """
+    
+    def __init__(self, capacity=100):
+        self.capacity = capacity
+        self.cache = OrderedDict()
+    
+    def get(self, key):
+        """获取缓存项，并将其移到最近使用"""
+        if key not in self.cache:
+            return None
+        # 移到末尾（最近使用）
+        self.cache.move_to_end(key)
+        return self.cache[key]
+    
+    def put(self, key, value):
+        """添加缓存项，如果已满则淘汰最久未使用的"""
+        if key in self.cache:
+            # 更新现有项
+            self.cache.move_to_end(key)
+            self.cache[key] = value
+        else:
+            # 添加新项
+            if len(self.cache) >= self.capacity:
+                # 淘汰最久未使用的（第一个）
+                self.cache.popitem(last=False)
+            self.cache[key] = value
+    
+    def __contains__(self, key):
+        """支持 'in' 操作符"""
+        return key in self.cache
+    
+    def clear(self):
+        """清空缓存"""
+        self.cache.clear()
+
+
+# 模块缓存（使用 LRU 机制，默认最大 100 个模块）
+_module_cache = ModuleCache(capacity=100)
+
 
 # 标准库模块注册表
 _stdlib_modules = {}
 
-# HPL 包配置目录
-HPL_CONFIG_DIR = Path.home() / '.hpl'
-HPL_PACKAGES_DIR = HPL_CONFIG_DIR / 'packages'
+# HPL 包配置目录（支持环境变量覆盖）
+HPL_CONFIG_DIR = Path(os.environ.get('HPL_CONFIG_DIR', Path.home() / '.hpl'))
+HPL_PACKAGES_DIR = Path(os.environ.get('HPL_PACKAGES_DIR', HPL_CONFIG_DIR / 'packages'))
 HPL_MODULE_PATHS = [HPL_PACKAGES_DIR]
 
 # 确保配置目录存在
-HPL_CONFIG_DIR.mkdir(exist_ok=True)
-HPL_PACKAGES_DIR.mkdir(exist_ok=True)
+HPL_CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+HPL_PACKAGES_DIR.mkdir(parents=True, exist_ok=True)
+
 
 
 # 循环导入检测 - 正在加载中的模块集合
@@ -132,16 +179,19 @@ def load_module(module_name, search_paths=None):
         )
     
     # 检查缓存
-    if module_name in _module_cache:
+    cached_module = _module_cache.get(module_name)
+    if cached_module is not None:
         logger.debug(f"Module '{module_name}' found in cache")
-        return _module_cache[module_name]
+        return cached_module
+
     
     # 1. 尝试加载标准库模块
     module = get_module(module_name)
     if module:
         logger.debug(f"Module '{module_name}' loaded from stdlib")
-        _module_cache[module_name] = module
+        _module_cache.put(module_name, module)
         return module
+
     
     # 检查是否是文件路径（相对路径或绝对路径）
     # 文件路径包含 / 或 \，或以 ./ 或 ../ 开头
@@ -152,22 +202,23 @@ def load_module(module_name, search_paths=None):
         module = _load_python_package(module_name)
         if module:
             logger.debug(f"Module '{module_name}' loaded from Python packages")
-            _module_cache[module_name] = module
+            _module_cache.put(module_name, module)
             return module
     
     # 3. 尝试加载本地 HPL 模块文件
     module = _load_hpl_module(module_name, search_paths)
     if module:
         logger.debug(f"Module '{module_name}' loaded from HPL file")
-        _module_cache[module_name] = module
+        _module_cache.put(module_name, module)
         return module
     
     # 4. 尝试加载本地 Python 模块文件
     module = _load_python_module(module_name, search_paths)
     if module:
         logger.debug(f"Module '{module_name}' loaded from Python file")
-        _module_cache[module_name] = module
+        _module_cache.put(module_name, module)
         return module
+
     
     # 模块未找到
     available = list(_stdlib_modules.keys())
