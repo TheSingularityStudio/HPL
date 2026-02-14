@@ -653,8 +653,9 @@ class ErrorSuggestionEngine:
             # 简单解析，实际可能需要更复杂的解析
             try:
                 return eval(f'[{keys_str}]')
-            except:
+            except (SyntaxError, NameError, ValueError):
                 return []
+
         return []
 
     def _get_available_attributes(self, error) -> List[str]:

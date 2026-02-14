@@ -10,37 +10,37 @@ HPL 词法分析器模块
 - HPLLexer: 词法分析器，将源代码字符串转换为 Token 列表
 """
 
+from __future__ import annotations
+from typing import Any, Optional, Union
+
 from hpl_runtime.utils.exceptions import HPLSyntaxError
 from hpl_runtime.utils.text_utils import skip_whitespace, skip_comment
 
 
 class Token:
-    def __init__(self, type, value, line=0, column=0):
-        self.type = type
-        self.value = value
-        self.line = line
-        self.column = column
+    def __init__(self, type: str, value: Any, line: int = 0, column: int = 0) -> None:
+        self.type: str = type
+        self.value: Any = value
+        self.line: int = line
+        self.column: int = column
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f'Token({self.type}, {self.value}, line={self.line}, col={self.column})'
 
 
 class HPLLexer:
-    def __init__(self, text, start_line=1, start_column=1):
-        self.text = text
-        self.pos = 0
-        self.current_char = self.text[0] if self.text else None
+    def __init__(self, text: str, start_line: int = 1, start_column: int = 1) -> None:
+        self.text: str = text
+        self.pos: int = 0
+        self.current_char: Optional[str] = self.text[0] if self.text else None
         # 行号和列号跟踪
-        self.line = start_line
-        self.column = start_column - 1  # 减1是因为advance()会先增加column
+        self.line: int = start_line
+        self.column: int = start_column - 1  # 减1是因为advance()会先增加column
         # 缩进跟踪
-        self.indent_stack = [0]  # 缩进级别栈，初始为0
-        self.at_line_start = True  # 标记是否在行首
+        self.indent_stack: list[int] = [0]  # 缩进级别栈，初始为0
+        self.at_line_start: bool = True  # 标记是否在行首
 
-
-
-
-    def advance(self):
+    def advance(self) -> None:
         if self.current_char == '\n':
             self.line += 1
             self.column = 0  # 换行后重置为0，下一个字符会变为1
@@ -53,9 +53,7 @@ class HPLLexer:
         else:
             self.current_char = self.text[self.pos]
 
-
-
-    def peek(self):
+    def peek(self) -> Optional[str]:
         """查看下一个字符但不移动位置"""
         peek_pos = self.pos + 1
         if peek_pos > len(self.text) - 1:
@@ -63,12 +61,12 @@ class HPLLexer:
         else:
             return self.text[peek_pos]
 
-    def skip_whitespace(self):
+    def skip_whitespace(self) -> None:
         """跳过非换行的空白字符"""
         while self.current_char is not None and self.current_char.isspace() and self.current_char != '\n':
             self.advance()
 
-    def number(self):
+    def number(self) -> Union[int, float]:
         result = ''
         while self.current_char is not None and self.current_char.isdigit():
             result += self.current_char
@@ -83,7 +81,7 @@ class HPLLexer:
             return float(result)
         return int(result)
 
-    def string(self):
+    def string(self) -> str:
         result = ''
         self.advance()  # 跳过开始引号
         while self.current_char is not None and self.current_char != '"':
@@ -112,15 +110,14 @@ class HPLLexer:
         self.advance()  # 跳过结束引号
         return result
 
-
-    def identifier(self):
+    def identifier(self) -> str:
         result = ''
         while self.current_char is not None and (self.current_char.isalnum() or self.current_char == '_'):
             result += self.current_char
             self.advance()
         return result
 
-    def _handle_indentation(self, tokens):
+    def _handle_indentation(self, tokens: list[Token]) -> bool:
         """处理行首缩进，生成 INDENT/DEDENT 标记"""
         if not self.current_char.isspace():
             # 行首遇到非空白字符，检查是否需要生成 DEDENT
@@ -161,15 +158,15 @@ class HPLLexer:
         self.at_line_start = False
         return False  # 跳过本次循环
 
-    def _handle_number(self, token_line, token_column):
+    def _handle_number(self, token_line: int, token_column: int) -> Token:
         """处理数字，返回 NUMBER 标记"""
         return Token('NUMBER', self.number(), token_line, token_column)
 
-    def _handle_string(self, token_line, token_column):
+    def _handle_string(self, token_line: int, token_column: int) -> Token:
         """处理字符串，返回 STRING 标记"""
         return Token('STRING', self.string(), token_line, token_column)
 
-    def _handle_identifier(self, token_line, token_column):
+    def _handle_identifier(self, token_line: int, token_column: int) -> Token:
         """处理标识符和关键字，返回对应标记"""
         ident = self.identifier()
         keywords = {'if', 'else', 'for', 'while', 'try', 'catch', 'finally', 
@@ -185,7 +182,7 @@ class HPLLexer:
             return Token('IDENTIFIER', ident, token_line, token_column)
 
     # 运算符映射表：字符 -> (单字符标记类型, 双字符标记类型或None, 双字符值或None)
-    _OPERATOR_MAP = {
+    _OPERATOR_MAP: dict[str, tuple[str, Optional[str], Optional[str]]] = {
         '+': ('PLUS', 'INCREMENT', '+'),
         '-': ('MINUS', None, None),
         '*': ('MUL', None, None),
@@ -203,7 +200,7 @@ class HPLLexer:
         ':': ('COLON', None, None),
     }
 
-    def _handle_operator(self, char, token_line, token_column):
+    def _handle_operator(self, char: str, token_line: int, token_column: int) -> Token:
         """处理运算符，返回对应标记"""
         # 特殊处理需要检查第二个字符的运算符
         if char == '!':
@@ -261,7 +258,6 @@ class HPLLexer:
                 error_key='SYNTAX_UNEXPECTED_TOKEN'
             )
 
-        
         # 使用映射表处理标准运算符
         self.advance()
         single_type, double_type, double_value = self._OPERATOR_MAP[char]
@@ -273,15 +269,14 @@ class HPLLexer:
         
         return Token(single_type, char, token_line, token_column)
 
-    def skip_comment(self):
-
+    def skip_comment(self) -> None:
         """跳过从当前位置到行尾的注释"""
         while self.current_char is not None and self.current_char != '\n':
             self.advance()
 
-    def tokenize(self):
+    def tokenize(self) -> list[Token]:
         """词法分析主函数，将源代码转换为 Token 序列"""
-        tokens = []
+        tokens: list[Token] = []
         
         while self.current_char is not None:
             # 处理行首缩进
@@ -332,7 +327,6 @@ class HPLLexer:
                     error_key='SYNTAX_UNEXPECTED_TOKEN'
                 )
 
-        
         # 文件结束时，弹出所有缩进级别
         while len(self.indent_stack) > 1:
             self.indent_stack.pop()
@@ -340,3 +334,4 @@ class HPLLexer:
         
         tokens.append(Token('EOF', None, self.line, self.column))
         return tokens
+

@@ -158,3 +158,59 @@ def is_valid_index(array, index):
         bool: 索引是否有效
     """
     return isinstance(index, int) and 0 <= index < len(array)
+
+
+def check_type(value, expected_type, func_name, param_name, allow_none=False):
+    """
+    统一类型检查函数
+    
+    检查值是否为期望的类型，如果不是则抛出 HPLTypeError。
+    这个函数用于统一 stdlib 模块中的类型检查，减少重复代码。
+    
+    Args:
+        value: 要检查的值
+        expected_type: 期望的类型（单个类型或类型元组）
+        func_name: 函数名称（用于错误消息）
+        param_name: 参数名称（用于错误消息）
+        allow_none: 是否允许 None 值（默认为 False）
+    
+    Raises:
+        HPLTypeError: 如果类型不匹配
+    
+    Examples:
+        >>> check_type(s, str, 'length', 's')
+        >>> check_type(count, (int, float), 'repeat', 'count')
+    """
+    if allow_none and value is None:
+        return
+    
+    if not isinstance(value, expected_type):
+        expected_name = _get_type_name(expected_type)
+        actual_name = type(value).__name__
+        raise HPLTypeError(
+            f"{func_name}() requires {expected_name} for {param_name}, got {actual_name}"
+        )
+
+
+def _get_type_name(expected_type):
+    """
+    获取类型的友好名称
+    
+    Args:
+        expected_type: 类型或类型元组
+    
+    Returns:
+        str: 类型名称
+    """
+    if isinstance(expected_type, tuple):
+        type_names = []
+        for t in expected_type:
+            if hasattr(t, '__name__'):
+                type_names.append(t.__name__)
+            else:
+                type_names.append(str(t))
+        return ' or '.join(type_names)
+    elif hasattr(expected_type, '__name__'):
+        return expected_type.__name__
+    else:
+        return str(expected_type)

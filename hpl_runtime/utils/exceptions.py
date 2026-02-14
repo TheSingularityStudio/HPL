@@ -595,8 +595,9 @@ def format_error_with_suggestions(error, source_code=None, suggestion_engine=Non
             result += f"\n\n   [FIX] 快速修复:\n   ```\n   {analysis['quick_fix']}\n   ```"
 
         
-    except Exception:
+    except (AttributeError, TypeError, ValueError, KeyError):
         # 如果建议引擎出错，不影响错误显示
         pass
+
     
     return result

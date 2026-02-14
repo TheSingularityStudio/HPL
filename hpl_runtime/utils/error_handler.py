@@ -252,8 +252,9 @@ def create_error_handler(hpl_file, debug_mode=False, enable_suggestions=True):
         try:
             with open(hpl_file, 'r', encoding='utf-8') as f:
                 source_code = f.read()
-        except Exception:
+        except (IOError, OSError, PermissionError, UnicodeDecodeError):
             pass
+
     
     return HPLErrorHandler(
         source_code=source_code,
