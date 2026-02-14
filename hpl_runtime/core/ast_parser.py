@@ -206,10 +206,24 @@ class HPLASTParser:
         # 使用 peek 进行 lookahead，避免保存/恢复位置
         next_token = self.peek(1)
         
+        # 检查是否是嵌套函数定义：name: (params) => { body }
+        if next_token and next_token.type == 'COLON':
+            # 向前查看是否是函数定义模式：(params) => { body }
+            peek_pos = self.pos + 2
+            if peek_pos < len(self.tokens) and self.tokens[peek_pos].type == 'LPAREN':
+                # 这是嵌套函数定义
+                self.advance()  # 跳过标识符
+                self.advance()  # 跳过 ':'
+                
+                # 解析箭头函数
+                arrow_func = self._parse_arrow_function()
+                return AssignmentStatement(name, arrow_func)
+        
         # 检查是否是简单赋值：var = value
         if next_token and next_token.type == 'ASSIGN':
             self.advance()  # 跳过变量名
             return self._parse_simple_assignment(name)
+
         
         # 检查是否是数组赋值：arr[index] = value
         if next_token and next_token.type == 'LBRACKET':

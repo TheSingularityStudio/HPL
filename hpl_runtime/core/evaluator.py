@@ -44,7 +44,7 @@ class HPLArrowFunction:
         self.closure_scope: dict[str, Any] = closure_scope.copy()  # 捕获定义时的作用域
         self.evaluator: HPLEvaluator = evaluator  # 执行器引用
     
-    def call(self, args: list[Any]) -> Any:
+    def call(self, args: list[Any], func_name: Optional[str] = None) -> Any:
         """调用箭头函数"""
 
         # 创建新的局部作用域，基于闭包作用域
@@ -57,6 +57,10 @@ class HPLArrowFunction:
             else:
                 func_scope[param] = None  # 默认值为 None
         
+        # 支持递归：如果提供了函数名，将自身添加到作用域
+        if func_name:
+            func_scope[func_name] = self
+        
         # 执行函数体
         result = self.evaluator.execute_block(self.body, func_scope)
         
@@ -65,6 +69,7 @@ class HPLArrowFunction:
             return result.value
         return result
 
+
     
     def __repr__(self) -> str:
         return f"<arrow function ({', '.join(self.params)}) => {{...}}>"
@@ -72,8 +77,9 @@ class HPLArrowFunction:
 
 class HPLEvaluator:
     # 最大递归深度限制（保守设置，确保在 Python 递归限制前触发）
-    # 每个 HPL 函数调用会使用约 7-8 个 Python 栈帧，Python默认限制1000，因此设为100留出安全余量
-    MAX_RECURSION_DEPTH: int = 100
+    # 每个 HPL 函数调用会使用约 7-8 个 Python 栈帧，Python默认限制1000，因此设为500留出安全余量
+    MAX_RECURSION_DEPTH: int = 500
+
     # 最大表达式求值深度限制（防止深层嵌套表达式导致的栈溢出）
     MAX_EXPR_DEPTH: int = 200
     
@@ -153,10 +159,19 @@ class HPLEvaluator:
             if isinstance(result, ReturnValue):
                 return result.value
             return result
+        except RecursionError:
+            # 捕获 Python 的 RecursionError 并转换为 HPLRecursionError
+            raise self._create_error(
+                HPLRecursionError,
+                f"Maximum recursion depth exceeded ({self.MAX_RECURSION_DEPTH}). "
+                f"Hint: Check for infinite recursion in function calls.",
+                error_key='RUNTIME_RECURSION_DEPTH'
+            )
         finally:
             # 从调用栈移除
             if func_name:
                 self.call_stack.pop()
+
 
 
     def execute_block(self, block: BlockStatement, local_scope: dict[str, Any]) -> Any:
@@ -704,7 +719,8 @@ class HPLEvaluator:
             
             # 如果是箭头函数
             if isinstance(func, HPLArrowFunction):
-                return func.call(args)
+                return func.call(args, func_name)
+
             
             # 普通函数
             func_scope = {}
