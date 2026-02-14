@@ -191,9 +191,9 @@ class DebugInterpreter:
         'error_report': str,                # 错误处理器报告（错误时）
         'error_context': Dict,              # 错误分析上下文（错误时）
         'report': str,                      # 完整调试报告（错误时）
-        'execution_trace': List[Dict]       # 执行跟踪记录（错误时，如果有）
     }
 }
+
 ```
 
 
@@ -400,13 +400,13 @@ time_module = load_module('time')
 ### 模块搜索路径管理
 
 ```python
-from hpl_runtime.modules.loader import add_module_path, get_module_paths
+from hpl_runtime.modules.loader import add_module_path, HPL_MODULE_PATHS
 
 # 添加自定义模块搜索路径
 add_module_path("/path/to/custom/modules")
 
 # 查看当前搜索路径
-print(get_module_paths())
+print(HPL_MODULE_PATHS)
 ```
 
 
@@ -963,9 +963,9 @@ if __name__ == '__main__':
 
 ## 版本信息
 
-- 文档版本: 1.0.2
-- 对应 HPL Runtime 版本: 1.1.2
-- 最后更新: 2026-02-12
+- 文档版本: 1.0.3
+- 对应 HPL Runtime 版本: 1.1.5
+- 最后更新: 2026-02-14
 
 
 

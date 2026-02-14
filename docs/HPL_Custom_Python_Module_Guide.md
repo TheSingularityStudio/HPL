@@ -212,6 +212,147 @@ add_module_path("/path/to/your/modules")
 from hpl_runtime.modules.loader import get_loader_context
 context = get_loader_context()
 current_dir = context.get_current_file_dir()
+
+# 清除模块缓存（开发调试时使用）
+from hpl_runtime.modules.loader import clear_cache
+clear_cache()
+```
+
+### 模块缓存
+
+HPL 使用 LRU（最近最少使用）缓存机制来优化模块加载性能：
+
+- **默认容量**: 100 个模块
+- **缓存策略**: 当缓存满时，自动淘汰最久未使用的模块
+- **适用场景**: 频繁导入相同模块时避免重复加载
+
+```python
+from hpl_runtime.modules.loader import clear_cache, ModuleCache
+
+# 清除所有缓存的模块（开发调试时使用）
+clear_cache()
+
+# 高级用法：自定义缓存
+custom_cache = ModuleCache(capacity=50)  # 自定义容量
+```
+
+### 点号表示法导入
+
+支持使用点号表示法导入包中的子模块：
+
+```python
+# 目录结构: mathlib/basic/add.hpl
+# 导入方式: mathlib.basic.add
+
+imports:
+  - mathlib.basic.add: add_utils  # 使用别名
+  - mathlib.basic.stats            # 直接导入
+
+main: () => {
+  result = add_utils.sum(1, 2, 3)
+  stats = mathlib.basic.stats.mean([1, 2, 3, 4, 5])
+}
+```
+
+### 目录模块
+
+HPL 支持将目录作为模块导入，自动查找目录下的初始化文件：
+
+**支持的初始化文件**（按优先级）：
+1. `__init__.hpl` - 包初始化文件（推荐）
+2. `index.hpl` - 索引文件
+
+**目录结构示例**：
+```
+my_package/
+├── __init__.hpl      # 包入口
+├── utils.hpl          # 子模块
+└── core/
+    ├── __init__.hpl   # 子包入口
+    └── helpers.hpl
+```
+
+**导入方式**：
+```hpl
+imports:
+  - my_package          # 加载 my_package/__init__.hpl
+  - my_package.utils    # 加载 my_package/utils.hpl
+  - my_package.core     # 加载 my_package/core/__init__.hpl
+```
+
+### 循环导入检测
+
+HPL 自动检测并防止循环导入（circular imports）：
+
+**错误示例**：
+```hpl
+# module_a.hpl
+imports:
+  - module_b
+
+# module_b.hpl
+imports:
+  - module_a  # 循环导入！
+```
+
+**错误信息**：
+```
+Error: Circular import detected: 'module_a' is already being loaded.
+Import chain: module_a -> module_b -> module_a
+```
+
+**解决方案**：
+1. 重构模块结构，避免循环依赖
+2. 将共享代码提取到第三个模块
+3. 延迟导入（在函数内部导入）
+
+### Python第三方包自动加载
+
+HPL 可以直接导入已安装的 Python 第三方包（PyPI）：
+
+```hpl
+imports:
+  - requests      # 自动包装为 HPL 模块
+  - numpy: np    # 使用别名
+
+main: () => {
+  # 使用 requests 发送 HTTP 请求
+  response = requests.get("https://api.example.com")
+  echo(response.status_code)
+  
+  # 使用 numpy 进行计算
+  arr = np.array([1, 2, 3, 4, 5])
+  echo(np.mean(arr))
+}
+```
+
+**自动包装规则**：
+- 可调用对象 → 注册为 HPL 函数
+- 非可调用对象 → 注册为 HPL 常量
+- 下划线开头的名称 → 自动隐藏
+
+### ModuleLoaderContext 高级用法
+
+`ModuleLoaderContext` 用于管理嵌套导入的上下文，支持并发场景：
+
+```python
+from hpl_runtime.modules.loader import get_loader_context, ModuleLoaderContext
+
+# 获取全局上下文
+context = get_loader_context()
+
+# 设置当前文件（用于相对导入解析）
+context.set_current_file("/path/to/current.hpl")
+
+# 获取当前文件所在目录
+current_dir = context.get_current_file_dir()
+
+# 清除上下文
+context.clear()
+
+# 高级用法：创建独立上下文（并发场景）
+local_context = ModuleLoaderContext()
+local_context.set_current_file("/path/to/other.hpl")
 ```
 
 ---
@@ -227,6 +368,8 @@ current_dir = context.get_current_file_dir()
 | `HPLNameError` | 名称错误 | 函数不存在 |
 | `HPLAttributeError` | 属性错误 | 常量不存在 |
 | `HPLImportError` | 导入错误 | 模块未找到 |
+| `HPLRuntimeError` | 运行时错误 | 文件不存在、网络错误等 |
+| `HPLIOError` | IO错误 | 文件读写失败、权限不足 |
 
 ### 导入异常类
 
@@ -237,7 +380,9 @@ try:
         HPLValueError,
         HPLNameError,
         HPLAttributeError,
-        HPLImportError
+        HPLImportError,
+        HPLRuntimeError,
+        HPLIOError
     )
 except ImportError:
     # 备用导入方式
@@ -249,7 +394,9 @@ except ImportError:
         HPLValueError,
         HPLNameError,
         HPLAttributeError,
-        HPLImportError
+        HPLImportError,
+        HPLRuntimeError,
+        HPLIOError
     )
 ```
 
@@ -480,8 +627,9 @@ def get_filename(path):
 def get_dirname(path):
     """获取目录名"""
     if not isinstance(path, str):
-        raise HplTypeError(f"get_dirname() requires string, got {type(path).__name__}")
+        raise HPLTypeError(f"get_dirname() requires string, got {type(path).__name__}")
     return str(Path(path).parent)
+
 
 # ============ JSON 文件 ============
 
@@ -875,6 +1023,10 @@ Error: Module 'my_module' not found
 
 from hpl_runtime.modules.loader import add_module_path
 add_module_path("/path/to/your/modules")
+
+# 清除缓存后重试
+from hpl_runtime.modules.loader import clear_cache
+clear_cache()
 ```
 
 #### 2. 函数未找到
@@ -957,11 +1109,38 @@ ImportError: cannot import name 'HPLModule'
 # 使用备用导入方式
 try:
     from hpl_runtime.modules.base import HPLModule
+    from hpl_runtime.utils.exceptions import HPLTypeError, HPLValueError, HPLRuntimeError
 except ImportError:
     import sys
     import os
     sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     from hpl_runtime.modules.base import HPLModule
+    from hpl_runtime.utils.exceptions import HPLTypeError, HPLValueError, HPLRuntimeError
+```
+
+#### 7. 循环导入错误
+
+**症状：**
+```
+Error: Circular import detected: 'module_a' is already being loaded.
+Import chain: module_a -> module_b -> module_a
+```
+
+**解决方案：**
+- 重构模块结构，避免循环依赖
+- 将共享代码提取到第三个模块
+- 延迟导入（在函数内部导入）
+
+#### 8. 缓存问题
+
+**症状：**
+模块修改后，HPL 仍然使用旧版本
+
+**解决方案：**
+```python
+# 清除模块缓存
+from hpl_runtime.modules.loader import clear_cache
+clear_cache()
 ```
 
 ### 调试技巧
@@ -1288,7 +1467,9 @@ APP_VERSION = "1.0.0"
 - **HPL 标准库源码**: `hpl_runtime/stdlib/`
 - **模块基类**: `hpl_runtime/modules/base.py`
 - **模块加载器**: `hpl_runtime/modules/loader.py`
+- **包管理器**: `hpl_runtime/modules/package_manager.py`
 - **示例模块**: `examples/tests/my_python_module.py`
+- **异常定义**: `hpl_runtime/utils/exceptions.py`
 
 ---
 
@@ -1303,10 +1484,15 @@ APP_VERSION = "1.0.0"
 5. **最佳实践** - 命名规范、文档、版本管理
 6. **故障排除** - 常见问题及解决方案
 7. **高级主题** - 状态管理、配置、类封装等
+8. **模块缓存** - LRU 缓存机制优化性能
+9. **点号导入** - 支持 `package.submodule` 语法
+10. **目录模块** - 支持 `__init__.hpl` 和 `index.hpl`
+11. **循环导入检测** - 自动检测并防止循环依赖
+12. **Python包加载** - 直接导入 PyPI 第三方包
 
 通过自定义 Python 模块，您可以无限扩展 HPL 的功能，利用 Python 丰富的生态系统，同时保持 HPL 简洁的语法和易用性。
 
 ---
 
-*文档版本: 1.0.0*
+*文档版本: 1.1.0*
 *最后更新: 2026年*

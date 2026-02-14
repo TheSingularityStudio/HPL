@@ -142,10 +142,9 @@ main: () => {
 
 ## 4. 类定义（classes）
 
-
 类使用 YAML 的映射结构定义。类可以继承其他类，支持方法定义。
 
-### 基本类定义
+### 4.1 基本类定义
 
 ```yaml
 classes:
@@ -157,9 +156,13 @@ classes:
 
 - `ClassName`：类名。
 - `methodName`：方法名。
-- `() => { code }`：方法定义，使用箭头函数语法。
+- `() => { code }`：方法定义，使用**箭头函数语法**。
 - 参数：在括号内定义，如 `(param1, param2)`。
 - 代码块：用大括号 `{}` 包围，使用缩进组织代码。
+
+**箭头函数语法说明：**
+HPL 使用箭头函数 `=>` 定义方法，这是 HPL 的核心语法特性。箭头函数使代码更加简洁，同时保持清晰的结构。
+
 
 ### 带参数的方法
 
@@ -337,10 +340,10 @@ for (i in range(5)) :
 ```
 
 
-## 7. 异常处理（try-catch 和 throw）
+## 7. 异常处理（try-catch-finally 和 throw）
 
 
-使用 try-catch 块处理异常，使用 throw 语句抛出异常。
+使用 try-catch-finally 块处理异常，使用 throw 语句抛出异常。
 
 ### try-catch 基本用法
 
@@ -353,6 +356,59 @@ catch (error) :
 
 - `error`：捕获的异常变量。
 - 使用冒号和缩进表示代码块。
+
+### 多 catch 子句（异常类型匹配）
+
+HPL 支持多个 catch 子句，可以根据异常类型进行匹配：
+
+```yaml
+try :
+  # 可能抛出异常的代码
+  arr = [1, 2, 3]
+  val = arr["invalid"]  # 类型错误
+catch (HPLTypeError type_err) :
+  echo "类型错误: " + type_err
+catch (other_err) :
+  echo "其他错误: " + other_err
+```
+
+- 多个 catch 子句按顺序匹配，第一个匹配的 catch 会被执行
+- 可以在 catch 括号中指定异常类型，如 `HPLTypeError`、`ZeroDivisionError` 等
+- 如果不指定类型，将捕获所有类型的异常
+
+### finally 块
+
+finally 块用于执行清理操作，无论是否发生异常都会执行：
+
+```yaml
+try :
+  resource = "opened"
+  # 使用资源
+  result = 10 / 0
+catch (err) :
+  echo "捕获错误: " + err
+finally :
+  resource = "closed"
+  echo "资源已关闭: " + resource
+```
+
+- finally 块在 try 和 catch 之后执行
+- 无论 try 中是否发生异常、catch 是否捕获，finally 都会执行
+- 常用于资源清理（关闭文件、释放锁等）
+
+**注意**：如果在 finally 块中使用 `return`，会覆盖 try 或 catch 中的返回值：
+
+```yaml
+test_finally_return: () => {
+    try :
+      result = "try 返回值"
+    catch (err) :
+      result = "catch 返回值"
+    finally :
+      result = "finally 返回值"  # 这会覆盖之前的返回值
+    return result  # 返回 "finally 返回值"
+  }
+```
 
 ### throw 语句
 
@@ -385,6 +441,7 @@ try :
 catch (outerError) :
   echo "外层捕获: " + outerError
 ```
+
 
 
 ## 8. 内置函数和操作符
@@ -611,7 +668,7 @@ main: () => {
   }
 ```
 
-## 12. 主函数和调用
+## 12. 函数定义和调用
 
 
 ### 基本用法
@@ -619,9 +676,24 @@ main: () => {
 - `main`：定义主函数，包含程序逻辑。
 - `call: main()`：执行主函数。
 
-### 调用任意函数（新特性）
+### 箭头函数语法
 
-HPL 现在支持调用任意顶层函数，不仅限于 `main`。
+HPL 使用箭头函数语法定义函数：
+
+```yaml
+functionName: (param1, param2) => {
+    # 函数体
+    return result
+  }
+```
+
+- 参数列表放在括号 `()` 中
+- 使用 `=>` 箭头符号分隔参数和函数体
+- 函数体使用大括号 `{}` 包围，内部使用缩进组织代码
+
+### 顶层函数定义
+
+HPL 支持定义任意数量的顶层函数，不限于 `main`：
 
 ```yaml
 # 定义多个顶层函数
@@ -632,19 +704,36 @@ add: (a, b) => {
   }
 
 greet: (name) => {
-    echo "Hello, " + name + "!"
+    message = "Hello, " + name + "!"
+    echo message
+    return message
   }
 
-# 调用任意函数
+# 定义主函数（可选）
+main: () => {
+    echo "This is the main function"
+    result = add(10, 20)
+    echo "Result from main: " + result
+  }
+```
+
+### 调用任意函数
+
+`call` 可以调用任意顶层函数，不仅限于 `main`：
+
+```yaml
+# 调用 add 函数（而不是 main）
 call: add(5, 3)        # 输出: Adding 5 + 3 = 8
+
+# 调用 greet 函数
 call: greet("World")   # 输出: Hello, World!
 ```
 
 **特性说明：**
-- 可以定义任意数量的顶层函数
 - `call` 可以指定要调用的函数名和参数
 - 支持带参数的函数调用，如 `call: funcName(arg1, arg2)`
 - 如果未指定 `call`，默认执行 `main` 函数（如果存在）
+
 
 
 ## 13. 完整示例程序分析
@@ -842,8 +931,7 @@ HPL 解释器现在包含类型检查，提供清晰的错误信息：
 - 后缀自增 `i++` 先返回原值，再增加 1。
 - 一元负号 `-x` 将 x 取相反数。
 - 模块导入后，使用 `module.function()` 调用模块函数，使用 `module.CONSTANT` 访问模块常量。
-
-
+- 箭头函数 `=>` 是 HPL 的核心语法，用于定义函数和方法。
 
 ## 17. 标准库参考 (Standard Library Reference)
 
@@ -863,9 +951,6 @@ HPL 解释器现在包含类型检查，提供清晰的错误信息：
 | `string` | 字符串处理 |
 | `re` | 正则表达式操作 |
 | `net` | HTTP 网络请求 |
-
-
-
 
 ### 17.1 math 模块 - 数学函数
 
@@ -1513,8 +1598,6 @@ call: main()
 
 
 ```
-
-
 
 
 此手册涵盖了 HPL 的所有核心语法特性，包括基础特性、新增强特性和标准库模块系统。
