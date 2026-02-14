@@ -12,7 +12,7 @@ import sys
 import os
 import unittest
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'hpl_runtime'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'hpl_runtime'))
 
 try:
     from hpl_runtime.modules.loader import get_module, register_module
@@ -395,4 +395,3 @@ class TestNewStdlibRegistration(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
-
