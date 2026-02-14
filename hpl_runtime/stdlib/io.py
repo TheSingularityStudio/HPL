@@ -9,15 +9,10 @@ import os
 try:
     from hpl_runtime.modules.base import HPLModule
 except ImportError:
-    try:
-        from hpl_runtime.modules.base import HPLModule
-    except ImportError:
-        import sys
-        import os
-        sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-        from hpl_runtime.modules.base import HPLModule
-
-
+    import sys
+    import os
+    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    from hpl_runtime.modules.base import HPLModule
 
 
 def read_file(path):
@@ -30,7 +25,6 @@ def read_file(path):
     
     with open(path, 'r', encoding='utf-8') as f:
         return f.read()
-
 
 def write_file(path, content):
     """写入文件内容"""
@@ -49,7 +43,6 @@ def write_file(path, content):
     
     return True
 
-
 def append_file(path, content):
     """追加文件内容"""
     if not isinstance(path, str):
@@ -67,13 +60,11 @@ def append_file(path, content):
     
     return True
 
-
 def file_exists(path):
     """检查文件是否存在"""
     if not isinstance(path, str):
         raise TypeError(f"file_exists() requires string path, got {type(path).__name__}")
     return os.path.exists(path)
-
 
 def delete_file(path):
     """删除文件"""
@@ -86,7 +77,6 @@ def delete_file(path):
     os.remove(path)
     return True
 
-
 def create_dir(path):
     """创建目录"""
     if not isinstance(path, str):
@@ -96,7 +86,6 @@ def create_dir(path):
         os.makedirs(path)
     
     return True
-
 
 def list_dir(path):
     """列出目录内容"""
@@ -111,7 +100,6 @@ def list_dir(path):
     
     return os.listdir(path)
 
-
 def get_file_size(path):
     """获取文件大小"""
     if not isinstance(path, str):
@@ -122,20 +110,17 @@ def get_file_size(path):
     
     return os.path.getsize(path)
 
-
 def is_file(path):
     """检查路径是否为文件"""
     if not isinstance(path, str):
         raise TypeError(f"is_file() requires string path, got {type(path).__name__}")
     return os.path.isfile(path)
 
-
 def is_dir(path):
     """检查路径是否为目录"""
     if not isinstance(path, str):
         raise TypeError(f"is_dir() requires string path, got {type(path).__name__}")
     return os.path.isdir(path)
-
 
 # 创建模块实例
 module = HPLModule('io', 'File input/output operations')

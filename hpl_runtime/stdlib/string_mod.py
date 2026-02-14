@@ -11,18 +11,12 @@ try:
     from hpl_runtime.utils.exceptions import HPLTypeError, HPLValueError
     from hpl_runtime.utils.type_utils import check_type
 except ImportError:
-    try:
-        from hpl_runtime.modules.base import HPLModule
-        from hpl_runtime.utils.exceptions import HPLTypeError, HPLValueError
-        from hpl_runtime.utils.type_utils import check_type
-    except ImportError:
-        import sys
-        import os
-        sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-        from hpl_runtime.modules.base import HPLModule
-        from hpl_runtime.utils.exceptions import HPLTypeError, HPLValueError
-        from hpl_runtime.utils.type_utils import check_type
-
+    import sys
+    import os
+    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    from hpl_runtime.modules.base import HPLModule
+    from hpl_runtime.utils.exceptions import HPLTypeError, HPLValueError
+    from hpl_runtime.utils.type_utils import check_type
 
 
 # 基础字符串操作
@@ -31,8 +25,6 @@ def length(s):
     """获取字符串长度"""
     check_type(s, str, 'length', 's')
     return len(s)
-
-
 
 def split(s, delimiter=None, maxsplit=-1):
     """分割字符串为数组"""
@@ -46,8 +38,6 @@ def split(s, delimiter=None, maxsplit=-1):
         return s.split()
     return s.split(delimiter, maxsplit)
 
-
-
 def join(array, delimiter=""):
     """使用分隔符连接字符串数组"""
     check_type(array, list, 'join', 'array')
@@ -56,8 +46,6 @@ def join(array, delimiter=""):
     # 将所有元素转换为字符串
     str_items = [str(item) for item in array]
     return delimiter.join(str_items)
-
-
 
 def replace(s, old, new, count=-1):
     """替换字符串中的子串"""
@@ -70,8 +58,6 @@ def replace(s, old, new, count=-1):
         return s.replace(old, new)
     return s.replace(old, new, count)
 
-
-
 def trim(s, chars=None):
     """去除字符串首尾空白或指定字符"""
     check_type(s, str, 'trim', 's')
@@ -80,8 +66,6 @@ def trim(s, chars=None):
         return s.strip()
     check_type(chars, str, 'trim', 'chars')
     return s.strip(chars)
-
-
 
 def trim_start(s, chars=None):
     """去除字符串开头空白或指定字符"""
@@ -92,8 +76,6 @@ def trim_start(s, chars=None):
     check_type(chars, str, 'trim_start', 'chars')
     return s.lstrip(chars)
 
-
-
 def trim_end(s, chars=None):
     """去除字符串结尾空白或指定字符"""
     check_type(s, str, 'trim_end', 's')
@@ -103,21 +85,15 @@ def trim_end(s, chars=None):
     check_type(chars, str, 'trim_end', 'chars')
     return s.rstrip(chars)
 
-
-
 def to_upper(s):
     """将字符串转为大写"""
     check_type(s, str, 'to_upper', 's')
     return s.upper()
 
-
-
 def to_lower(s):
     """将字符串转为小写"""
     check_type(s, str, 'to_lower', 's')
     return s.lower()
-
-
 
 def substring(s, start, end=None):
     """截取子字符串"""
@@ -129,8 +105,6 @@ def substring(s, start, end=None):
     check_type(end, int, 'substring', 'end')
     return s[start:end]
 
-
-
 def index_of(s, substr, start=0):
     """查找子串位置，未找到返回-1"""
     check_type(s, str, 'index_of', 's')
@@ -138,8 +112,6 @@ def index_of(s, substr, start=0):
     check_type(start, int, 'index_of', 'start')
     
     return s.find(substr, start)
-
-
 
 def last_index_of(s, substr, start=0):
     """从后往前查找子串位置，未找到返回-1"""
@@ -149,16 +121,12 @@ def last_index_of(s, substr, start=0):
     
     return s.rfind(substr, start)
 
-
-
 def starts_with(s, prefix):
     """检查字符串是否以指定前缀开头"""
     check_type(s, str, 'starts_with', 's')
     check_type(prefix, str, 'starts_with', 'prefix')
     
     return s.startswith(prefix)
-
-
 
 def ends_with(s, suffix):
     """检查字符串是否以指定后缀结尾"""
@@ -167,8 +135,6 @@ def ends_with(s, suffix):
     
     return s.endswith(suffix)
 
-
-
 def contains(s, substr):
     """检查字符串是否包含子串"""
     check_type(s, str, 'contains', 's')
@@ -176,14 +142,10 @@ def contains(s, substr):
     
     return substr in s
 
-
-
 def reverse(s):
     """反转字符串"""
     check_type(s, str, 'reverse', 's')
     return s[::-1]
-
-
 
 def repeat(s, count):
     """重复字符串指定次数"""
@@ -193,8 +155,6 @@ def repeat(s, count):
         raise HPLValueError("repeat() requires non-negative count")
     
     return s * count
-
-
 
 def pad_start(s, length, pad=" "):
     """在字符串开头填充字符至指定长度"""
@@ -210,8 +170,6 @@ def pad_start(s, length, pad=" "):
     padding = (pad * ((padding_needed // len(pad)) + 1))[:padding_needed]
     return padding + s
 
-
-
 def pad_end(s, length, pad=" "):
     """在字符串结尾填充字符至指定长度"""
     check_type(s, str, 'pad_end', 's')
@@ -226,8 +184,6 @@ def pad_end(s, length, pad=" "):
     padding = (pad * ((padding_needed // len(pad)) + 1))[:padding_needed]
     return s + padding
 
-
-
 def count(s, substr):
     """统计子串出现次数"""
     check_type(s, str, 'count', 's')
@@ -237,42 +193,30 @@ def count(s, substr):
     
     return s.count(substr)
 
-
-
 def is_empty(s):
     """检查字符串是否为空"""
     check_type(s, str, 'is_empty', 's')
     return len(s) == 0
-
-
 
 def is_blank(s):
     """检查字符串是否为空或仅包含空白字符"""
     check_type(s, str, 'is_blank', 's')
     return len(s.strip()) == 0
 
-
-
 def capitalize(s):
     """将字符串首字母大写"""
     check_type(s, str, 'capitalize', 's')
     return s.capitalize()
-
-
 
 def title_case(s):
     """将字符串每个单词首字母大写"""
     check_type(s, str, 'title_case', 's')
     return s.title()
 
-
-
 def swap_case(s):
     """交换字符串大小写"""
     check_type(s, str, 'swap_case', 's')
     return s.swapcase()
-
-
 
 def format_template(template, *args, **kwargs):
     """格式化字符串模板"""
@@ -285,8 +229,6 @@ def format_template(template, *args, **kwargs):
         return template.format(**kwargs)
     except (KeyError, IndexError) as e:
         raise HPLValueError(f"Format error: {e}")
-
-
 
 # 创建模块实例
 module = HPLModule('string', 'String manipulation functions')

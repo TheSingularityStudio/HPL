@@ -10,18 +10,11 @@ try:
     from hpl_runtime.modules.base import HPLModule
     from hpl_runtime.utils.exceptions import HPLTypeError, HPLValueError
 except ImportError:
-    try:
-        from hpl_runtime.modules.base import HPLModule
-        from hpl_runtime.utils.exceptions import HPLTypeError, HPLValueError
-    except ImportError:
-        import sys
-        import os
-        sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-        from hpl_runtime.modules.base import HPLModule
-        from hpl_runtime.utils.exceptions import HPLTypeError, HPLValueError
-
-
-
+    import sys
+    import os
+    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    from hpl_runtime.modules.base import HPLModule
+    from hpl_runtime.utils.exceptions import HPLTypeError, HPLValueError
 
 
 # 基本数学函数
@@ -33,8 +26,6 @@ def sqrt(x):
         raise HPLValueError("sqrt() requires non-negative number")
     return _math.sqrt(x)
 
-
-
 def pow(base, exp):
     """计算幂"""
     if not isinstance(base, (int, float)):
@@ -43,15 +34,11 @@ def pow(base, exp):
         raise HPLTypeError(f"pow() requires number for exponent, got {type(exp).__name__}")
     return _math.pow(base, exp)
 
-
-
 def sin(x):
     """计算正弦（弧度）"""
     if not isinstance(x, (int, float)):
         raise HPLTypeError(f"sin() requires number, got {type(x).__name__}")
     return _math.sin(x)
-
-
 
 def cos(x):
     """计算余弦（弧度）"""
@@ -59,15 +46,11 @@ def cos(x):
         raise HPLTypeError(f"cos() requires number, got {type(x).__name__}")
     return _math.cos(x)
 
-
-
 def tan(x):
     """计算正切（弧度）"""
     if not isinstance(x, (int, float)):
         raise HPLTypeError(f"tan() requires number, got {type(x).__name__}")
     return _math.tan(x)
-
-
 
 def asin(x):
     """计算反正弦"""
@@ -77,8 +60,6 @@ def asin(x):
         raise HPLValueError("asin() requires value between -1 and 1")
     return _math.asin(x)
 
-
-
 def acos(x):
     """计算反余弦"""
     if not isinstance(x, (int, float)):
@@ -87,15 +68,11 @@ def acos(x):
         raise HPLValueError("acos() requires value between -1 and 1")
     return _math.acos(x)
 
-
-
 def atan(x):
     """计算反正切"""
     if not isinstance(x, (int, float)):
         raise HPLTypeError(f"atan() requires number, got {type(x).__name__}")
     return _math.atan(x)
-
-
 
 def atan2(y, x):
     """计算 atan(y/x)，考虑象限"""
@@ -104,8 +81,6 @@ def atan2(y, x):
     if not isinstance(x, (int, float)):
         raise HPLTypeError(f"atan2() requires number for x, got {type(x).__name__}")
     return _math.atan2(y, x)
-
-
 
 def log(x, base=None):
     """计算对数"""
@@ -123,8 +98,6 @@ def log(x, base=None):
             raise HPLValueError("log() requires positive base not equal to 1")
         return _math.log(x, base)
 
-
-
 def log10(x):
     """计算常用对数（以10为底）"""
     if not isinstance(x, (int, float)):
@@ -133,15 +106,11 @@ def log10(x):
         raise HPLValueError("log10() requires positive number")
     return _math.log10(x)
 
-
-
 def exp(x):
     """计算 e^x"""
     if not isinstance(x, (int, float)):
         raise HPLTypeError(f"exp() requires number, got {type(x).__name__}")
     return _math.exp(x)
-
-
 
 def floor(x):
     """向下取整"""
@@ -149,15 +118,11 @@ def floor(x):
         raise HPLTypeError(f"floor() requires number, got {type(x).__name__}")
     return _math.floor(x)
 
-
-
 def ceil(x):
     """向上取整"""
     if not isinstance(x, (int, float)):
         raise HPLTypeError(f"ceil() requires number, got {type(x).__name__}")
     return _math.ceil(x)
-
-
 
 def round_num(x, ndigits=0):
     """四舍五入"""
@@ -167,15 +132,11 @@ def round_num(x, ndigits=0):
         raise HPLTypeError(f"round() requires int for ndigits, got {type(ndigits).__name__}")
     return round(x, ndigits)
 
-
-
 def trunc(x):
     """截断小数部分"""
     if not isinstance(x, (int, float)):
         raise HPLTypeError(f"trunc() requires number, got {type(x).__name__}")
     return _math.trunc(x)
-
-
 
 def factorial(n):
     """计算阶乘"""
@@ -185,8 +146,6 @@ def factorial(n):
         raise HPLValueError("factorial() requires non-negative integer")
     return _math.factorial(n)
 
-
-
 def gcd(a, b):
     """计算最大公约数"""
     if not isinstance(a, int):
@@ -195,15 +154,11 @@ def gcd(a, b):
         raise HPLTypeError(f"gcd() requires int for b, got {type(b).__name__}")
     return _math.gcd(a, b)
 
-
-
 def degrees(x):
     """弧度转角度"""
     if not isinstance(x, (int, float)):
         raise HPLTypeError(f"degrees() requires number, got {type(x).__name__}")
     return _math.degrees(x)
-
-
 
 def radians(x):
     """角度转弧度"""
@@ -211,32 +166,25 @@ def radians(x):
         raise HPLTypeError(f"radians() requires number, got {type(x).__name__}")
     return _math.radians(x)
 
-
-
 def pi():
     """返回圆周率"""
     return _math.pi
-
 
 def e():
     """返回自然常数 e"""
     return _math.e
 
-
 def tau():
     """返回 2*pi"""
     return _math.tau
-
 
 def inf():
     """返回正无穷大"""
     return _math.inf
 
-
 def nan():
     """返回非数字"""
     return _math.nan
-
 
 def is_nan(x):
     """检查是否为 NaN"""
@@ -244,15 +192,11 @@ def is_nan(x):
         raise HPLTypeError(f"is_nan() requires number, got {type(x).__name__}")
     return _math.isnan(x)
 
-
-
 def is_inf(x):
     """检查是否为无穷大"""
     if not isinstance(x, (int, float)):
         raise HPLTypeError(f"is_inf() requires number, got {type(x).__name__}")
     return _math.isinf(x)
-
-
 
 # 创建模块实例
 module = HPLModule('math', 'Mathematical functions and constants')

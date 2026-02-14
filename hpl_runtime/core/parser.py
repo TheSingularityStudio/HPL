@@ -33,7 +33,6 @@ from hpl_runtime.utils.path_utils import resolve_include_path
 from hpl_runtime.utils.text_utils import preprocess_functions, parse_call_expression
 
 
-
 class HPLParser:
     def __init__(self, hpl_file: str) -> None:
         self.hpl_file: str = hpl_file
@@ -47,8 +46,6 @@ class HPLParser:
         self.source_code: Optional[str] = None  # 存储源代码用于错误显示
         self.data: dict[str, Any] = self.load_and_parse()
 
-
-
     def _merge_duplicate_keys(self, content: str) -> str:
         """合并 YAML 中重复的键（如多个 objects 或 classes 段）"""
         # 只合并特定的字典类型键
@@ -60,7 +57,6 @@ class HPLParser:
         current_key: Optional[str] = None
         current_lines: list[str] = []
 
-        
         for line in lines:
             stripped = line.strip()
             
@@ -138,7 +134,6 @@ class HPLParser:
         
         return '\n'.join(result)
 
-
     def load_and_parse(self) -> dict[str, Any]:
         """加载并解析 HPL 文件"""
 
@@ -196,9 +191,7 @@ class HPLParser:
                         error_key='IMPORT_MODULE_NOT_FOUND'
                     )
 
-        
         return data
-
 
     def merge_data(self, main_data: dict[str, Any], include_data: dict[str, Any]) -> None:
         """合并include数据到主数据，支持classes、objects、functions、imports"""
@@ -230,7 +223,6 @@ class HPLParser:
             if isinstance(include_data['imports'], list):
                 main_data['imports'].extend(include_data['imports'])
 
-
     def parse(self) -> tuple[dict[str, HPLClass], dict[str, HPLObject], dict[str, HPLFunction], Optional[HPLFunction], Optional[str], list[Any], list[dict[str, Any]]]:
         # 处理顶层 import 语句
         if 'imports' in self.data:
@@ -252,8 +244,6 @@ class HPLParser:
             self.call_target, self.call_args = parse_call_expression(call_str)
 
         return self.classes, self.objects, self.functions, self.main_func, self.call_target, self.call_args, self.imports
-
-
 
     def parse_top_level_functions(self) -> None:
         """解析所有顶层函数定义"""
@@ -291,8 +281,6 @@ class HPLParser:
                 if key == 'main':
                     self.main_func = func
 
-
-
     def _find_function_line(self, func_name: str) -> tuple[int, int]:
         """找到函数定义在源代码中的行号"""
         if not self.source_code:
@@ -308,8 +296,6 @@ class HPLParser:
                 return i, col
         return 1, 1
 
-
-
     def parse_imports(self) -> None:
         """解析顶层 import 语句"""
 
@@ -323,7 +309,6 @@ class HPLParser:
                     # 复杂格式: {module: alias}
                     for module, alias in imp.items():
                         self.imports.append({'module': module, 'alias': alias})
-
 
     def parse_classes(self) -> None:
         for class_name, class_def in self.data['classes'].items():
@@ -340,9 +325,6 @@ class HPLParser:
 
                 self.classes[class_name] = HPLClass(class_name, methods, parent)
 
-
-
-
     def _find_method_line(self, class_name: str, method_name: str) -> tuple[int, int]:
         """找到类方法定义在源代码中的行号"""
         if not self.source_code:
@@ -353,7 +335,6 @@ class HPLParser:
         in_target_class = False
         class_indent = 0
 
-        
         for i, line in enumerate(lines, 1):
             stripped = line.strip()
             
@@ -380,7 +361,6 @@ class HPLParser:
         
         return 1, 1
 
-
     def parse_objects(self) -> None:
         for obj_name, obj_def in self.data['objects'].items():
 
@@ -397,7 +377,6 @@ class HPLParser:
                 hpl_class = self.classes[class_name]
                 # 创建对象，稍后由 evaluator 调用构造函数
                 self.objects[obj_name] = HPLObject(obj_name, hpl_class, {'__init_args__': args})
-
 
     def parse_function(self, func_str: str, start_line: int = 1, start_column: int = 1) -> HPLFunction:
 
@@ -427,7 +406,6 @@ class HPLParser:
                 file=self.hpl_file,
                 error_key='SYNTAX_MISSING_BRACKET'
             )
-
 
         body_str = func_str[body_start+1:body_end].strip()
         

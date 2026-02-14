@@ -27,8 +27,6 @@ from hpl_runtime.utils.exceptions import *
 from hpl_runtime.utils.type_utils import check_numeric_operands, is_hpl_module
 from hpl_runtime.utils.io_utils import echo
 
-
-
 # 注意：ReturnValue, BreakException, ContinueException 现在从 exceptions 模块导入
 # 保留这些别名以保持向后兼容
 ReturnValue = HPLReturnValue
@@ -68,12 +66,9 @@ class HPLArrowFunction:
         if isinstance(result, HPLReturnValue):
             return result.value
         return result
-
-
     
     def __repr__(self) -> str:
         return f"<arrow function ({', '.join(self.params)}) => {{...}}>"
-
 
 class HPLEvaluator:
     # 最大递归深度限制（保守设置，确保在 Python 递归限制前触发）
@@ -106,11 +101,6 @@ class HPLEvaluator:
         self._init_statement_handlers()
         # 初始化表达式处理器映射表
         self._init_expression_handlers()
-
-
-
-
-
 
     def run(self) -> None:
         # 如果指定了 call_target，执行对应的函数
@@ -174,8 +164,6 @@ class HPLEvaluator:
             if func_name:
                 self.call_stack.pop()
 
-
-
     def execute_block(self, block: BlockStatement, local_scope: dict[str, Any]) -> Any:
         for stmt in block.statements:
 
@@ -211,7 +199,6 @@ class HPLEvaluator:
             MethodCall: self._execute_method_call_statement,
             FunctionCall: self._execute_function_call_statement,
         }
-
     
     def execute_statement(self, stmt: Statement, local_scope: dict[str, Any]) -> Any:
         """语句执行主分发器"""
@@ -227,7 +214,6 @@ class HPLEvaluator:
             local_scope=local_scope,
             error_key='RUNTIME_GENERAL'
         )
-
     
     def _execute_assignment(self, stmt, local_scope):
         """执行赋值语句"""
@@ -279,7 +265,6 @@ class HPLEvaluator:
                     error_key='TYPE_INVALID_OPERATION'
                 )
 
-
             # 获取属性（应该是数组/字典）
             if prop_name not in obj.attributes:
                 # 如果属性不存在，创建一个空字典
@@ -330,7 +315,6 @@ class HPLEvaluator:
                     local_scope=local_scope,
                     error_key='TYPE_INVALID_OPERATION'
                 )
-
          
             index = self.evaluate_expression(stmt.index_expr, local_scope)
             if not isinstance(index, int):
@@ -389,7 +373,6 @@ class HPLEvaluator:
                 local_scope=local_scope,
                 error_key='TYPE_INVALID_OPERATION'
             )
-
         
         for item in iterator:
             local_scope[stmt.var_name] = item
@@ -435,7 +418,6 @@ class HPLEvaluator:
             local_scope=local_scope,
             error_key='RUNTIME_GENERAL'
         )
-
     
     def _execute_try_catch(self, stmt, local_scope):
         """执行try-catch-finally语句"""
@@ -502,8 +484,6 @@ class HPLEvaluator:
             f"Module '{module_name}' not found",
             error_key='IMPORT_MODULE_NOT_FOUND'
         )
-
-
     
     def _execute_increment(self, stmt, local_scope):
         """执行自增语句"""
@@ -535,8 +515,6 @@ class HPLEvaluator:
         """执行函数调用语句（作为独立语句使用）"""
         return self._eval_function_call(stmt, local_scope)
 
-
-
     def _init_expression_handlers(self):
         """初始化表达式处理器映射表"""
         self._expression_handlers = {
@@ -553,12 +531,10 @@ class HPLEvaluator:
             PostfixIncrement: self._eval_postfix_increment,
             PrefixIncrement: self._eval_prefix_increment,
             ArrayLiteral: self._eval_array_literal,
-
             ArrayAccess: self._eval_array_access,
             DictionaryLiteral: self._eval_dictionary_literal,
             ArrowFunction: self._eval_arrow_function,
         }
-
     
     def evaluate_expression(self, expr: Expression, local_scope: dict[str, Any]) -> Any:
         """表达式评估主分发器"""
@@ -591,7 +567,6 @@ class HPLEvaluator:
             )
         finally:
             self.expr_eval_depth -= 1
-
     
     # 字面量处理器
     def _eval_integer_literal(self, expr: IntegerLiteral, local_scope: dict[str, Any]) -> int:
@@ -635,7 +610,6 @@ class HPLEvaluator:
         # 非逻辑运算符，正常评估两个操作数
         right = self.evaluate_expression(expr.right, local_scope)
         return self._eval_binary_op(left, expr.op, right, expr.line, expr.column)
-
     
     def _eval_unary_op(self, expr: UnaryOp, local_scope: dict[str, Any]) -> Any:
 
@@ -659,7 +633,6 @@ class HPLEvaluator:
                 local_scope=local_scope,
                 error_key='RUNTIME_GENERAL'
             )
-
     
     def _eval_function_call(self, expr, local_scope):
         """评估函数调用表达式"""
@@ -741,9 +714,6 @@ class HPLEvaluator:
             local_scope=local_scope,
             error_key='RUNTIME_UNDEFINED_VAR'
         )
-
-
-
     
     # 内置函数处理器
     def _builtin_echo(self, expr: FunctionCall, local_scope: dict[str, Any]) -> None:
@@ -763,7 +733,6 @@ class HPLEvaluator:
             local_scope=local_scope,
             error_key='TYPE_INVALID_OPERATION'
         )
-
     
     def _builtin_int(self, expr: FunctionCall, local_scope: dict[str, Any]) -> int:
         arg = self.evaluate_expression(expr.args[0], local_scope)
@@ -939,7 +908,6 @@ class HPLEvaluator:
                 local_scope=local_scope,
                 error_key='RUNTIME_GENERAL'
             )
-
     
     def _eval_method_call(self, expr, local_scope):
         """评估方法调用表达式"""
@@ -961,7 +929,6 @@ class HPLEvaluator:
                     local_scope=local_scope,
                     error_key='TYPE_MISSING_PROPERTY'
                 )
-
 
             args = [self.evaluate_expression(arg, local_scope) for arg in expr.args]
             return self._call_method(obj, expr.method_name, args)
@@ -985,7 +952,6 @@ class HPLEvaluator:
             local_scope=local_scope,
             error_key='TYPE_INVALID_OPERATION'
         )
-
     
     def _eval_postfix_increment(self, expr, local_scope):
         var_name = expr.var.name
@@ -1021,7 +987,6 @@ class HPLEvaluator:
         new_value = value + 1
         self._update_variable(var_name, new_value, local_scope)
         return new_value  # 前缀自增返回新值
-
     
     def _eval_array_literal(self, expr, local_scope):
         return [self.evaluate_expression(elem, local_scope) for elem in expr.elements]
@@ -1037,7 +1002,6 @@ class HPLEvaluator:
         """评估箭头函数表达式，返回可调用对象"""
         return HPLArrowFunction(expr.params, expr.body, local_scope, self)
 
-    
     def _eval_array_access(self, expr, local_scope):
         """评估数组/字典/字符串索引访问"""
         array = self.evaluate_expression(expr.array, local_scope)
@@ -1112,7 +1076,6 @@ class HPLEvaluator:
             local_scope,
             error_key='RUNTIME_KEY_NOT_FOUND'
         )
-
     
     def _access_string(self, array, index, expr, local_scope):
         """访问字符串"""
@@ -1161,7 +1124,6 @@ class HPLEvaluator:
                 suggestions.append(f"Character at this position is: '{char}'")
             elif index < length + 5:
                 suggestions.append(f"Out of range, string content: '{array}'")
-
         
         hint = f" ({'; '.join(suggestions)})" if suggestions else ""
         raise self._create_error(
@@ -1211,7 +1173,6 @@ class HPLEvaluator:
             suggestions.append(f"Valid index range: 0 to {length - 1}")
         else:
             suggestions.append("Array is empty, cannot access any index")
-
         
         if length > 0 and index >= 0 and index < length + 3:
             if index < length:
@@ -1223,7 +1184,6 @@ class HPLEvaluator:
                     suggestions.append(f"Array content: {array}")
                 else:
                     suggestions.append(f"First 5 elements of array: {array[:5]}")
-
         
         hint = f" ({'; '.join(suggestions)})" if suggestions else ""
         raise self._create_error(
@@ -1250,7 +1210,6 @@ class HPLEvaluator:
                 return left + right
             # 字符串拼接
             return str(left) + str(right)
-
         
         # 算术运算符需要数值操作数
         if op in ('-', '*', '/', '%'):
@@ -1269,7 +1228,6 @@ class HPLEvaluator:
                     error_key='RUNTIME_DIVISION_BY_ZERO'
                 )
 
-
             return left / right
         elif op == '%':
             if right == 0:
@@ -1279,7 +1237,6 @@ class HPLEvaluator:
                     line, column,
                     error_key='RUNTIME_DIVISION_BY_ZERO'
                 )
-
 
             return left % right
 
@@ -1379,7 +1336,6 @@ class HPLEvaluator:
                 error_key='RUNTIME_UNDEFINED_VAR'
             )
 
-
     def _update_variable(self, name, value, local_scope):
         """统一变量更新逻辑"""
         if name in local_scope:
@@ -1466,7 +1422,6 @@ class HPLEvaluator:
                     error_key='TYPE_MISSING_PROPERTY'
                 )
 
-
         hpl_class = obj.hpl_class
         
         # 在类继承层次结构中查找方法
@@ -1481,8 +1436,6 @@ class HPLEvaluator:
                 f"Method or attribute '{method_name}' not found in class '{hpl_class.name}'",
                 error_key='TYPE_MISSING_PROPERTY'
             )
-
-
 
         # 为'this'设置current_obj
         prev_obj = self.current_obj
@@ -1513,7 +1466,6 @@ class HPLEvaluator:
         
         return result
 
-
     def _call_constructor(self, obj, args):
         """调用对象的构造函数（如果存在）"""
         hpl_class = obj.hpl_class
@@ -1526,7 +1478,6 @@ class HPLEvaluator:
         
         if constructor:
             self._call_method(obj, 'init' if self._find_method_in_class_hierarchy(hpl_class, 'init') else '__init__', args)
-
     
     def _call_parent_constructors_recursive(self, obj, parent_class, args):
         """递归调用父类构造函数链"""
@@ -1561,8 +1512,6 @@ class HPLEvaluator:
                 if grandparent_class.parent:
                     self._call_parent_constructors_recursive(obj, grandparent_class, args)
 
-
-
     def instantiate_object(self, class_name: str, obj_name: str, init_args: Optional[list[Any]] = None) -> HPLObject:
         """实例化对象并调用构造函数"""
         if class_name not in self.classes:
@@ -1589,7 +1538,6 @@ class HPLEvaluator:
             self.current_class = prev_class
         
         return obj
-
 
     def execute_import(self, stmt: ImportStatement, local_scope: dict[str, Any]) -> None:
         """执行 import 语句"""
@@ -1636,8 +1584,6 @@ class HPLEvaluator:
             f"Cannot get constant from non-module object",
             error_key='TYPE_INVALID_OPERATION'
         )
-
-
 
     def _create_error(self, error_class: type[HPLError], message: str, line: Optional[int] = None, 
                     column: Optional[int] = None, local_scope: Optional[dict[str, Any]] = None, 

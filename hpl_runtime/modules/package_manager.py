@@ -25,7 +25,6 @@ from hpl_runtime.modules.loader import (
 from hpl_runtime.utils.exceptions import HPLRuntimeError
 
 
-
 def cmd_install(args):
     """安装包"""
     package_name = args.package
@@ -45,8 +44,6 @@ def cmd_install(args):
         print(f"\n[FAIL] Failed to install '{package_name}'")
         sys.exit(1)
 
-
-
 def cmd_uninstall(args):
     """卸载包"""
     package_name = args.package
@@ -60,7 +57,6 @@ def cmd_uninstall(args):
         print(f"\n[FAIL] Failed to uninstall '{package_name}'")
 
         sys.exit(1)
-
 
 def cmd_list(args):
     """列出已安装包"""
@@ -81,14 +77,12 @@ def cmd_list(args):
     print(f"   Total: {len(packages)} packages")
     print(f"   Package directory: {HPL_PACKAGES_DIR}")
 
-
 def cmd_search(args):
     """搜索 PyPI 包"""
     query = args.query
     
     print(f"[SEARCH] Searching for '{query}' on PyPI...")
 
-    
     try:
         # 使用 pip search 或 pip index
         cmd = [sys.executable, "-m", "pip", "search", query]
@@ -113,13 +107,10 @@ def cmd_search(args):
         print(f"   You can manually search at: https://pypi.org/search/?q={query}")
         raise HPLRuntimeError(f"Search error: {e}") from e
 
-
-
 def cmd_update(args):
     """更新所有包"""
     print("[UPDATE] Updating all packages...")
 
-    
     packages = list_installed_packages()
     
     if not packages:
@@ -142,8 +133,6 @@ def cmd_update(args):
     print(f"[OK] Updated: {updated}")
     if failed > 0:
         print(f"[FAIL] Failed: {failed}")
-
-
 
 def cmd_info(args):
     """显示包信息"""
@@ -174,7 +163,6 @@ def cmd_info(args):
 
         print(f"   Install with: hpl install {package_name}")
 
-
 def cmd_path(args):
     """管理模块搜索路径"""
     if args.add:
@@ -193,7 +181,6 @@ def cmd_path(args):
         print("Usage:")
         print("   hpl path --add <path>     Add a module search path")
         print("   hpl path --list           List all search paths")
-
 
 def main():
     """主入口点"""
@@ -261,7 +248,6 @@ For more help: https://github.com/TheSingularityStudio/HPL
     
     # 执行命令
     args.func(args)
-
 
 if __name__ == '__main__':
     main()

@@ -106,7 +106,6 @@ class DebugEvaluator(HPLEvaluator):
                 )
             raise
 
-
 class DebugInterpreter:
     """
     HPL 调试解释器
@@ -262,7 +261,6 @@ class DebugInterpreter:
             self.last_error = e
             # 使用错误处理器处理未预期错误
             handler.handle_unexpected_error(e, hpl_file)
-
         
         self.last_result = result
         return result
@@ -308,7 +306,6 @@ class DebugInterpreter:
         self.last_error = None
         self.source_code = None
 
-
 def debug_main():
     """
     调试模式的主入口
@@ -342,7 +339,7 @@ def debug_main():
         print("=" * 60)
         interpreter.print_debug_report()
         sys.exit(1)
-
+        
 
 if __name__ == "__main__":
     debug_main()

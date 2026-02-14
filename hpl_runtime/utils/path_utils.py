@@ -54,7 +54,6 @@ def resolve_include_path(include_file, base_file=None, search_paths=None):
     
     return None
 
-
 def get_file_directory(file_path):
     """
     获取文件所在目录
@@ -66,7 +65,6 @@ def get_file_directory(file_path):
         Path: 文件所在目录
     """
     return Path(file_path).parent.resolve()
-
 
 def ensure_directory_exists(file_path):
     """

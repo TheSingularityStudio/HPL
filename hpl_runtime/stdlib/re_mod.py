@@ -10,15 +10,11 @@ try:
     from hpl_runtime.modules.base import HPLModule
     from hpl_runtime.utils.exceptions import HPLTypeError, HPLValueError
 except ImportError:
-    try:
-        from hpl_runtime.modules.base import HPLModule
-        from hpl_runtime.utils.exceptions import HPLTypeError, HPLValueError
-    except ImportError:
-        import sys
-        import os
-        sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-        from hpl_runtime.modules.base import HPLModule
-        from hpl_runtime.utils.exceptions import HPLTypeError, HPLValueError
+    import sys
+    import os
+    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    from hpl_runtime.modules.base import HPLModule
+    from hpl_runtime.utils.exceptions import HPLTypeError, HPLValueError
 
 
 # 编译缓存，提高重复使用的性能
@@ -52,14 +48,12 @@ def _get_flags(flags_str=None):
     
     return flags
 
-
 def _compile_pattern(pattern, flags=0):
     """编译正则表达式，使用缓存"""
     cache_key = (pattern, flags)
     if cache_key not in _compile_cache:
         _compile_cache[cache_key] = _re.compile(pattern, flags)
     return _compile_cache[cache_key]
-
 
 def match(pattern, string, flags=None):
     """
@@ -88,7 +82,6 @@ def match(pattern, string, flags=None):
     except _re.error as e:
         raise HPLValueError(f"Invalid regex pattern: {e}")
 
-
 def search(pattern, string, flags=None):
     """
     在字符串中搜索正则表达式
@@ -116,7 +109,6 @@ def search(pattern, string, flags=None):
     except _re.error as e:
         raise HPLValueError(f"Invalid regex pattern: {e}")
 
-
 def find_all(pattern, string, flags=None):
     """
     查找所有匹配项
@@ -134,7 +126,6 @@ def find_all(pattern, string, flags=None):
         return compiled.findall(string)
     except _re.error as e:
         raise HPLValueError(f"Invalid regex pattern: {e}")
-
 
 def find_iter(pattern, string, flags=None):
     """
@@ -163,7 +154,6 @@ def find_iter(pattern, string, flags=None):
     except _re.error as e:
         raise HPLValueError(f"Invalid regex pattern: {e}")
 
-
 def replace(pattern, repl, string, count=0, flags=None):
     """
     替换匹配项
@@ -186,7 +176,6 @@ def replace(pattern, repl, string, count=0, flags=None):
     except _re.error as e:
         raise HPLValueError(f"Invalid regex pattern: {e}")
 
-
 def split(pattern, string, maxsplit=0, flags=None):
     """
     使用正则表达式分割字符串
@@ -207,7 +196,6 @@ def split(pattern, string, maxsplit=0, flags=None):
     except _re.error as e:
         raise HPLValueError(f"Invalid regex pattern: {e}")
 
-
 def test(pattern, string, flags=None):
     """
     测试字符串是否匹配正则表达式
@@ -226,7 +214,6 @@ def test(pattern, string, flags=None):
     except _re.error as e:
         raise HPLValueError(f"Invalid regex pattern: {e}")
 
-
 def escape(string):
     """
     转义字符串中的正则表达式特殊字符
@@ -237,7 +224,6 @@ def escape(string):
         raise HPLTypeError(f"escape() requires string, got {type(string).__name__}")
     
     return _re.escape(string)
-
 
 def compile_pattern(pattern, flags=None):
     """
@@ -260,7 +246,6 @@ def compile_pattern(pattern, flags=None):
     except _re.error as e:
         raise HPLValueError(f"Invalid regex pattern: {e}")
 
-
 # 常用正则表达式模式
 PATTERNS = {
     'email': r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$',
@@ -274,7 +259,6 @@ PATTERNS = {
     'whitespace': r'\s+',
     'word': r'\w+',
 }
-
 
 def validate(pattern_name, string):
     """
@@ -293,7 +277,6 @@ def validate(pattern_name, string):
     
     pattern = PATTERNS[pattern_name]
     return test(pattern, string)
-
 
 # 创建模块实例
 module = HPLModule('re', 'Regular expression operations')

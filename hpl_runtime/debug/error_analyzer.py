@@ -55,7 +55,6 @@ class ErrorContext:
             'timestamp': self.timestamp
         }
 
-
 class ExecutionLogger:
     """执行流程记录器"""
     
@@ -135,7 +134,6 @@ class ExecutionLogger:
                 lines.append(f"   {key}: {value}")
         return '\n'.join(lines)
 
-
 class VariableInspector:
     """变量状态检查器"""
     
@@ -209,7 +207,6 @@ class VariableInspector:
                 
         return '\n'.join(lines)
 
-
 class CallStackAnalyzer:
     """调用栈分析器"""
     
@@ -262,7 +259,6 @@ class CallStackAnalyzer:
                     lines.append(f"   参数 {arg_name} = {arg_value}")
                     
         return '\n'.join(lines)
-
 
 class ErrorTracer:
     """错误传播跟踪器"""
@@ -419,7 +415,6 @@ class ErrorTracer:
             
         return visual_col
 
-    
     def _capture_evaluator_state(self, evaluator: HPLEvaluator) -> Dict[str, Any]:
         """捕获 evaluator 的当前状态"""
         state = {
@@ -447,7 +442,6 @@ class ErrorTracer:
         for i, step in enumerate(self.propagation_path, 1):
             lines.append(f"{i}. [{step['location']}] {step['action']}")
         return '\n'.join(lines)
-
 
 class ErrorAnalyzer:
     """

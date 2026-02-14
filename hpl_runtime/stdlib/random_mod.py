@@ -12,15 +12,11 @@ try:
     from hpl_runtime.modules.base import HPLModule
     from hpl_runtime.utils.exceptions import HPLTypeError, HPLValueError
 except ImportError:
-    try:
-        from hpl_runtime.modules.base import HPLModule
-        from hpl_runtime.utils.exceptions import HPLTypeError, HPLValueError
-    except ImportError:
-        import sys
-        import os
-        sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-        from hpl_runtime.modules.base import HPLModule
-        from hpl_runtime.utils.exceptions import HPLTypeError, HPLValueError
+    import sys
+    import os
+    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    from hpl_runtime.modules.base import HPLModule
+    from hpl_runtime.utils.exceptions import HPLTypeError, HPLValueError
 
 
 # 随机数生成函数
@@ -28,7 +24,6 @@ except ImportError:
 def random():
     """生成0-1之间的随机浮点数"""
     return _random.random()
-
 
 def random_int(min_val, max_val):
     """生成指定范围内的随机整数 [min, max]"""
@@ -41,7 +36,6 @@ def random_int(min_val, max_val):
     
     return _random.randint(min_val, max_val)
 
-
 def random_float(min_val, max_val):
     """生成指定范围内的随机浮点数 [min, max)"""
     if not isinstance(min_val, (int, float)):
@@ -53,7 +47,6 @@ def random_float(min_val, max_val):
     
     return _random.uniform(min_val, max_val)
 
-
 def choice(array):
     """从数组中随机选择一个元素"""
     if not isinstance(array, list):
@@ -63,7 +56,6 @@ def choice(array):
     
     return _random.choice(array)
 
-
 def shuffle(array):
     """随机打乱数组（原地修改）"""
     if not isinstance(array, list):
@@ -71,7 +63,6 @@ def shuffle(array):
     
     _random.shuffle(array)
     return array
-
 
 def sample(array, count):
     """从数组中无放回抽样指定数量的元素"""
@@ -86,7 +77,6 @@ def sample(array, count):
     
     return _random.sample(array, count)
 
-
 def seed(value):
     """设置随机种子，用于可重复的随机序列"""
     if not isinstance(value, (int, float, str)):
@@ -99,16 +89,13 @@ def seed(value):
     _random.seed(value)
     return True
 
-
 def uuid():
     """生成UUID v4（随机UUID）"""
     return str(_uuid.uuid4())
 
-
 def uuid1():
     """生成UUID v1（基于时间和MAC地址）"""
     return str(_uuid.uuid1())
-
 
 def uuid3(namespace, name):
     """生成UUID v3（基于MD5哈希）"""
@@ -133,7 +120,6 @@ def uuid3(namespace, name):
     
     return str(_uuid.uuid3(namespace, name))
 
-
 def uuid5(namespace, name):
     """生成UUID v5（基于SHA1哈希）"""
     if not isinstance(name, str):
@@ -157,7 +143,6 @@ def uuid5(namespace, name):
     
     return str(_uuid.uuid5(namespace, name))
 
-
 def random_bytes(length):
     """生成指定长度的随机字节串"""
     if not isinstance(length, int):
@@ -168,7 +153,6 @@ def random_bytes(length):
         raise HPLValueError("random_bytes() length cannot exceed 65536")
     
     return _os.urandom(length)
-
 
 def random_hex(length):
     """生成指定长度的随机十六进制字符串"""
@@ -181,11 +165,9 @@ def random_hex(length):
     
     return _os.urandom(length).hex()
 
-
 def random_bool():
     """生成随机布尔值"""
     return _random.choice([True, False])
-
 
 def gauss(mu=0.0, sigma=1.0):
     """生成符合高斯分布的随机数"""
@@ -198,7 +180,6 @@ def gauss(mu=0.0, sigma=1.0):
     
     return _random.gauss(mu, sigma)
 
-
 def triangular(low=0.0, high=1.0, mode=None):
     """生成符合三角分布的随机数"""
     if not isinstance(low, (int, float)):
@@ -210,7 +191,6 @@ def triangular(low=0.0, high=1.0, mode=None):
     
     return _random.triangular(low, high, mode)
 
-
 def expovariate(lambd):
     """生成符合指数分布的随机数"""
     if not isinstance(lambd, (int, float)):
@@ -219,7 +199,6 @@ def expovariate(lambd):
         raise HPLValueError("expovariate() lambda must be positive")
     
     return _random.expovariate(lambd)
-
 
 def betavariate(alpha, beta):
     """生成符合Beta分布的随机数"""
@@ -234,7 +213,6 @@ def betavariate(alpha, beta):
     
     return _random.betavariate(alpha, beta)
 
-
 def gammavariate(alpha, beta):
     """生成符合Gamma分布的随机数"""
     if not isinstance(alpha, (int, float)):
@@ -248,7 +226,6 @@ def gammavariate(alpha, beta):
     
     return _random.gammavariate(alpha, beta)
 
-
 def lognormvariate(mu, sigma):
     """生成符合对数正态分布的随机数"""
     if not isinstance(mu, (int, float)):
@@ -259,7 +236,6 @@ def lognormvariate(mu, sigma):
         raise HPLValueError("lognormvariate() sigma must be positive")
     
     return _random.lognormvariate(mu, sigma)
-
 
 def vonmisesvariate(mu, kappa):
     """生成符合von Mises分布的随机数"""
@@ -272,7 +248,6 @@ def vonmisesvariate(mu, kappa):
     
     return _random.vonmisesvariate(mu, kappa)
 
-
 def paretovariate(alpha):
     """生成符合Pareto分布的随机数"""
     if not isinstance(alpha, (int, float)):
@@ -281,7 +256,6 @@ def paretovariate(alpha):
         raise HPLValueError("paretovariate() alpha must be positive")
     
     return _random.paretovariate(alpha)
-
 
 def weibullvariate(alpha, beta):
     """生成符合Weibull分布的随机数"""
@@ -296,17 +270,14 @@ def weibullvariate(alpha, beta):
     
     return _random.weibullvariate(alpha, beta)
 
-
 def getstate():
     """获取随机数生成器的当前状态"""
     return _random.getstate()
-
 
 def setstate(state):
     """恢复随机数生成器的状态"""
     _random.setstate(state)
     return True
-
 
 # 创建模块实例
 module = HPLModule('random', 'Random number generation functions')

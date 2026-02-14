@@ -23,7 +23,6 @@ def is_numeric(value):
     """
     return isinstance(value, (int, float))
 
-
 def is_integer(value):
     """
     检查值是否为整数类型
@@ -35,7 +34,6 @@ def is_integer(value):
         bool: 是否为整数类型
     """
     return isinstance(value, int)
-
 
 def is_string(value):
     """
@@ -49,7 +47,6 @@ def is_string(value):
     """
     return isinstance(value, str)
 
-
 def is_boolean(value):
     """
     检查值是否为布尔类型
@@ -61,7 +58,6 @@ def is_boolean(value):
         bool: 是否为布尔类型
     """
     return isinstance(value, bool)
-
 
 def is_array(value):
     """
@@ -75,7 +71,6 @@ def is_array(value):
     """
     return isinstance(value, list)
 
-
 def is_dictionary(value):
     """
     检查值是否为字典类型
@@ -87,7 +82,6 @@ def is_dictionary(value):
         bool: 是否为字典类型
     """
     return isinstance(value, dict)
-
 
 def check_numeric_operands(left, right, op):
     """
@@ -106,8 +100,6 @@ def check_numeric_operands(left, right, op):
     if not is_numeric(right):
         raise HPLTypeError(f"Unsupported operand type for {op}: '{type(right).__name__}' (expected number)")
 
-
-
 def is_hpl_module(obj):
     """
     检查对象是否是HPLModule（使用鸭子类型检查）
@@ -120,7 +112,6 @@ def is_hpl_module(obj):
     """
     # 使用鸭子类型检查，避免不同导入路径导致的类身份问题
     return hasattr(obj, 'call_function') and hasattr(obj, 'get_constant') and hasattr(obj, 'name')
-
 
 def get_type_name(value):
     """
@@ -145,7 +136,6 @@ def get_type_name(value):
     else:
         return type(value).__name__
 
-
 def is_valid_index(array, index):
     """
     检查索引是否对数组有效
@@ -158,7 +148,6 @@ def is_valid_index(array, index):
         bool: 索引是否有效
     """
     return isinstance(index, int) and 0 <= index < len(array)
-
 
 def check_type(value, expected_type, func_name, param_name, allow_none=False):
     """
@@ -190,7 +179,6 @@ def check_type(value, expected_type, func_name, param_name, allow_none=False):
         raise HPLTypeError(
             f"{func_name}() requires {expected_name} for {param_name}, got {actual_name}"
         )
-
 
 def _get_type_name(expected_type):
     """

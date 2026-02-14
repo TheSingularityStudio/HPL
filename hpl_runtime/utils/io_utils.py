@@ -14,8 +14,6 @@ def echo(message):
     """
     print(message, flush=True)
 
-
-
 def read_input(prompt=None):
     """
     读取用户输入
@@ -32,7 +30,6 @@ def read_input(prompt=None):
     if prompt is not None:
         return input(prompt)
     return input()
-
 
 def format_output(value, indent=0):
     """

@@ -54,7 +54,6 @@ class HPLErrorHandler:
         if enable_suggestions:
             self.suggestion_engine = ErrorSuggestionEngine()
 
-    
     def set_parser(self, parser):
         """设置解析器引用（用于获取源代码）"""
         self.parser = parser
@@ -79,7 +78,6 @@ class HPLErrorHandler:
                 global_scope or {},
                 local_scope or {}
             )
-
     
     def handle(self, error, exit_on_error=True, local_scope=None):
         """
@@ -113,8 +111,6 @@ class HPLErrorHandler:
             sys.exit(1)
         else:
             return report
-
-
     
     def handle_syntax_error(self, error, parser=None):
         """
@@ -227,10 +223,8 @@ class HPLErrorHandler:
         # 添加快速修复代码
         if analysis.get('quick_fix'):
             result += f"\n\n   [FIX] \n   ```\n   {analysis['quick_fix']}\n   ```"
-
-        
+ 
         return result
-
 
 def create_error_handler(hpl_file, debug_mode=False, enable_suggestions=True):
 
@@ -254,7 +248,6 @@ def create_error_handler(hpl_file, debug_mode=False, enable_suggestions=True):
                 source_code = f.read()
         except (IOError, OSError, PermissionError, UnicodeDecodeError):
             pass
-
     
     return HPLErrorHandler(
         source_code=source_code,

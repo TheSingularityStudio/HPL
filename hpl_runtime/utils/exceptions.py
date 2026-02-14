@@ -67,7 +67,6 @@ class HPLError(Exception):
         self.file = file
         self.context = context
         self.error_code = error_code
-
     
     def __str__(self):
         parts = [self.__class__.__name__]
@@ -117,9 +116,6 @@ class HPLError(Exception):
             return f"{base_url}#{error_code}"
         return None
 
-
-
-
 class HPLSyntaxError(HPLError):
     """
     HPL 语法错误
@@ -133,8 +129,6 @@ class HPLSyntaxError(HPLError):
         if self.error_code:
             return self.error_code
         return f"{self.ERROR_CODE_PREFIX}-SYNTAX-001"
-
-
 
 class HPLRuntimeError(HPLError):
     """
@@ -183,9 +177,6 @@ class HPLRuntimeError(HPLError):
             if hasattr(evaluator, 'exec_logger'):
                 self.execution_trace = evaluator.exec_logger.get_trace(last_n=10)
 
-
-
-
 class HPLTypeError(HPLRuntimeError):
     """
     HPL 类型错误
@@ -200,8 +191,6 @@ class HPLTypeError(HPLRuntimeError):
             return self.error_code
         return f"{self.ERROR_CODE_PREFIX}-TYPE-001"
 
-
-
 class HPLNameError(HPLRuntimeError):
     """
     HPL 名称错误
@@ -214,8 +203,6 @@ class HPLNameError(HPLRuntimeError):
         if self.error_code:
             return self.error_code
         return f"{self.ERROR_CODE_PREFIX}-NAME-001"
-
-
 
 class HPLAttributeError(HPLRuntimeError):
     """
@@ -230,8 +217,6 @@ class HPLAttributeError(HPLRuntimeError):
             return self.error_code
         return f"{self.ERROR_CODE_PREFIX}-ATTR-001"
 
-
-
 class HPLIndexError(HPLRuntimeError):
     """
     HPL 索引错误
@@ -245,8 +230,6 @@ class HPLIndexError(HPLRuntimeError):
             return self.error_code
         return f"{self.ERROR_CODE_PREFIX}-INDEX-001"
 
-
-
 class HPLKeyError(HPLRuntimeError):
     """
     HPL 键错误
@@ -259,9 +242,6 @@ class HPLKeyError(HPLRuntimeError):
         if self.error_code:
             return self.error_code
         return f"{self.ERROR_CODE_PREFIX}-KEY-001"
-
-
-
 
 class HPLImportError(HPLError):
     """
@@ -291,8 +271,6 @@ class HPLImportError(HPLError):
             result += f"\n  Import path: {self.import_path}"
         return result
 
-
-
 class HPLDivisionError(HPLRuntimeError):
     """
     HPL 除零错误
@@ -305,8 +283,6 @@ class HPLDivisionError(HPLRuntimeError):
         if self.error_code:
             return self.error_code
         return f"{self.ERROR_CODE_PREFIX}-DIV-001"
-
-
 
 class HPLValueError(HPLRuntimeError):
     """
@@ -321,8 +297,6 @@ class HPLValueError(HPLRuntimeError):
         if self.error_code:
             return self.error_code
         return f"{self.ERROR_CODE_PREFIX}-VALUE-001"
-
-
 
 class HPLIOError(HPLRuntimeError):
     """
@@ -351,8 +325,6 @@ class HPLIOError(HPLRuntimeError):
         if self.path:
             result += f"\n  Path: {self.path}"
         return result
-
-
 
 class HPLRecursionError(HPLRuntimeError):
     """
@@ -383,8 +355,6 @@ class HPLRecursionError(HPLRuntimeError):
             result += f"\n  Maximum allowed depth: {self.max_depth}"
         return result
 
-
-
 class HPLControlFlowException(HPLError):
     """
     控制流异常的基类
@@ -400,7 +370,6 @@ class HPLControlFlowException(HPLError):
         """控制流异常没有错误代码"""
         return None
 
-
 class HPLBreakException(HPLControlFlowException):
     """
     用于跳出循环的内部异常
@@ -410,7 +379,6 @@ class HPLBreakException(HPLControlFlowException):
     def __init__(self, message=None, line=None, column=None, file=None, context=None):
         # 控制流异常不需要消息，提供默认值
         super().__init__(message or "Break statement", line, column, file, context)
-
 
 class HPLContinueException(HPLControlFlowException):
     """
@@ -422,7 +390,6 @@ class HPLContinueException(HPLControlFlowException):
         # 控制流异常不需要消息，提供默认值
         super().__init__(message or "Continue statement", line, column, file, context)
 
-
 class HPLReturnValue(HPLControlFlowException):
     """
     用于传递返回值的内部异常
@@ -432,9 +399,6 @@ class HPLReturnValue(HPLControlFlowException):
     def __init__(self, value, line=None, column=None, file=None, context=None):
         self.value = value
         super().__init__("Return value wrapper", line, column, file, context)
-
-
-
 
 def format_error_for_user(error, source_code=None):
     """
@@ -476,8 +440,6 @@ def format_error_for_user(error, source_code=None):
         lines.append(f"{error_label} [{error_code}] {error.__class__.__name__}: {message}")
     else:
         lines.append(f"{error_label} {error.__class__.__name__}: {message}")
-
-
     
     if error.file:
         lines.append(f"   File: {error.file}")
@@ -513,7 +475,6 @@ def format_error_for_user(error, source_code=None):
                 indicator = " " * (base_offset + error.column - 1) + "^"  # -1因为column从1开始
                 lines.append(indicator)
 
-    
     # 显示调用栈（改为 most recent first）
     if isinstance(error, HPLRuntimeError) and error.call_stack:
         lines.append("\n   Call stack (most recent first):")
@@ -534,16 +495,12 @@ def format_error_for_user(error, source_code=None):
     if help_url:
         lines.append(f"\n   [DOC] {help_url}")
 
-    
     # 显示错误解决建议
     suggestion = get_error_suggestion(error)
     if suggestion:
         lines.append(f"\n   [TIP] {suggestion}")
 
-    
     return '\n'.join(lines)
-
-
 
 def get_error_suggestion(error):
     """根据错误类型提供解决建议"""
@@ -556,7 +513,6 @@ def get_error_suggestion(error):
         'HPLImportError': "检查模块名称拼写，或确认模块已正确安装",
     }
     return suggestions.get(error.__class__.__name__)
-
 
 def format_error_with_suggestions(error, source_code=None, suggestion_engine=None):
     """
@@ -596,10 +552,8 @@ def format_error_with_suggestions(error, source_code=None, suggestion_engine=Non
         if analysis.get('quick_fix'):
             result += f"\n\n   [FIX] 快速修复:\n   ```\n   {analysis['quick_fix']}\n   ```"
 
-        
     except (AttributeError, TypeError, ValueError, KeyError):
         # 如果建议引擎出错，不影响错误显示
         pass
 
-    
     return result
