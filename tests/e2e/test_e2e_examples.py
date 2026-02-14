@@ -20,8 +20,9 @@ class TestEndToEndExamples(unittest.TestCase):
 
     def setUp(self):
         """测试前准备"""
-        self.examples_dir = Path(os.path.dirname(__file__)).parent / "examples"
-        self.hpl_runtime_dir = Path(os.path.dirname(__file__)).parent / "hpl_runtime"
+        self.examples_dir = Path(os.path.dirname(__file__)).parent.parent / "examples"
+        self.hpl_runtime_dir = Path(os.path.dirname(__file__)).parent.parent / "hpl_runtime"
+
 
     def run_hpl_file(self, file_path, timeout=10):
         """运行 HPL 文件"""
@@ -31,13 +32,14 @@ class TestEndToEndExamples(unittest.TestCase):
                 capture_output=True,
                 text=True,
                 timeout=timeout,
-                cwd=str(Path(os.path.dirname(__file__)).parent)
+                cwd=str(Path(os.path.dirname(__file__)).parent.parent)
             )
             return result.returncode, result.stdout, result.stderr
         except subprocess.TimeoutExpired:
             return -1, "", "Timeout"
         except Exception as e:
             return -1, "", str(e)
+
 
     def test_example_hpl(self):
         """测试主示例文件"""
@@ -165,7 +167,8 @@ class TestExampleSyntaxValidity(unittest.TestCase):
     """测试示例语法有效性"""
 
     def setUp(self):
-        self.examples_dir = Path(os.path.dirname(__file__)).parent / "examples"
+        self.examples_dir = Path(os.path.dirname(__file__)).parent.parent / "examples"
+
 
     def test_all_hpl_files_parseable(self):
         """测试所有 HPL 文件可解析"""
@@ -218,7 +221,8 @@ class TestExampleOutputVerification(unittest.TestCase):
     """测试示例输出验证"""
 
     def setUp(self):
-        self.examples_dir = Path(os.path.dirname(__file__)).parent / "examples"
+        self.examples_dir = Path(os.path.dirname(__file__)).parent.parent / "examples"
+
 
     def test_hello_world_output(self):
         """测试 Hello World 输出"""
