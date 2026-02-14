@@ -67,9 +67,23 @@ class ModuleCache:
         """支持 'in' 操作符"""
         return key in self.cache
     
+    def __setitem__(self, key, value):
+        """支持 item assignment: _module_cache[key] = value"""
+        self.put(key, value)
+    
+    def __delitem__(self, key):
+        """支持 item deletion: del _module_cache[key]"""
+        if key in self.cache:
+            del self.cache[key]
+    
+    def __len__(self):
+        """支持 len(_module_cache)"""
+        return len(self.cache)
+    
     def clear(self):
         """清空缓存"""
         self.cache.clear()
+
 
 
 # 模块缓存（使用 LRU 机制，默认最大 100 个模块）
