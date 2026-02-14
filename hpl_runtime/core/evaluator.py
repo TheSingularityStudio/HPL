@@ -97,6 +97,7 @@ class HPLEvaluator:
 
         self.global_scope: dict[str, HPLObject] = self.objects  # 全局变量，包括预定义对象
         self.current_obj: Optional[HPLObject] = None  # 用于方法中的'this'
+        self.current_class: Optional[HPLClass] = None  # 用于跟踪当前执行的类（支持多级继承）
         self.call_stack: list[str] = []  # 调用栈，用于错误跟踪
         self.imported_modules: dict[str, Any] = {}  # 导入的模块 {alias/name: module}
         self.expr_eval_depth: int = 0  # 表达式求值深度计数器
@@ -105,6 +106,7 @@ class HPLEvaluator:
         self._init_statement_handlers()
         # 初始化表达式处理器映射表
         self._init_expression_handlers()
+
 
 
 
@@ -945,17 +947,21 @@ class HPLEvaluator:
         if isinstance(obj, HPLObject):
             # 处理 parent 特殊属性访问
             if expr.method_name == 'parent':
-                if obj.hpl_class.parent and obj.hpl_class.parent in self.classes:
-                    parent_class = self.classes[obj.hpl_class.parent]
+                # 使用 current_class（当前执行的类）来确定 parent，而不是对象的实际类
+                # 这支持多级继承：在 Parent 的方法中调用 this.parent.init() 应该调用 GrandParent 的 init
+                reference_class = self.current_class if self.current_class else obj.hpl_class
+                if reference_class.parent and reference_class.parent in self.classes:
+                    parent_class = self.classes[reference_class.parent]
                     return parent_class
                 raise self._create_error(
                     HPLAttributeError,
-                    f"Class '{obj.hpl_class.name}' has no parent class",
+                    f"Class '{reference_class.name}' has no parent class",
                     line=expr.line if hasattr(expr, 'line') else None,
                     column=expr.column if hasattr(expr, 'column') else None,
                     local_scope=local_scope,
                     error_key='TYPE_MISSING_PROPERTY'
                 )
+
 
             args = [self.evaluate_expression(arg, local_scope) for arg in expr.args]
             return self._call_method(obj, expr.method_name, args)
@@ -1408,7 +1414,32 @@ class HPLEvaluator:
         
         return None
 
+    def _find_method_owner_class(self, hpl_class, method_name):
+        """查找方法所属的类（用于确定 current_class）"""
+        # 支持 init 作为 __init__ 的别名
+        if method_name == 'init':
+            alt_method_name = '__init__'
+        elif method_name == '__init__':
+            alt_method_name = 'init'
+        else:
+            alt_method_name = None
+        
+        # 当前类中查找
+        if method_name in hpl_class.methods:
+            return hpl_class
+        if alt_method_name and alt_method_name in hpl_class.methods:
+            return hpl_class
+        
+        # 向上递归查找父类
+        if hpl_class.parent:
+            parent_class = self.classes.get(hpl_class.parent)
+            if parent_class:
+                return self._find_method_owner_class(parent_class, method_name)
+        
+        return None
+
     def _call_method(self, obj, method_name, args):
+
         """统一方法调用逻辑"""
         # 处理父类方法调用（当 obj 是 HPLClass 时）
         if isinstance(obj, HPLClass):
@@ -1421,7 +1452,13 @@ class HPLEvaluator:
                 # 父类方法调用时，this 仍然指向当前对象
                 method_scope = {param: args[i] for i, param in enumerate(method.params) if i < len(args)}
                 method_scope['this'] = self.current_obj
-                return self.execute_function(method, method_scope)
+                # 设置 current_class 为父类，以支持多级继承中的 this.parent 访问
+                prev_class = self.current_class
+                self.current_class = obj
+                try:
+                    return self.execute_function(method, method_scope)
+                finally:
+                    self.current_class = prev_class
             else:
                 raise self._create_error(
                     HPLAttributeError,
@@ -1451,6 +1488,13 @@ class HPLEvaluator:
         prev_obj = self.current_obj
         self.current_obj = obj
         
+        # 确定方法所属的类（用于设置 current_class）
+        method_owner_class = self._find_method_owner_class(hpl_class, method_name)
+        
+        # 设置 current_class 为方法所属的类，以支持多级继承中的 this.parent 访问
+        prev_class = self.current_class
+        self.current_class = method_owner_class if method_owner_class else hpl_class
+        
         # 创建方法调用的局部作用域
         method_scope = {param: args[i] for i, param in enumerate(method.params) if i < len(args)}
         method_scope['this'] = obj
@@ -1465,8 +1509,10 @@ class HPLEvaluator:
             # 从调用栈移除
             self.call_stack.pop()
             self.current_obj = prev_obj
+            self.current_class = prev_class
         
         return result
+
 
     def _call_constructor(self, obj, args):
         """调用对象的构造函数（如果存在）"""
@@ -1533,9 +1579,17 @@ class HPLEvaluator:
         # 调用构造函数（如果存在）
         if init_args is None:
             init_args = []
-        self._call_constructor(obj, init_args)
+        
+        # 设置 current_class 为对象的类，以支持构造函数中的 this.parent 访问
+        prev_class = self.current_class
+        self.current_class = hpl_class
+        try:
+            self._call_constructor(obj, init_args)
+        finally:
+            self.current_class = prev_class
         
         return obj
+
 
     def execute_import(self, stmt: ImportStatement, local_scope: dict[str, Any]) -> None:
         """执行 import 语句"""
