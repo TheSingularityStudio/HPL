@@ -14,6 +14,7 @@
 6. [模块系统](#模块系统)
 7. [异常处理](#异常处理)
 8. [内置函数](#内置函数)
+9. [标准库概览](#标准库概览)
 
 ---
 
@@ -345,8 +346,9 @@ imports:
   - crypto
   - random
   - string
+  - re
+  - net
 ```
-
 
 ### 别名导入
 
@@ -360,44 +362,6 @@ main: () => {
     echo t.now()
   }
 ```
-
-### 模块使用示例
-
-```yaml
-imports:
-  - math
-  - io
-  - json
-  - crypto
-  - random
-  - string
-
-main: () => {
-    # math 模块
-    result = math.sqrt(16)
-    
-    # io 模块
-    content = io.read_file("data.txt")
-    io.write_file("output.txt", "Hello")
-    
-    # json 模块
-    data = json.parse('{"a": 1}')
-    json.write("data.json", data)
-    
-    # crypto 模块
-    hash = crypto.sha256("Hello")
-    encoded = crypto.base64_encode("Hello")
-    
-    # random 模块
-    num = random.random_int(1, 100)
-    id = random.uuid()
-    
-    # string 模块
-    words = string.split("a,b,c", ",")
-    upper = string.to_upper("hello")
-  }
-```
-
 
 ---
 
@@ -474,6 +438,44 @@ catch (outerError) :
 
 ---
 
+## 标准库概览
+
+HPL 提供丰富的标准库模块，详细 API 请参考《HPL语法手册》。
+
+| 模块 | 主要功能 |
+|------|----------|
+| `math` | 数学函数（sqrt, sin, cos, log 等）和常量（PI, E） |
+| `io` | 文件读写、目录操作 |
+| `json` | JSON 解析和生成 |
+| `os` | 环境变量、路径操作、系统命令 |
+| `time` | 时间戳、格式化、休眠 |
+| `crypto` | 哈希（MD5, SHA256）、Base64、URL 编码 |
+| `random` | 随机数、UUID 生成 |
+| `string` | 字符串分割、替换、大小写转换 |
+| `re` | 正则表达式匹配、查找、替换 |
+| `net` | HTTP 请求（GET, POST）、URL 处理 |
+
+**使用示例：**
+```yaml
+imports:
+  - math
+  - io
+  - json
+
+main: () => {
+    # math 模块
+    result = math.sqrt(16)
+    
+    # io 模块
+    content = io.read_file("data.txt")
+    
+    # json 模块
+    data = json.parse('{"a": 1}')
+  }
+```
+
+---
+
 ## 注释
 
 使用 `#` 开头的单行注释：
@@ -488,57 +490,6 @@ classes:
         # 方法内的注释
         return 42
       }
-```
-
----
-
-## 完整示例
-
-```yaml
-# 文件包含和模块导入
-includes:
-  - base.hpl
-
-imports:
-  - math: m
-
-# 类定义
-classes:
-  Calculator:
-    init: () => {
-        this.result = 0
-      }
-    
-    add: (n) => {
-        this.result = this.result + n
-        return this.result
-      }
-    
-    getResult: () => {
-        return this.result
-      }
-
-# 对象实例化
-objects:
-  calc: Calculator()
-
-# 主函数
-main: () => {
-    try :
-      calc.add(10)
-      calc.add(20)
-      echo "Result: " + calc.getResult()
-      
-      # 使用 math 模块
-      echo "PI: " + m.PI
-      echo "sqrt(16): " + m.sqrt(16)
-      
-    catch (error) :
-      echo "Error: " + error
-  }
-
-# 程序入口
-call: main()
 ```
 
 ---
@@ -572,7 +523,6 @@ call: main()
 │  包含: includes: [- file.hpl]                           │
 │  导入: imports: [- math, - io, - crypto]                │
 │  别名: imports: [- math: m]                             │
-
 ├─────────────────────────────────────────────────────────┤
 │  异常: try : ... catch (e) : ...                       │
 │  抛出: throw "message"                                  │
