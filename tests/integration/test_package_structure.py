@@ -295,15 +295,16 @@ class TestPackageStructure(unittest.TestCase):
   - ../basic/sub
 
 calc: (x, y, op) => {
-  if op == "add" : {
+  if (op == "add") : {
     return add.add(x, y)
   }
-  if op == "sub" : {
+  if (op == "sub") : {
     return sub.sub(x, y)
   }
   return 0
 }
 ''')
+
         
         main_file = self.create_hpl_file('use_mathlib.hpl', '''imports:
   - mathlib/advanced/calc

@@ -7,6 +7,8 @@ HPL 模块加载器
 - Python 第三方包 (PyPI)
 - 自定义 HPL 模块文件 (.hpl)
 - 自定义 Python 模块 (.py)
+- 点号模块名导入 (package.submodule)
+- 包初始化文件 (__init__.hpl)
 """
 
 import os
@@ -159,6 +161,39 @@ def add_module_path(path):
     if path not in HPL_MODULE_PATHS:
         HPL_MODULE_PATHS.insert(0, path)
 
+def _is_file_path(module_name):
+    """检查模块名是否是文件路径（包含 / 或 \，或以 ./ 或 ../ 开头）"""
+    return '/' in module_name or '\\' in module_name or module_name.startswith(('./', '../'))
+
+def _is_dot_notation(module_name):
+    """检查模块名是否使用点号表示法（如 package.submodule）"""
+    # 排除文件路径和相对路径
+    if _is_file_path(module_name):
+        return False
+    # 检查是否包含点号，且不是以点号开头或结尾
+    return '.' in module_name and not module_name.startswith('.') and not module_name.endswith('.')
+
+def _convert_dot_to_path(module_name):
+    """将点号表示法转换为文件路径（如 mathlib.basic.add -> mathlib/basic/add）"""
+    return module_name.replace('.', '/')
+
+def _get_module_file_name(module_name):
+    """从模块名中获取模块文件名（如 mathlib.basic.add -> add, ../basic/add -> add）"""
+    # 首先检查是否是文件路径
+    if '/' in module_name or '\\' in module_name:
+        # 文件路径，提取最后一部分
+        parts = module_name.replace('\\', '/').split('/')
+        return parts[-1] if parts else module_name
+    
+    # 点号表示法
+    parts = module_name.split('.')
+    return parts[-1] if parts else module_name
+
+def _get_package_path(module_name):
+    """从点号表示法中获取包路径（如 mathlib.basic.add -> mathlib/basic）"""
+    parts = module_name.split('.')
+    return '/'.join(parts[:-1]) if len(parts) > 1 else ''
+
 def load_module(module_name, search_paths=None):
     """
     加载 HPL 模块
@@ -168,6 +203,7 @@ def load_module(module_name, search_paths=None):
     - Python 第三方包 (通过 pip 安装)
     - 自定义 HPL 模块文件 (.hpl)
     - 自定义 Python 模块 (.py)
+    - 点号模块名导入 (package.submodule)
     
     Raises:
         HPLImportError: 当模块无法找到或加载失败时
@@ -193,11 +229,10 @@ def load_module(module_name, search_paths=None):
         return module
 
     # 检查是否是文件路径（相对路径或绝对路径）
-    # 文件路径包含 / 或 \，或以 ./ 或 ../ 开头
-    is_file_path = '/' in module_name or '\\' in module_name or module_name.startswith(('./', '../'))
+    is_file_path = _is_file_path(module_name)
     
     # 2. 尝试加载 Python 第三方包（仅对非文件路径的模块名）
-    if not is_file_path:
+    if not is_file_path and not _is_dot_notation(module_name):
         module = _load_python_package(module_name)
         if module:
             logger.debug(f"Module '{module_name}' loaded from Python packages")
@@ -265,12 +300,20 @@ def _load_hpl_module(module_name, search_paths=None):
     """
     加载本地 HPL 模块文件 (.hpl)
     搜索路径: 当前HPL文件目录 -> 当前目录 -> HPL_MODULE_PATHS -> search_paths
+    
+    支持:
+    - 点号表示法 (package.submodule -> package/submodule.hpl)
+    - 文件路径 (./module, ../module, path/to/module)
+    - 目录形式 (module/index.hpl 或 module/__init__.hpl)
     """
     # 获取当前 HPL 文件所在目录（使用上下文管理器替代全局变量）
     current_file_dir = _loader_context.get_current_file_dir()
     
+    # 检查是否是点号表示法
+    is_dot_notation = _is_dot_notation(module_name)
+    
     # 检查是否是相对路径或绝对路径
-    if '/' in module_name or '\\' in module_name or module_name.startswith(('./', '../')):
+    if _is_file_path(module_name):
         # 这是一个文件路径，直接解析
         if current_file_dir:
             # 相对于当前 HPL 文件目录解析
@@ -284,15 +327,20 @@ def _load_hpl_module(module_name, search_paths=None):
         if hpl_file.exists():
             return _parse_hpl_module(module_name, hpl_file)
         
-        # 尝试作为目录 (module_name/index.hpl)
+        # 尝试作为目录 (module_name/index.hpl 或 module_name/__init__.hpl)
         if module_path.is_dir():
+            # 优先尝试 __init__.hpl，然后是 index.hpl
+            init_file = module_path / "__init__.hpl"
+            if init_file.exists():
+                return _parse_hpl_module(module_name, init_file)
+            
             index_file = module_path / "index.hpl"
             if index_file.exists():
                 return _parse_hpl_module(module_name, index_file)
         
         return None
     
-    # 普通模块名，使用搜索路径
+    # 普通模块名或点号表示法，使用搜索路径
     # 构建搜索路径列表
     paths = []
     
@@ -304,18 +352,46 @@ def _load_hpl_module(module_name, search_paths=None):
     if search_paths:
         paths.extend([Path(p) for p in search_paths])
     
-    # 尝试找到 .hpl 文件
-    for path in paths:
-        module_file = path / f"{module_name}.hpl"
-        if module_file.exists():
-            return _parse_hpl_module(module_name, module_file)
+    # 如果是点号表示法，转换为路径
+    if is_dot_notation:
+        # 将点号转换为路径分隔符
+        file_path = _convert_dot_to_path(module_name)
         
-        # 也尝试目录形式 (module_name/index.hpl)
-        module_dir = path / module_name
-        if module_dir.is_dir():
-            index_file = module_dir / "index.hpl"
-            if index_file.exists():
-                return _parse_hpl_module(module_name, index_file)
+        for path in paths:
+            # 尝试作为 .hpl 文件
+            module_file = path / f"{file_path}.hpl"
+            if module_file.exists():
+                return _parse_hpl_module(module_name, module_file)
+            
+            # 尝试作为目录 (package/subpackage/module/index.hpl 或 __init__.hpl)
+            module_dir = path / file_path
+            if module_dir.is_dir():
+                # 优先尝试 __init__.hpl，然后是 index.hpl
+                init_file = module_dir / "__init__.hpl"
+                if init_file.exists():
+                    return _parse_hpl_module(module_name, init_file)
+                
+                index_file = module_dir / "index.hpl"
+                if index_file.exists():
+                    return _parse_hpl_module(module_name, index_file)
+    else:
+        # 普通模块名
+        for path in paths:
+            module_file = path / f"{module_name}.hpl"
+            if module_file.exists():
+                return _parse_hpl_module(module_name, module_file)
+            
+            # 也尝试目录形式 (module_name/index.hpl 或 module_name/__init__.hpl)
+            module_dir = path / module_name
+            if module_dir.is_dir():
+                # 优先尝试 __init__.hpl，然后是 index.hpl
+                init_file = module_dir / "__init__.hpl"
+                if init_file.exists():
+                    return _parse_hpl_module(module_name, init_file)
+                
+                index_file = module_dir / "index.hpl"
+                if index_file.exists():
+                    return _parse_hpl_module(module_name, index_file)
     
     return None
 
@@ -328,7 +404,7 @@ def _load_python_module(module_name, search_paths=None):
     current_file_dir = _loader_context.get_current_file_dir()
     
     # 检查是否是相对路径或绝对路径
-    if '/' in module_name or '\\' in module_name or module_name.startswith(('./', '../')):
+    if _is_file_path(module_name):
         # 这是一个文件路径，直接解析
         if current_file_dir:
             # 相对于当前 HPL 文件目录解析
@@ -362,18 +438,34 @@ def _load_python_module(module_name, search_paths=None):
     if search_paths:
         paths.extend([Path(p) for p in search_paths])
     
-    # 尝试找到 .py 文件
-    for path in paths:
-        module_file = path / f"{module_name}.py"
-        if module_file.exists():
-            return _parse_python_module_file(module_name, module_file)
+    # 如果是点号表示法，转换为路径
+    if _is_dot_notation(module_name):
+        file_path = _convert_dot_to_path(module_name)
         
-        # 也尝试目录形式 (module_name/__init__.py)
-        module_dir = path / module_name
-        if module_dir.is_dir():
-            init_file = module_dir / "__init__.py"
-            if init_file.exists():
-                return _parse_python_module_file(module_name, init_file)
+        for path in paths:
+            module_file = path / f"{file_path}.py"
+            if module_file.exists():
+                return _parse_python_module_file(module_name, module_file)
+            
+            # 也尝试目录形式 (package/module/__init__.py)
+            module_dir = path / file_path
+            if module_dir.is_dir():
+                init_file = module_dir / "__init__.py"
+                if init_file.exists():
+                    return _parse_python_module_file(module_name, init_file)
+    else:
+        # 普通模块名
+        for path in paths:
+            module_file = path / f"{module_name}.py"
+            if module_file.exists():
+                return _parse_python_module_file(module_name, module_file)
+            
+            # 也尝试目录形式 (module_name/__init__.py)
+            module_dir = path / module_name
+            if module_dir.is_dir():
+                init_file = module_dir / "__init__.py"
+                if init_file.exists():
+                    return _parse_python_module_file(module_name, init_file)
     
     return None
 
@@ -539,7 +631,7 @@ def _parse_hpl_module(module_name, file_path):
             try:
                 imported_module = load_module(module_name_to_import)
                 # 使用别名或原始名称注册
-                register_name = alias if alias else module_name_to_import
+                register_name = alias if alias else _get_module_file_name(module_name_to_import)
                 # 注册到 HPLModule，供外部访问
                 hpl_module.register_constant(register_name, imported_module, f"Imported module: {module_name_to_import}")
                 # 同时注册到 evaluator 的全局作用域，供模块内部函数访问
