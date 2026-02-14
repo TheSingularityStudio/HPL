@@ -135,8 +135,15 @@ class PostfixIncrement(Expression):
         self.var: Union[Variable, ArrayAccess] = var
 
 
+class PrefixIncrement(Expression):
+    """前缀自增表达式: ++var"""
+    def __init__(self, var: Union[Variable, ArrayAccess], line: Optional[int] = None, column: Optional[int] = None) -> None:
+        super().__init__(line, column)
+        self.var: Union[Variable, ArrayAccess] = var
+
 
 class UnaryOp(Expression):
+
     def __init__(self, op: str, operand: Expression, line: Optional[int] = None, column: Optional[int] = None) -> None:
         super().__init__(line, column)
         self.op: str = op

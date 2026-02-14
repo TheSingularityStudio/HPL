@@ -749,10 +749,28 @@ class HPLASTParser:
 
 
     def parse_unary(self) -> Expression:
-
+        """解析一元表达式，包括前缀运算符"""
         # 跳过任何DEDENT token
         # 使用当前缩进级别，避免跳过应该终止块的DEDENT
         self._skip_dedents(self.indent_level)
+        
+        # 处理前缀自增：++var
+        if self.current_token and self.current_token.type == 'INCREMENT':
+            line, column = self._get_position()
+            self.advance()  # 跳过 '++'
+            operand = self.parse_unary()
+            # 确保操作数是变量或数组访问
+            if isinstance(operand, Variable):
+                return PrefixIncrement(operand, line, column)
+            elif isinstance(operand, ArrayAccess):
+                return PrefixIncrement(operand, line, column)
+            else:
+                # 如果不是变量，抛出语法错误
+                raise HPLSyntaxError(
+                    "Prefix increment can only be applied to variables",
+                    line=line, column=column
+                )
+        
         # 处理一元运算符：! 和 -
         if self.current_token and self.current_token.type == 'NOT':
             not_line, not_column = self._get_position()
@@ -769,6 +787,7 @@ class HPLASTParser:
 
         
         return self.parse_primary()
+
 
 
     # ==================== 主表达式解析辅助方法 ====================

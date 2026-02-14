@@ -529,7 +529,9 @@ class HPLEvaluator:
             FunctionCall: self._eval_function_call,
             MethodCall: self._eval_method_call,
             PostfixIncrement: self._eval_postfix_increment,
+            PrefixIncrement: self._eval_prefix_increment,
             ArrayLiteral: self._eval_array_literal,
+
             ArrayAccess: self._eval_array_access,
             DictionaryLiteral: self._eval_dictionary_literal,
             ArrowFunction: self._eval_arrow_function,
@@ -572,9 +574,29 @@ class HPLEvaluator:
         return self._lookup_variable(expr.name, local_scope, expr.line, expr.column)
     
     def _eval_binary_op_expr(self, expr: BinaryOp, local_scope: dict[str, Any]) -> Any:
+        # 先评估左操作数
         left = self.evaluate_expression(expr.left, local_scope)
+        
+        # 处理逻辑运算符短路求值
+        if expr.op == '&&':
+            # 如果左操作数为假，直接返回左操作数（短路）
+            if not left:
+                return left
+            # 否则评估右操作数并返回
+            right = self.evaluate_expression(expr.right, local_scope)
+            return right
+        elif expr.op == '||':
+            # 如果左操作数为真，直接返回左操作数（短路）
+            if left:
+                return left
+            # 否则评估右操作数并返回
+            right = self.evaluate_expression(expr.right, local_scope)
+            return right
+        
+        # 非逻辑运算符，正常评估两个操作数
         right = self.evaluate_expression(expr.right, local_scope)
         return self._eval_binary_op(left, expr.op, right, expr.line, expr.column)
+
     
     def _eval_unary_op(self, expr: UnaryOp, local_scope: dict[str, Any]) -> Any:
 
@@ -937,6 +959,25 @@ class HPLEvaluator:
         new_value = value + 1
         self._update_variable(var_name, new_value, local_scope)
         return value
+    
+    def _eval_prefix_increment(self, expr, local_scope):
+        """评估前缀自增表达式 (++x) - 返回新值"""
+        var_name = expr.var.name
+        value = self._lookup_variable(var_name, local_scope)
+        if not isinstance(value, (int, float)):
+            raise self._create_error(
+                HPLTypeError,
+                f"Cannot increment non-numeric value: {type(value).__name__}",
+                line=expr.line if hasattr(expr, 'line') else None,
+                column=expr.column if hasattr(expr, 'column') else None,
+                local_scope=local_scope,
+                error_key='TYPE_INVALID_OPERATION'
+            )
+
+        new_value = value + 1
+        self._update_variable(var_name, new_value, local_scope)
+        return new_value  # 前缀自增返回新值
+
     
     def _eval_array_literal(self, expr, local_scope):
         return [self.evaluate_expression(elem, local_scope) for elem in expr.elements]
