@@ -15,15 +15,18 @@ HPL 代码执行器模块
 - 内置函数：echo 输出等
 """
 
+from __future__ import annotations
+
 import sys
 import difflib
-
+from typing import Any, Callable, Optional, Union
 
 from hpl_runtime.core.models import *
 from hpl_runtime.modules.loader import load_module, HPLModule
 from hpl_runtime.utils.exceptions import *
 from hpl_runtime.utils.type_utils import check_numeric_operands, is_hpl_module
 from hpl_runtime.utils.io_utils import echo
+
 
 
 # 注意：ReturnValue, BreakException, ContinueException 现在从 exceptions 模块导入
@@ -35,14 +38,15 @@ ContinueException = HPLContinueException
 
 class HPLArrowFunction:
     """HPL 箭头函数（闭包）"""
-    def __init__(self, params, body, closure_scope, evaluator):
-        self.params = params  # 参数名列表
-        self.body = body      # 函数体（BlockStatement）
-        self.closure_scope = closure_scope.copy()  # 捕获定义时的作用域
-        self.evaluator = evaluator  # 执行器引用
+    def __init__(self, params: list[str], body: BlockStatement, closure_scope: dict[str, Any], evaluator: HPLEvaluator) -> None:
+        self.params: list[str] = params  # 参数名列表
+        self.body: BlockStatement = body      # 函数体（BlockStatement）
+        self.closure_scope: dict[str, Any] = closure_scope.copy()  # 捕获定义时的作用域
+        self.evaluator: HPLEvaluator = evaluator  # 执行器引用
     
-    def call(self, args):
+    def call(self, args: list[Any]) -> Any:
         """调用箭头函数"""
+
         # 创建新的局部作用域，基于闭包作用域
         func_scope = self.closure_scope.copy()
         
@@ -62,26 +66,30 @@ class HPLArrowFunction:
         return result
 
     
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"<arrow function ({', '.join(self.params)}) => {{...}}>"
 
 
 class HPLEvaluator:
     # 最大递归深度限制（比 Python 的递归限制小 10，留出安全余量）
-    MAX_RECURSION_DEPTH = sys.getrecursionlimit() - 10
+    MAX_RECURSION_DEPTH: int = sys.getrecursionlimit() - 10
     
-    def __init__(self, classes, objects, functions=None, main_func=None, call_target=None, call_args=None):
-        self.classes = classes
-        self.objects = objects
-        self.functions = functions or {}  # 所有顶层函数
-        self.main_func = main_func
-        self.call_target = call_target
-        self.call_args = call_args or []  # call 调用的参数
+    def __init__(self, classes: dict[str, HPLClass], objects: dict[str, HPLObject], 
+                 functions: Optional[dict[str, HPLFunction]] = None, 
+                 main_func: Optional[HPLFunction] = None, 
+                 call_target: Optional[str] = None, 
+                 call_args: Optional[list[Any]] = None) -> None:
+        self.classes: dict[str, HPLClass] = classes
+        self.objects: dict[str, HPLObject] = objects
+        self.functions: dict[str, HPLFunction] = functions or {}  # 所有顶层函数
+        self.main_func: Optional[HPLFunction] = main_func
+        self.call_target: Optional[str] = call_target
+        self.call_args: list[Any] = call_args or []  # call 调用的参数
 
-        self.global_scope = self.objects  # 全局变量，包括预定义对象
-        self.current_obj = None  # 用于方法中的'this'
-        self.call_stack = []  # 调用栈，用于错误跟踪
-        self.imported_modules = {}  # 导入的模块 {alias/name: module}
+        self.global_scope: dict[str, HPLObject] = self.objects  # 全局变量，包括预定义对象
+        self.current_obj: Optional[HPLObject] = None  # 用于方法中的'this'
+        self.call_stack: list[str] = []  # 调用栈，用于错误跟踪
+        self.imported_modules: dict[str, Any] = {}  # 导入的模块 {alias/name: module}
         
         # 初始化语句处理器映射表
         self._init_statement_handlers()
@@ -90,9 +98,11 @@ class HPLEvaluator:
 
 
 
-    def run(self):
+
+    def run(self) -> None:
         # 如果指定了 call_target，执行对应的函数
         if self.call_target:
+
             # 首先尝试从 functions 字典中查找
             if self.call_target in self.functions:
                 target_func = self.functions[self.call_target]
@@ -116,9 +126,10 @@ class HPLEvaluator:
         elif self.main_func:
             self.execute_function(self.main_func, {}, 'main')
 
-    def execute_function(self, func, local_scope, func_name=None):
+    def execute_function(self, func: HPLFunction, local_scope: dict[str, Any], func_name: Optional[str] = None) -> Any:
         # 检查递归深度限制
         if len(self.call_stack) >= self.MAX_RECURSION_DEPTH:
+
             raise self._create_error(
                 HPLRecursionError,
                 f"Maximum recursion depth exceeded ({self.MAX_RECURSION_DEPTH}). "
@@ -143,8 +154,9 @@ class HPLEvaluator:
                 self.call_stack.pop()
 
 
-    def execute_block(self, block, local_scope):
+    def execute_block(self, block: BlockStatement, local_scope: dict[str, Any]) -> Any:
         for stmt in block.statements:
+
             result = self.execute_statement(stmt, local_scope)
             # 如果语句返回了ReturnValue，立即向上传播（终止执行）
             if isinstance(result, ReturnValue):
@@ -179,11 +191,12 @@ class HPLEvaluator:
         }
 
     
-    def execute_statement(self, stmt, local_scope):
+    def execute_statement(self, stmt: Statement, local_scope: dict[str, Any]) -> Any:
         """语句执行主分发器"""
         handler = self._statement_handlers.get(type(stmt))
         if handler:
             return handler(stmt, local_scope)
+
         raise self._create_error(
             HPLRuntimeError,
             f"Unknown statement type: {type(stmt).__name__}",
@@ -523,11 +536,12 @@ class HPLEvaluator:
         }
 
     
-    def evaluate_expression(self, expr, local_scope):
+    def evaluate_expression(self, expr: Expression, local_scope: dict[str, Any]) -> Any:
         """表达式评估主分发器"""
         handler = self._expression_handlers.get(type(expr))
         if handler:
             return handler(expr, local_scope)
+
         raise self._create_error(
             HPLRuntimeError,
             f"Unknown expression type: {type(expr).__name__}",
@@ -539,30 +553,31 @@ class HPLEvaluator:
 
     
     # 字面量处理器
-    def _eval_integer_literal(self, expr, local_scope):
+    def _eval_integer_literal(self, expr: IntegerLiteral, local_scope: dict[str, Any]) -> int:
         return expr.value
     
-    def _eval_float_literal(self, expr, local_scope):
+    def _eval_float_literal(self, expr: FloatLiteral, local_scope: dict[str, Any]) -> float:
         return expr.value
     
-    def _eval_string_literal(self, expr, local_scope):
+    def _eval_string_literal(self, expr: StringLiteral, local_scope: dict[str, Any]) -> str:
         return expr.value
     
-    def _eval_boolean_literal(self, expr, local_scope):
+    def _eval_boolean_literal(self, expr: BooleanLiteral, local_scope: dict[str, Any]) -> bool:
         return expr.value
     
-    def _eval_null_literal(self, expr, local_scope):
+    def _eval_null_literal(self, expr: NullLiteral, local_scope: dict[str, Any]) -> None:
         return None
     
-    def _eval_variable(self, expr, local_scope):
+    def _eval_variable(self, expr: Variable, local_scope: dict[str, Any]) -> Any:
         return self._lookup_variable(expr.name, local_scope, expr.line, expr.column)
     
-    def _eval_binary_op_expr(self, expr, local_scope):
+    def _eval_binary_op_expr(self, expr: BinaryOp, local_scope: dict[str, Any]) -> Any:
         left = self.evaluate_expression(expr.left, local_scope)
         right = self.evaluate_expression(expr.right, local_scope)
         return self._eval_binary_op(left, expr.op, right, expr.line, expr.column)
     
-    def _eval_unary_op(self, expr, local_scope):
+    def _eval_unary_op(self, expr: UnaryOp, local_scope: dict[str, Any]) -> Any:
+
         operand = self.evaluate_expression(expr.operand, local_scope)
         if expr.op == '!':
             if not isinstance(operand, bool):
@@ -669,12 +684,12 @@ class HPLEvaluator:
 
     
     # 内置函数处理器
-    def _builtin_echo(self, expr, local_scope):
+    def _builtin_echo(self, expr: FunctionCall, local_scope: dict[str, Any]) -> None:
         message = self.evaluate_expression(expr.args[0], local_scope)
         echo(message)
         return None
     
-    def _builtin_len(self, expr, local_scope):
+    def _builtin_len(self, expr: FunctionCall, local_scope: dict[str, Any]) -> int:
         arg = self.evaluate_expression(expr.args[0], local_scope)
         if isinstance(arg, (list, str)):
             return len(arg)
@@ -688,7 +703,7 @@ class HPLEvaluator:
         )
 
     
-    def _builtin_int(self, expr, local_scope):
+    def _builtin_int(self, expr: FunctionCall, local_scope: dict[str, Any]) -> int:
         arg = self.evaluate_expression(expr.args[0], local_scope)
         try:
             return int(arg)
@@ -710,7 +725,7 @@ class HPLEvaluator:
                 error_key='TYPE_CONVERSION_FAILED'
             )
     
-    def _builtin_float(self, expr, local_scope):
+    def _builtin_float(self, expr: FunctionCall, local_scope: dict[str, Any]) -> float:
         arg = self.evaluate_expression(expr.args[0], local_scope)
         try:
             return float(arg)
@@ -730,11 +745,11 @@ class HPLEvaluator:
                 error_key='TYPE_CONVERSION_FAILED'
             )
     
-    def _builtin_str(self, expr, local_scope):
+    def _builtin_str(self, expr: FunctionCall, local_scope: dict[str, Any]) -> str:
         arg = self.evaluate_expression(expr.args[0], local_scope)
         return str(arg)
     
-    def _builtin_type(self, expr, local_scope):
+    def _builtin_type(self, expr: FunctionCall, local_scope: dict[str, Any]) -> str:
         arg = self.evaluate_expression(expr.args[0], local_scope)
         type_map = {
             bool: 'boolean',
@@ -749,7 +764,7 @@ class HPLEvaluator:
             return arg.hpl_class.name
         return type(arg).__name__
     
-    def _builtin_abs(self, expr, local_scope):
+    def _builtin_abs(self, expr: FunctionCall, local_scope: dict[str, Any]) -> Union[int, float]:
         arg = self.evaluate_expression(expr.args[0], local_scope)
         if not isinstance(arg, (int, float)):
             raise self._create_error(
@@ -763,7 +778,7 @@ class HPLEvaluator:
 
         return abs(arg)
     
-    def _builtin_max(self, expr, local_scope):
+    def _builtin_max(self, expr: FunctionCall, local_scope: dict[str, Any]) -> Any:
         if len(expr.args) < 1:
             raise self._create_error(
                 HPLValueError,
@@ -777,7 +792,7 @@ class HPLEvaluator:
         args = [self.evaluate_expression(arg, local_scope) for arg in expr.args]
         return max(args)
     
-    def _builtin_min(self, expr, local_scope):
+    def _builtin_min(self, expr: FunctionCall, local_scope: dict[str, Any]) -> Any:
         if len(expr.args) < 1:
             raise self._create_error(
                 HPLValueError,
@@ -791,7 +806,7 @@ class HPLEvaluator:
         args = [self.evaluate_expression(arg, local_scope) for arg in expr.args]
         return min(args)
     
-    def _builtin_range(self, expr, local_scope):
+    def _builtin_range(self, expr: FunctionCall, local_scope: dict[str, Any]) -> list[int]:
         if len(expr.args) < 1 or len(expr.args) > 3:
             raise self._create_error(
                 HPLValueError,
@@ -817,7 +832,8 @@ class HPLEvaluator:
         else:
             return list(range(args[0], args[1], args[2]))
     
-    def _builtin_input(self, expr, local_scope):
+    def _builtin_input(self, expr: FunctionCall, local_scope: dict[str, Any]) -> str:
+
         if len(expr.args) == 0:
             try:
                 return input()
@@ -1420,7 +1436,7 @@ class HPLEvaluator:
                 self._call_parent_constructors_recursive(obj, grandparent_class, args)
 
 
-    def instantiate_object(self, class_name, obj_name, init_args=None):
+    def instantiate_object(self, class_name: str, obj_name: str, init_args: Optional[list[Any]] = None) -> HPLObject:
         """实例化对象并调用构造函数"""
         if class_name not in self.classes:
             raise self._create_error(
@@ -1440,7 +1456,7 @@ class HPLEvaluator:
         
         return obj
 
-    def execute_import(self, stmt, local_scope):
+    def execute_import(self, stmt: ImportStatement, local_scope: dict[str, Any]) -> None:
         """执行 import 语句"""
         module_name = stmt.module_name
         alias = stmt.alias or module_name
@@ -1466,7 +1482,7 @@ class HPLEvaluator:
             error_key='IMPORT_MODULE_NOT_FOUND'
         )
 
-    def call_module_function(self, module, func_name, args):
+    def call_module_function(self, module: Any, func_name: str, args: list[Any]) -> Any:
         """调用模块函数"""
         if is_hpl_module(module):
             return module.call_function(func_name, args)
@@ -1476,7 +1492,7 @@ class HPLEvaluator:
             error_key='TYPE_INVALID_OPERATION'
         )
 
-    def get_module_constant(self, module, const_name):
+    def get_module_constant(self, module: Any, const_name: str) -> Any:
         """获取模块常量"""
         if is_hpl_module(module):
             return module.get_constant(const_name)
@@ -1488,8 +1504,9 @@ class HPLEvaluator:
 
 
 
-    def _create_error(self, error_class, message, line=None, column=None, 
-                    local_scope=None, error_key=None, **kwargs):
+    def _create_error(self, error_class: type[HPLError], message: str, line: Optional[int] = None, 
+                    column: Optional[int] = None, local_scope: Optional[dict[str, Any]] = None, 
+                    error_key: Optional[str] = None, **kwargs: Any) -> HPLError:
         """统一创建错误并添加上下文"""
         # 自动捕获当前调用栈（如果尚未设置）
         call_stack = kwargs.pop('call_stack', None) or self.call_stack.copy()
@@ -1510,7 +1527,7 @@ class HPLEvaluator:
         
         return error
 
-    def _matches_error_type(self, error, error_type):
+    def _matches_error_type(self, error: HPLError, error_type: Optional[str]) -> bool:
         """检查错误是否匹配指定的错误类型"""
         if error_type is None:
             return True  # 捕获所有错误
@@ -1527,7 +1544,7 @@ class HPLEvaluator:
             return True
         
         # 检查继承关系 - 使用完整的错误类型映射
-        error_type_map = {
+        error_type_map: dict[str, type[HPLError]] = {
             # 基础错误
             'HPLError': HPLError,
             'Error': HPLError,
