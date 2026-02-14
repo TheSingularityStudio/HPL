@@ -15,7 +15,7 @@ from pathlib import Path
 from collections import OrderedDict
 
 # 确保 hpl_runtime 在路径中
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
 
 from hpl_runtime.utils.type_utils import check_type, _get_type_name
 from hpl_runtime.utils.exceptions import HPLTypeError, HPLRecursionError

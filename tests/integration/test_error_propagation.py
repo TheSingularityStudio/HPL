@@ -12,7 +12,7 @@ import os
 import unittest
 
 # 确保hpl_runtime在路径中
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
 
 from hpl_runtime.core.evaluator import HPLEvaluator
 from hpl_runtime.core.models import (

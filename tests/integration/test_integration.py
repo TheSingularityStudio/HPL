@@ -7,7 +7,7 @@ import sys
 import os
 import io
 import contextlib
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
 
 import unittest
 

@@ -9,7 +9,7 @@ import sys
 import os
 import io
 import unittest.mock
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
 
 import unittest
 from hpl_runtime.utils.io_utils import echo, read_input, format_output

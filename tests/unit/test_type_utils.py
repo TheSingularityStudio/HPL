@@ -7,7 +7,7 @@ HPL 类型检查工具模块单元测试
 
 import sys
 import os
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
 
 import unittest
 from hpl_runtime.utils.type_utils import (

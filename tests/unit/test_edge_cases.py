@@ -7,7 +7,7 @@ HPL 边界情况测试
 
 import sys
 import os
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
 
 import unittest
 from hpl_runtime.core.evaluator import HPLEvaluator
