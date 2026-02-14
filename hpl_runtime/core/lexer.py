@@ -27,7 +27,6 @@ class Token:
     def __repr__(self) -> str:
         return f'Token({self.type}, {self.value}, line={self.line}, col={self.column})'
 
-
 class HPLLexer:
     def __init__(self, text: str, start_line: int = 1, start_column: int = 1) -> None:
         self.text: str = text

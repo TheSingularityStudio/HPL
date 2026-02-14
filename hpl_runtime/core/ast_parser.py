@@ -206,6 +206,19 @@ class HPLASTParser:
         # 使用 peek 进行 lookahead，避免保存/恢复位置
         next_token = self.peek(1)
         
+        # 检查是否是嵌套函数定义：name: (params) => { body }
+        if next_token and next_token.type == 'COLON':
+            # 向前查看是否是函数定义模式：(params) => { body }
+            peek_pos = self.pos + 2
+            if peek_pos < len(self.tokens) and self.tokens[peek_pos].type == 'LPAREN':
+                # 这是嵌套函数定义
+                self.advance()  # 跳过标识符
+                self.advance()  # 跳过 ':'
+                
+                # 解析箭头函数
+                arrow_func = self._parse_arrow_function()
+                return AssignmentStatement(name, arrow_func)
+        
         # 检查是否是简单赋值：var = value
         if next_token and next_token.type == 'ASSIGN':
             self.advance()  # 跳过变量名
@@ -230,7 +243,6 @@ class HPLASTParser:
                 array_access = ArrayAccess(Variable(name, line, column), index_expr, line, column)
                 # 继续解析可能的后续操作（如方法调用）
                 return self._parse_expression_suffix(array_access)
-
         
         # 检查是否是属性访问：obj.prop...
         if next_token and next_token.type == 'DOT':
@@ -253,7 +265,6 @@ class HPLASTParser:
                     prop_access = MethodCall(Variable(name, line, column), prop_name, [], line, column)
                     array_access = ArrayAccess(prop_access, index_expr, line, column)
                     return self._parse_expression_suffix(array_access)
-
             
             # 检查是否是属性赋值：obj.prop = value
             if self.current_token and self.current_token.type == 'ASSIGN':
@@ -274,11 +285,9 @@ class HPLASTParser:
         # 否则是表达式语句（函数调用、方法调用等）
         return self.parse_expression()
     
-
     def _parse_expression_suffix(self, expr: Expression) -> Expression:
         """解析表达式后缀（方法调用链、数组访问等）"""
         current_expr: Expression = expr
-
         
         while self.current_token:
             # 方法调用链：expr.method() 或 expr.method
@@ -295,7 +304,6 @@ class HPLASTParser:
                 else:
                     # 属性访问
                     current_expr = MethodCall(current_expr, member_name, [])
-
             
             # 直接方法调用：expr()
             elif self.current_token.type == 'LPAREN':
@@ -310,7 +318,6 @@ class HPLASTParser:
                     # 函数调用
                     current_expr = FunctionCall(current_expr, args, call_line, call_column)
 
-            
             # 数组访问：expr[index]
             elif self.current_token.type == 'LBRACKET':
                 bracket_line, bracket_column = self._get_position()
@@ -318,8 +325,7 @@ class HPLASTParser:
                 index_expr = self.parse_expression()
                 self.expect('RBRACKET')
                 current_expr = ArrayAccess(current_expr, index_expr, bracket_line, bracket_column)
-
-            
+           
             # 后缀自增：expr++
             elif self.current_token.type == 'INCREMENT':
                 self.advance()
@@ -349,7 +355,6 @@ class HPLASTParser:
         'while': 'parse_while_statement',
         'try': 'parse_try_catch_statement',
     }
-
 
     def _parse_statements_until_end(self) -> list[Statement]:
         """解析语句直到遇到块结束标记"""
@@ -465,7 +470,6 @@ class HPLASTParser:
         statements = self._parse_statements_until_end()
         return BlockStatement(statements)
 
-
     def _parse_brace_block(self) -> BlockStatement:
         """解析花括号块"""
         statements: list[Statement] = []
@@ -490,7 +494,6 @@ class HPLASTParser:
         if self.current_token and self.current_token.type == 'RBRACE':
             self.expect('RBRACE')
         return BlockStatement(statements)
-
 
     def parse_statement(self) -> Optional[Statement]:
         """解析语句 - 使用分发表优化关键字查找"""
@@ -524,7 +527,6 @@ class HPLASTParser:
         
         # 默认解析为表达式
         return self.parse_expression()
-
 
     def parse_if_statement(self) -> IfStatement:
         self.expect_keyword('if')
@@ -568,7 +570,6 @@ class HPLASTParser:
         
         return IfStatement(condition, then_block, else_block)
 
-
     def parse_for_statement(self) -> ForInStatement:
         self.expect_keyword('for')
         self.expect('LPAREN')
@@ -581,7 +582,6 @@ class HPLASTParser:
         self.expect('RPAREN')
         body = self.parse_block()
         return ForInStatement(var_name, iterable_expr, body)
-
 
     def parse_while_statement(self) -> WhileStatement:
         self.expect_keyword('while')
@@ -600,7 +600,6 @@ class HPLASTParser:
         
         # 解析多个 catch 子句
         catch_clauses: list[CatchClause] = []
-
         
         while True:
             # 在检查catch之前，可能需要跳过多个DEDENT token
@@ -652,14 +651,12 @@ class HPLASTParser:
         
         return TryCatchStatement(try_block, catch_clauses, finally_block, line, column)
 
-
     def parse_expression(self) -> Expression:
 
         # 跳过任何DEDENT token（处理空行后的缩进变化）
         # 使用当前缩进级别，避免跳过应该终止块的DEDENT
         self._skip_dedents(self.indent_level)
         return self.parse_or()
-
 
     def parse_or(self) -> Expression:
         """解析逻辑或 (||)"""
@@ -747,12 +744,29 @@ class HPLASTParser:
 
         return left
 
-
     def parse_unary(self) -> Expression:
-
+        """解析一元表达式，包括前缀运算符"""
         # 跳过任何DEDENT token
         # 使用当前缩进级别，避免跳过应该终止块的DEDENT
         self._skip_dedents(self.indent_level)
+        
+        # 处理前缀自增：++var
+        if self.current_token and self.current_token.type == 'INCREMENT':
+            line, column = self._get_position()
+            self.advance()  # 跳过 '++'
+            operand = self.parse_unary()
+            # 确保操作数是变量或数组访问
+            if isinstance(operand, Variable):
+                return PrefixIncrement(operand, line, column)
+            elif isinstance(operand, ArrayAccess):
+                return PrefixIncrement(operand, line, column)
+            else:
+                # 如果不是变量，抛出语法错误
+                raise HPLSyntaxError(
+                    "Prefix increment can only be applied to variables",
+                    line=line, column=column
+                )
+        
         # 处理一元运算符：! 和 -
         if self.current_token and self.current_token.type == 'NOT':
             not_line, not_column = self._get_position()
@@ -766,9 +780,9 @@ class HPLASTParser:
             operand = self.parse_unary()
             # 将 -x 转换为 0 - x
             return BinaryOp(IntegerLiteral(0, minus_line, minus_column), '-', operand, minus_line, minus_column)
-
         
         return self.parse_primary()
+
 
 
     # ==================== 主表达式解析辅助方法 ====================
@@ -777,7 +791,6 @@ class HPLASTParser:
         """解析字面量：布尔值、数字、字符串"""
         token_type = self.current_token.type if self.current_token else None
         line, column = self._get_position()
-
 
         if token_type == 'BOOLEAN':
             value = self.current_token.value
@@ -805,13 +818,11 @@ class HPLASTParser:
         self.advance()  # 跳过 '('
         args = self._parse_argument_list()
         return FunctionCall(name, args, line, column)
-
     
     def _parse_method_chain_expr(self, name: str) -> Expression:
         """解析方法调用链：obj.method() 或 obj.prop"""
         line, column = self._get_position()
         current_expr: Expression = Variable(name, line, column)
-
         
         while self.current_token and self.current_token.type == 'DOT':
             self.advance()
@@ -828,14 +839,12 @@ class HPLASTParser:
                 current_expr = MethodCall(current_expr, member_name, [], line, column)
         
         return current_expr
-
     
     def _parse_identifier_primary(self) -> Expression:
         """解析标识符开头的主表达式"""
         name = self.current_token.value
         line, column = self._get_position()
         self.advance()
-
 
         if self.current_token and self.current_token.type == 'LPAREN':
             return self._parse_function_call_expr(name)
@@ -855,9 +864,7 @@ class HPLASTParser:
             self.expect('RBRACKET')
             return ArrayAccess(Variable(name, line, column), index, bracket_line, bracket_column)
 
-
         return Variable(name, line, column)
-
     
     def _parse_paren_expression(self) -> Optional[Expression]:
         """解析括号表达式或箭头函数参数列表"""
@@ -921,7 +928,6 @@ class HPLASTParser:
         expr = self.parse_expression()
         self.expect('RPAREN')
         return expr
-
     
     def _parse_arrow_function(self) -> ArrowFunction:
         """解析箭头函数: () => { ... } 或 (params) => { ... }"""
@@ -949,7 +955,6 @@ class HPLASTParser:
         body = self.parse_block()
         
         return ArrowFunction(params, body, line, column)
-
     
     def _parse_array_literal_expr(self) -> ArrayLiteral:
         """解析数组字面量"""
@@ -1008,7 +1013,6 @@ class HPLASTParser:
         'LBRACE': '_parse_dict_literal_expr',
     }
 
-
     def parse_primary(self) -> Expression:
 
         """解析主表达式 - 使用分发表优化"""
@@ -1040,7 +1044,6 @@ class HPLASTParser:
             column=column
         )
 
-
     def expect(self, type: str) -> Token:
         if not self.current_token or self.current_token.type != type:
             line, column = self._get_position()
@@ -1053,7 +1056,6 @@ class HPLASTParser:
         self.advance()
         return token
 
-
     def expect_keyword(self, value: str) -> None:
         if not self.current_token or self.current_token.type != 'KEYWORD' or self.current_token.value != value:
             line, column = self._get_position()
@@ -1063,7 +1065,6 @@ class HPLASTParser:
                 column=column
             )
         self.advance()
-
 
     def parse_import_statement(self) -> ImportStatement:
 

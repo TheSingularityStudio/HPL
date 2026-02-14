@@ -44,7 +44,6 @@ class HPLModule:
         """调用模块函数"""
         if func_name not in self.functions:
             raise HPLNameError(f"Function '{func_name}' not found in module '{self.name}'")
-
         
         func_info = self.functions[func_name]
         func = func_info['func']
@@ -53,7 +52,6 @@ class HPLModule:
         if func_info['param_count'] is not None:
             if len(args) != func_info['param_count']:
                 raise HPLValueError(f"Function '{func_name}' expects {func_info['param_count']} arguments, got {len(args)}")
-
         
         return func(*args)
     
@@ -62,7 +60,6 @@ class HPLModule:
         if name not in self.constants:
             raise HPLAttributeError(f"Constant '{name}' not found in module '{self.name}'")
         return self.constants[name]['value']
-
     
     def list_functions(self):
         """列出模块中所有函数"""

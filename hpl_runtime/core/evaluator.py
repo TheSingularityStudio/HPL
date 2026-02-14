@@ -27,8 +27,6 @@ from hpl_runtime.utils.exceptions import *
 from hpl_runtime.utils.type_utils import check_numeric_operands, is_hpl_module
 from hpl_runtime.utils.io_utils import echo
 
-
-
 # 注意：ReturnValue, BreakException, ContinueException 现在从 exceptions 模块导入
 # 保留这些别名以保持向后兼容
 ReturnValue = HPLReturnValue
@@ -44,7 +42,7 @@ class HPLArrowFunction:
         self.closure_scope: dict[str, Any] = closure_scope.copy()  # 捕获定义时的作用域
         self.evaluator: HPLEvaluator = evaluator  # 执行器引用
     
-    def call(self, args: list[Any]) -> Any:
+    def call(self, args: list[Any], func_name: Optional[str] = None) -> Any:
         """调用箭头函数"""
 
         # 创建新的局部作用域，基于闭包作用域
@@ -57,6 +55,10 @@ class HPLArrowFunction:
             else:
                 func_scope[param] = None  # 默认值为 None
         
+        # 支持递归：如果提供了函数名，将自身添加到作用域
+        if func_name:
+            func_scope[func_name] = self
+        
         # 执行函数体
         result = self.evaluator.execute_block(self.body, func_scope)
         
@@ -64,15 +66,17 @@ class HPLArrowFunction:
         if isinstance(result, HPLReturnValue):
             return result.value
         return result
-
     
     def __repr__(self) -> str:
         return f"<arrow function ({', '.join(self.params)}) => {{...}}>"
 
-
 class HPLEvaluator:
-    # 最大递归深度限制（比 Python 的递归限制小 10，留出安全余量）
-    MAX_RECURSION_DEPTH: int = sys.getrecursionlimit() - 10
+    # 最大递归深度限制（保守设置，确保在 Python 递归限制前触发）
+    # 每个 HPL 函数调用会使用约 7-8 个 Python 栈帧，Python默认限制1000，因此设为500留出安全余量
+    MAX_RECURSION_DEPTH: int = 500
+
+    # 最大表达式求值深度限制（防止深层嵌套表达式导致的栈溢出）
+    MAX_EXPR_DEPTH: int = 200
     
     def __init__(self, classes: dict[str, HPLClass], objects: dict[str, HPLObject], 
                  functions: Optional[dict[str, HPLFunction]] = None, 
@@ -88,16 +92,15 @@ class HPLEvaluator:
 
         self.global_scope: dict[str, HPLObject] = self.objects  # 全局变量，包括预定义对象
         self.current_obj: Optional[HPLObject] = None  # 用于方法中的'this'
+        self.current_class: Optional[HPLClass] = None  # 用于跟踪当前执行的类（支持多级继承）
         self.call_stack: list[str] = []  # 调用栈，用于错误跟踪
         self.imported_modules: dict[str, Any] = {}  # 导入的模块 {alias/name: module}
+        self.expr_eval_depth: int = 0  # 表达式求值深度计数器
         
         # 初始化语句处理器映射表
         self._init_statement_handlers()
         # 初始化表达式处理器映射表
         self._init_expression_handlers()
-
-
-
 
     def run(self) -> None:
         # 如果指定了 call_target，执行对应的函数
@@ -148,11 +151,18 @@ class HPLEvaluator:
             if isinstance(result, ReturnValue):
                 return result.value
             return result
+        except RecursionError:
+            # 捕获 Python 的 RecursionError 并转换为 HPLRecursionError
+            raise self._create_error(
+                HPLRecursionError,
+                f"Maximum recursion depth exceeded ({self.MAX_RECURSION_DEPTH}). "
+                f"Hint: Check for infinite recursion in function calls.",
+                error_key='RUNTIME_RECURSION_DEPTH'
+            )
         finally:
             # 从调用栈移除
             if func_name:
                 self.call_stack.pop()
-
 
     def execute_block(self, block: BlockStatement, local_scope: dict[str, Any]) -> Any:
         for stmt in block.statements:
@@ -189,7 +199,6 @@ class HPLEvaluator:
             MethodCall: self._execute_method_call_statement,
             FunctionCall: self._execute_function_call_statement,
         }
-
     
     def execute_statement(self, stmt: Statement, local_scope: dict[str, Any]) -> Any:
         """语句执行主分发器"""
@@ -205,7 +214,6 @@ class HPLEvaluator:
             local_scope=local_scope,
             error_key='RUNTIME_GENERAL'
         )
-
     
     def _execute_assignment(self, stmt, local_scope):
         """执行赋值语句"""
@@ -257,7 +265,6 @@ class HPLEvaluator:
                     error_key='TYPE_INVALID_OPERATION'
                 )
 
-
             # 获取属性（应该是数组/字典）
             if prop_name not in obj.attributes:
                 # 如果属性不存在，创建一个空字典
@@ -308,7 +315,6 @@ class HPLEvaluator:
                     local_scope=local_scope,
                     error_key='TYPE_INVALID_OPERATION'
                 )
-
          
             index = self.evaluate_expression(stmt.index_expr, local_scope)
             if not isinstance(index, int):
@@ -367,7 +373,6 @@ class HPLEvaluator:
                 local_scope=local_scope,
                 error_key='TYPE_INVALID_OPERATION'
             )
-
         
         for item in iterator:
             local_scope[stmt.var_name] = item
@@ -413,7 +418,6 @@ class HPLEvaluator:
             local_scope=local_scope,
             error_key='RUNTIME_GENERAL'
         )
-
     
     def _execute_try_catch(self, stmt, local_scope):
         """执行try-catch-finally语句"""
@@ -480,8 +484,6 @@ class HPLEvaluator:
             f"Module '{module_name}' not found",
             error_key='IMPORT_MODULE_NOT_FOUND'
         )
-
-
     
     def _execute_increment(self, stmt, local_scope):
         """执行自增语句"""
@@ -513,8 +515,6 @@ class HPLEvaluator:
         """执行函数调用语句（作为独立语句使用）"""
         return self._eval_function_call(stmt, local_scope)
 
-
-
     def _init_expression_handlers(self):
         """初始化表达式处理器映射表"""
         self._expression_handlers = {
@@ -529,28 +529,44 @@ class HPLEvaluator:
             FunctionCall: self._eval_function_call,
             MethodCall: self._eval_method_call,
             PostfixIncrement: self._eval_postfix_increment,
+            PrefixIncrement: self._eval_prefix_increment,
             ArrayLiteral: self._eval_array_literal,
             ArrayAccess: self._eval_array_access,
             DictionaryLiteral: self._eval_dictionary_literal,
             ArrowFunction: self._eval_arrow_function,
         }
-
     
     def evaluate_expression(self, expr: Expression, local_scope: dict[str, Any]) -> Any:
         """表达式评估主分发器"""
-        handler = self._expression_handlers.get(type(expr))
-        if handler:
-            return handler(expr, local_scope)
+        # 检查表达式求值深度，防止深层嵌套导致的栈溢出
+        self.expr_eval_depth += 1
+        if self.expr_eval_depth > self.MAX_EXPR_DEPTH:
+            self.expr_eval_depth -= 1
+            raise self._create_error(
+                HPLRecursionError,
+                f"Maximum expression evaluation depth exceeded ({self.MAX_EXPR_DEPTH}). "
+                f"Hint: Check for deeply nested expressions or cyclic references.",
+                line=expr.line if hasattr(expr, 'line') else None,
+                column=expr.column if hasattr(expr, 'column') else None,
+                local_scope=local_scope,
+                error_key='RUNTIME_RECURSION_DEPTH'
+            )
+        
+        try:
+            handler = self._expression_handlers.get(type(expr))
+            if handler:
+                return handler(expr, local_scope)
 
-        raise self._create_error(
-            HPLRuntimeError,
-            f"Unknown expression type: {type(expr).__name__}",
-            line=expr.line if hasattr(expr, 'line') else None,
-            column=expr.column if hasattr(expr, 'column') else None,
-            local_scope=local_scope,
-            error_key='RUNTIME_GENERAL'
-        )
-
+            raise self._create_error(
+                HPLRuntimeError,
+                f"Unknown expression type: {type(expr).__name__}",
+                line=expr.line if hasattr(expr, 'line') else None,
+                column=expr.column if hasattr(expr, 'column') else None,
+                local_scope=local_scope,
+                error_key='RUNTIME_GENERAL'
+            )
+        finally:
+            self.expr_eval_depth -= 1
     
     # 字面量处理器
     def _eval_integer_literal(self, expr: IntegerLiteral, local_scope: dict[str, Any]) -> int:
@@ -572,7 +588,26 @@ class HPLEvaluator:
         return self._lookup_variable(expr.name, local_scope, expr.line, expr.column)
     
     def _eval_binary_op_expr(self, expr: BinaryOp, local_scope: dict[str, Any]) -> Any:
+        # 先评估左操作数
         left = self.evaluate_expression(expr.left, local_scope)
+        
+        # 处理逻辑运算符短路求值
+        if expr.op == '&&':
+            # 如果左操作数为假，直接返回左操作数（短路）
+            if not left:
+                return left
+            # 否则评估右操作数并返回
+            right = self.evaluate_expression(expr.right, local_scope)
+            return right
+        elif expr.op == '||':
+            # 如果左操作数为真，直接返回左操作数（短路）
+            if left:
+                return left
+            # 否则评估右操作数并返回
+            right = self.evaluate_expression(expr.right, local_scope)
+            return right
+        
+        # 非逻辑运算符，正常评估两个操作数
         right = self.evaluate_expression(expr.right, local_scope)
         return self._eval_binary_op(left, expr.op, right, expr.line, expr.column)
     
@@ -598,7 +633,6 @@ class HPLEvaluator:
                 local_scope=local_scope,
                 error_key='RUNTIME_GENERAL'
             )
-
     
     def _eval_function_call(self, expr, local_scope):
         """评估函数调用表达式"""
@@ -660,7 +694,8 @@ class HPLEvaluator:
             
             # 如果是箭头函数
             if isinstance(func, HPLArrowFunction):
-                return func.call(args)
+                return func.call(args, func_name)
+
             
             # 普通函数
             func_scope = {}
@@ -679,9 +714,6 @@ class HPLEvaluator:
             local_scope=local_scope,
             error_key='RUNTIME_UNDEFINED_VAR'
         )
-
-
-
     
     # 内置函数处理器
     def _builtin_echo(self, expr: FunctionCall, local_scope: dict[str, Any]) -> None:
@@ -701,7 +733,6 @@ class HPLEvaluator:
             local_scope=local_scope,
             error_key='TYPE_INVALID_OPERATION'
         )
-
     
     def _builtin_int(self, expr: FunctionCall, local_scope: dict[str, Any]) -> int:
         arg = self.evaluate_expression(expr.args[0], local_scope)
@@ -877,7 +908,6 @@ class HPLEvaluator:
                 local_scope=local_scope,
                 error_key='RUNTIME_GENERAL'
             )
-
     
     def _eval_method_call(self, expr, local_scope):
         """评估方法调用表达式"""
@@ -885,12 +915,15 @@ class HPLEvaluator:
         if isinstance(obj, HPLObject):
             # 处理 parent 特殊属性访问
             if expr.method_name == 'parent':
-                if obj.hpl_class.parent and obj.hpl_class.parent in self.classes:
-                    parent_class = self.classes[obj.hpl_class.parent]
+                # 使用 current_class（当前执行的类）来确定 parent，而不是对象的实际类
+                # 这支持多级继承：在 Parent 的方法中调用 this.parent.init() 应该调用 GrandParent 的 init
+                reference_class = self.current_class if self.current_class else obj.hpl_class
+                if reference_class.parent and reference_class.parent in self.classes:
+                    parent_class = self.classes[reference_class.parent]
                     return parent_class
                 raise self._create_error(
                     HPLAttributeError,
-                    f"Class '{obj.hpl_class.name}' has no parent class",
+                    f"Class '{reference_class.name}' has no parent class",
                     line=expr.line if hasattr(expr, 'line') else None,
                     column=expr.column if hasattr(expr, 'column') else None,
                     local_scope=local_scope,
@@ -919,7 +952,6 @@ class HPLEvaluator:
             local_scope=local_scope,
             error_key='TYPE_INVALID_OPERATION'
         )
-
     
     def _eval_postfix_increment(self, expr, local_scope):
         var_name = expr.var.name
@@ -938,6 +970,24 @@ class HPLEvaluator:
         self._update_variable(var_name, new_value, local_scope)
         return value
     
+    def _eval_prefix_increment(self, expr, local_scope):
+        """评估前缀自增表达式 (++x) - 返回新值"""
+        var_name = expr.var.name
+        value = self._lookup_variable(var_name, local_scope)
+        if not isinstance(value, (int, float)):
+            raise self._create_error(
+                HPLTypeError,
+                f"Cannot increment non-numeric value: {type(value).__name__}",
+                line=expr.line if hasattr(expr, 'line') else None,
+                column=expr.column if hasattr(expr, 'column') else None,
+                local_scope=local_scope,
+                error_key='TYPE_INVALID_OPERATION'
+            )
+
+        new_value = value + 1
+        self._update_variable(var_name, new_value, local_scope)
+        return new_value  # 前缀自增返回新值
+    
     def _eval_array_literal(self, expr, local_scope):
         return [self.evaluate_expression(elem, local_scope) for elem in expr.elements]
     
@@ -952,7 +1002,6 @@ class HPLEvaluator:
         """评估箭头函数表达式，返回可调用对象"""
         return HPLArrowFunction(expr.params, expr.body, local_scope, self)
 
-    
     def _eval_array_access(self, expr, local_scope):
         """评估数组/字典/字符串索引访问"""
         array = self.evaluate_expression(expr.array, local_scope)
@@ -1027,7 +1076,6 @@ class HPLEvaluator:
             local_scope,
             error_key='RUNTIME_KEY_NOT_FOUND'
         )
-
     
     def _access_string(self, array, index, expr, local_scope):
         """访问字符串"""
@@ -1076,7 +1124,6 @@ class HPLEvaluator:
                 suggestions.append(f"Character at this position is: '{char}'")
             elif index < length + 5:
                 suggestions.append(f"Out of range, string content: '{array}'")
-
         
         hint = f" ({'; '.join(suggestions)})" if suggestions else ""
         raise self._create_error(
@@ -1126,7 +1173,6 @@ class HPLEvaluator:
             suggestions.append(f"Valid index range: 0 to {length - 1}")
         else:
             suggestions.append("Array is empty, cannot access any index")
-
         
         if length > 0 and index >= 0 and index < length + 3:
             if index < length:
@@ -1138,7 +1184,6 @@ class HPLEvaluator:
                     suggestions.append(f"Array content: {array}")
                 else:
                     suggestions.append(f"First 5 elements of array: {array[:5]}")
-
         
         hint = f" ({'; '.join(suggestions)})" if suggestions else ""
         raise self._create_error(
@@ -1165,7 +1210,6 @@ class HPLEvaluator:
                 return left + right
             # 字符串拼接
             return str(left) + str(right)
-
         
         # 算术运算符需要数值操作数
         if op in ('-', '*', '/', '%'):
@@ -1184,7 +1228,6 @@ class HPLEvaluator:
                     error_key='RUNTIME_DIVISION_BY_ZERO'
                 )
 
-
             return left / right
         elif op == '%':
             if right == 0:
@@ -1194,7 +1237,6 @@ class HPLEvaluator:
                     line, column,
                     error_key='RUNTIME_DIVISION_BY_ZERO'
                 )
-
 
             return left % right
 
@@ -1294,7 +1336,6 @@ class HPLEvaluator:
                 error_key='RUNTIME_UNDEFINED_VAR'
             )
 
-
     def _update_variable(self, name, value, local_scope):
         """统一变量更新逻辑"""
         if name in local_scope:
@@ -1329,7 +1370,32 @@ class HPLEvaluator:
         
         return None
 
+    def _find_method_owner_class(self, hpl_class, method_name):
+        """查找方法所属的类（用于确定 current_class）"""
+        # 支持 init 作为 __init__ 的别名
+        if method_name == 'init':
+            alt_method_name = '__init__'
+        elif method_name == '__init__':
+            alt_method_name = 'init'
+        else:
+            alt_method_name = None
+        
+        # 当前类中查找
+        if method_name in hpl_class.methods:
+            return hpl_class
+        if alt_method_name and alt_method_name in hpl_class.methods:
+            return hpl_class
+        
+        # 向上递归查找父类
+        if hpl_class.parent:
+            parent_class = self.classes.get(hpl_class.parent)
+            if parent_class:
+                return self._find_method_owner_class(parent_class, method_name)
+        
+        return None
+
     def _call_method(self, obj, method_name, args):
+
         """统一方法调用逻辑"""
         # 处理父类方法调用（当 obj 是 HPLClass 时）
         if isinstance(obj, HPLClass):
@@ -1342,14 +1408,19 @@ class HPLEvaluator:
                 # 父类方法调用时，this 仍然指向当前对象
                 method_scope = {param: args[i] for i, param in enumerate(method.params) if i < len(args)}
                 method_scope['this'] = self.current_obj
-                return self.execute_function(method, method_scope)
+                # 设置 current_class 为父类，以支持多级继承中的 this.parent 访问
+                prev_class = self.current_class
+                self.current_class = obj
+                try:
+                    return self.execute_function(method, method_scope)
+                finally:
+                    self.current_class = prev_class
             else:
                 raise self._create_error(
                     HPLAttributeError,
                     f"Method '{method_name}' not found in parent class '{obj.name}'",
                     error_key='TYPE_MISSING_PROPERTY'
                 )
-
 
         hpl_class = obj.hpl_class
         
@@ -1366,11 +1437,16 @@ class HPLEvaluator:
                 error_key='TYPE_MISSING_PROPERTY'
             )
 
-
-
         # 为'this'设置current_obj
         prev_obj = self.current_obj
         self.current_obj = obj
+        
+        # 确定方法所属的类（用于设置 current_class）
+        method_owner_class = self._find_method_owner_class(hpl_class, method_name)
+        
+        # 设置 current_class 为方法所属的类，以支持多级继承中的 this.parent 访问
+        prev_class = self.current_class
+        self.current_class = method_owner_class if method_owner_class else hpl_class
         
         # 创建方法调用的局部作用域
         method_scope = {param: args[i] for i, param in enumerate(method.params) if i < len(args)}
@@ -1386,6 +1462,7 @@ class HPLEvaluator:
             # 从调用栈移除
             self.call_stack.pop()
             self.current_obj = prev_obj
+            self.current_class = prev_class
         
         return result
 
@@ -1401,7 +1478,6 @@ class HPLEvaluator:
         
         if constructor:
             self._call_method(obj, 'init' if self._find_method_in_class_hierarchy(hpl_class, 'init') else '__init__', args)
-
     
     def _call_parent_constructors_recursive(self, obj, parent_class, args):
         """递归调用父类构造函数链"""
@@ -1432,9 +1508,9 @@ class HPLEvaluator:
                         self.call_stack.pop()
                         self.current_obj = prev_obj
                 
-                # 继续递归向上
-                self._call_parent_constructors_recursive(obj, grandparent_class, args)
-
+                # 只有当祖父类还有父类时才继续递归向上
+                if grandparent_class.parent:
+                    self._call_parent_constructors_recursive(obj, grandparent_class, args)
 
     def instantiate_object(self, class_name: str, obj_name: str, init_args: Optional[list[Any]] = None) -> HPLObject:
         """实例化对象并调用构造函数"""
@@ -1452,7 +1528,14 @@ class HPLEvaluator:
         # 调用构造函数（如果存在）
         if init_args is None:
             init_args = []
-        self._call_constructor(obj, init_args)
+        
+        # 设置 current_class 为对象的类，以支持构造函数中的 this.parent 访问
+        prev_class = self.current_class
+        self.current_class = hpl_class
+        try:
+            self._call_constructor(obj, init_args)
+        finally:
+            self.current_class = prev_class
         
         return obj
 
@@ -1501,8 +1584,6 @@ class HPLEvaluator:
             f"Cannot get constant from non-module object",
             error_key='TYPE_INVALID_OPERATION'
         )
-
-
 
     def _create_error(self, error_class: type[HPLError], message: str, line: Optional[int] = None, 
                     column: Optional[int] = None, local_scope: Optional[dict[str, Any]] = None, 

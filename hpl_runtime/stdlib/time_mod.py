@@ -11,29 +11,20 @@ try:
     from hpl_runtime.modules.base import HPLModule
     from hpl_runtime.utils.exceptions import HPLTypeError, HPLValueError
 except ImportError:
-    try:
-        from hpl_runtime.modules.base import HPLModule
-        from hpl_runtime.utils.exceptions import HPLTypeError, HPLValueError
-    except ImportError:
-        import sys
-        import os
-        sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-        from hpl_runtime.modules.base import HPLModule
-        from hpl_runtime.utils.exceptions import HPLTypeError, HPLValueError
-
-
-
+    import sys
+    import os
+    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    from hpl_runtime.modules.base import HPLModule
+    from hpl_runtime.utils.exceptions import HPLTypeError, HPLValueError
 
 
 def now():
     """获取当前时间戳（秒）"""
     return _time.time()
 
-
 def now_ms():
     """获取当前时间戳（毫秒）"""
     return int(_time.time() * 1000)
-
 
 def sleep(seconds):
     """休眠指定秒数"""
@@ -41,11 +32,9 @@ def sleep(seconds):
         raise HPLTypeError(f"sleep() requires number, got {type(seconds).__name__}")
     if seconds < 0:
         raise HPLValueError("sleep() requires non-negative number")
-
     
     _time.sleep(seconds)
     return True
-
 
 def sleep_ms(milliseconds):
     """休眠指定毫秒数"""
@@ -53,11 +42,9 @@ def sleep_ms(milliseconds):
         raise HPLTypeError(f"sleep_ms() requires number, got {type(milliseconds).__name__}")
     if milliseconds < 0:
         raise HPLValueError("sleep_ms() requires non-negative number")
-
     
     _time.sleep(milliseconds / 1000.0)
     return True
-
 
 def format_time(timestamp=None, format_str="%Y-%m-%d %H:%M:%S"):
     """格式化时间"""
@@ -73,8 +60,6 @@ def format_time(timestamp=None, format_str="%Y-%m-%d %H:%M:%S"):
     
     return dt.strftime(format_str)
 
-
-
 def parse_time(time_str, format_str="%Y-%m-%d %H:%M:%S"):
     """解析时间字符串"""
     if not isinstance(time_str, str):
@@ -88,8 +73,6 @@ def parse_time(time_str, format_str="%Y-%m-%d %H:%M:%S"):
     except ValueError as e:
         raise HPLValueError(f"Cannot parse time: {e}")
 
-
-
 def get_year(timestamp=None):
     """获取年份"""
     if timestamp is None:
@@ -98,7 +81,6 @@ def get_year(timestamp=None):
         raise HPLTypeError(f"get_year() requires number, got {type(timestamp).__name__}")
 
     return _datetime.datetime.fromtimestamp(timestamp).year
-
 
 def get_month(timestamp=None):
     """获取月份 (1-12)"""
@@ -109,7 +91,6 @@ def get_month(timestamp=None):
 
     return _datetime.datetime.fromtimestamp(timestamp).month
 
-
 def get_day(timestamp=None):
     """获取日期 (1-31)"""
     if timestamp is None:
@@ -118,7 +99,6 @@ def get_day(timestamp=None):
         raise HPLTypeError(f"get_day() requires number, got {type(timestamp).__name__}")
 
     return _datetime.datetime.fromtimestamp(timestamp).day
-
 
 def get_hour(timestamp=None):
     """获取小时 (0-23)"""
@@ -129,7 +109,6 @@ def get_hour(timestamp=None):
 
     return _datetime.datetime.fromtimestamp(timestamp).hour
 
-
 def get_minute(timestamp=None):
     """获取分钟 (0-59)"""
     if timestamp is None:
@@ -138,7 +117,6 @@ def get_minute(timestamp=None):
         raise HPLTypeError(f"get_minute() requires number, got {type(timestamp).__name__}")
 
     return _datetime.datetime.fromtimestamp(timestamp).minute
-
 
 def get_second(timestamp=None):
     """获取秒 (0-59)"""
@@ -149,7 +127,6 @@ def get_second(timestamp=None):
 
     return _datetime.datetime.fromtimestamp(timestamp).second
 
-
 def get_weekday(timestamp=None):
     """获取星期几 (0=周一, 6=周日)"""
     if timestamp is None:
@@ -158,7 +135,6 @@ def get_weekday(timestamp=None):
         raise HPLTypeError(f"get_weekday() requires number, got {type(timestamp).__name__}")
 
     return _datetime.datetime.fromtimestamp(timestamp).weekday()
-
 
 def get_iso_date(timestamp=None):
     """获取 ISO 格式日期"""
@@ -169,7 +145,6 @@ def get_iso_date(timestamp=None):
 
     return _datetime.datetime.fromtimestamp(timestamp).date().isoformat()
 
-
 def get_iso_time(timestamp=None):
     """获取 ISO 格式时间"""
     if timestamp is None:
@@ -179,7 +154,6 @@ def get_iso_time(timestamp=None):
 
     return _datetime.datetime.fromtimestamp(timestamp).time().isoformat()
 
-
 def add_days(timestamp, days):
     """添加天数"""
     if not isinstance(timestamp, (int, float)):
@@ -187,11 +161,9 @@ def add_days(timestamp, days):
     if not isinstance(days, (int, float)):
         raise HPLTypeError(f"add_days() requires number for days, got {type(days).__name__}")
 
-    
     dt = _datetime.datetime.fromtimestamp(timestamp)
     new_dt = dt + _datetime.timedelta(days=days)
     return new_dt.timestamp()
-
 
 def diff_days(timestamp1, timestamp2):
     """计算两个时间戳相差的天数"""
@@ -200,17 +172,14 @@ def diff_days(timestamp1, timestamp2):
     if not isinstance(timestamp2, (int, float)):
         raise HPLTypeError(f"diff_days() requires number for timestamp2, got {type(timestamp2).__name__}")
 
-    
     dt1 = _datetime.datetime.fromtimestamp(timestamp1)
     dt2 = _datetime.datetime.fromtimestamp(timestamp2)
     diff = dt2 - dt1
     return diff.days
 
-
 def utc_now():
     """获取 UTC 时间戳"""
     return _datetime.datetime.utcnow().timestamp()
-
 
 def local_timezone():
     """获取本地时区偏移（小时）"""
@@ -218,7 +187,6 @@ def local_timezone():
         return -_time.altzone / 3600
     else:
         return -_time.timezone / 3600
-
 
 # 创建模块实例
 module = HPLModule('time', 'Date and time functions')

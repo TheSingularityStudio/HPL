@@ -19,11 +19,9 @@ import logging
 from pathlib import Path
 from collections import OrderedDict
 
-
 # 从 module_base 导入 HPLModule 基类
 from hpl_runtime.modules.base import HPLModule
 from hpl_runtime.utils.exceptions import HPLImportError, HPLValueError, HPLRuntimeError
-
 
 # 配置日志
 logger = logging.getLogger('hpl.module_loader')
@@ -84,8 +82,6 @@ class ModuleCache:
         """清空缓存"""
         self.cache.clear()
 
-
-
 # 模块缓存（使用 LRU 机制，默认最大 100 个模块）
 _module_cache = ModuleCache(capacity=100)
 
@@ -101,8 +97,6 @@ HPL_MODULE_PATHS = [HPL_PACKAGES_DIR]
 # 确保配置目录存在
 HPL_CONFIG_DIR.mkdir(parents=True, exist_ok=True)
 HPL_PACKAGES_DIR.mkdir(parents=True, exist_ok=True)
-
-
 
 # 循环导入检测 - 正在加载中的模块集合
 _loading_modules = set()
@@ -134,10 +128,8 @@ class ModuleLoaderContext:
         """清除当前上下文"""
         self._current_file_dir = None
 
-
 # 全局上下文实例（单例模式）
 _loader_context = ModuleLoaderContext()
-
 
 def set_current_hpl_file(file_path):
     """
@@ -147,16 +139,13 @@ def set_current_hpl_file(file_path):
     """
     _loader_context.set_current_file(file_path)
 
-
 def get_loader_context():
     """获取模块加载器上下文，用于高级用法（如嵌套导入管理）"""
     return _loader_context
 
-
 def register_module(name, module_instance):
     """注册标准库模块"""
     _stdlib_modules[name] = module_instance
-
 
 def get_module(name):
     """获取已注册的模块"""
@@ -164,13 +153,11 @@ def get_module(name):
         return _stdlib_modules[name]
     return None
 
-
 def add_module_path(path):
     """添加模块搜索路径"""
     path = Path(path).resolve()
     if path not in HPL_MODULE_PATHS:
         HPL_MODULE_PATHS.insert(0, path)
-
 
 def load_module(module_name, search_paths=None):
     """
@@ -198,7 +185,6 @@ def load_module(module_name, search_paths=None):
         logger.debug(f"Module '{module_name}' found in cache")
         return cached_module
 
-    
     # 1. 尝试加载标准库模块
     module = get_module(module_name)
     if module:
@@ -206,7 +192,6 @@ def load_module(module_name, search_paths=None):
         _module_cache.put(module_name, module)
         return module
 
-    
     # 检查是否是文件路径（相对路径或绝对路径）
     # 文件路径包含 / 或 \，或以 ./ 或 ../ 开头
     is_file_path = '/' in module_name or '\\' in module_name or module_name.startswith(('./', '../'))
@@ -232,7 +217,6 @@ def load_module(module_name, search_paths=None):
         logger.debug(f"Module '{module_name}' loaded from Python file")
         _module_cache.put(module_name, module)
         return module
-
     
     # 模块未找到
     available = list(_stdlib_modules.keys())
@@ -241,7 +225,6 @@ def load_module(module_name, search_paths=None):
         f"Available stdlib modules: {available}. "
         f"Searched paths: {HPL_MODULE_PATHS}"
     )
-
 
 def _load_python_package(module_name):
     """
@@ -277,7 +260,6 @@ def _load_python_package(module_name):
     except Exception as e:
         logger.warning(f"Failed to load Python package '{module_name}': {e}")
         raise HPLImportError(f"Failed to load Python package '{module_name}': {e}") from e
-
 
 def _load_hpl_module(module_name, search_paths=None):
     """
@@ -337,7 +319,6 @@ def _load_hpl_module(module_name, search_paths=None):
     
     return None
 
-
 def _load_python_module(module_name, search_paths=None):
     """
     加载本地 Python 模块文件 (.py)
@@ -396,7 +377,6 @@ def _load_python_module(module_name, search_paths=None):
     
     return None
 
-
 def _parse_hpl_module(module_name, file_path):
     """
     解析 HPL 模块文件
@@ -421,14 +401,9 @@ def _parse_hpl_module(module_name, file_path):
     
     try:
         # 延迟导入以避免循环依赖
-        try:
-            from hpl_runtime.core.parser import HPLParser
-            from hpl_runtime.core.evaluator import HPLEvaluator
-            from hpl_runtime.core.models import HPLObject
-        except ImportError:
-            from hpl_runtime.core.parser import HPLParser
-            from hpl_runtime.core.evaluator import HPLEvaluator
-            from hpl_runtime.core.models import HPLObject
+        from hpl_runtime.core.parser import HPLParser
+        from hpl_runtime.core.evaluator import HPLEvaluator
+        from hpl_runtime.core.models import HPLObject
 
         # 检查文件是否存在
         if not file_path.exists():
@@ -496,8 +471,7 @@ def _parse_hpl_module(module_name, file_path):
                 init_param_count,
                 f"Class constructor: {class_name}"
             )
-
-        
+ 
         # 将对象注册为常量（执行构造函数如果存在）
         for obj_name, obj in objects.items():
             # 如果对象有预定义的构造参数，执行构造函数
@@ -509,17 +483,22 @@ def _parse_hpl_module(module_name, file_path):
                     if isinstance(arg, (int, float, bool)):
                         resolved_args.append(arg)
                     elif isinstance(arg, str):
+                        # 去除字符串两端的引号（单引号或双引号）
+                        stripped_arg = arg.strip()
+                        if (stripped_arg.startswith('"') and stripped_arg.endswith('"')) or \
+                           (stripped_arg.startswith("'") and stripped_arg.endswith("'")):
+                            stripped_arg = stripped_arg[1:-1]
                         # 尝试解析为数字
                         try:
-                            resolved_args.append(int(arg))
+                            resolved_args.append(int(stripped_arg))
                         except ValueError:
                             try:
-                                resolved_args.append(float(arg))
+                                resolved_args.append(float(stripped_arg))
                             except ValueError:
-                                resolved_args.append(arg)
+                                resolved_args.append(stripped_arg)
                 # 执行构造函数
                 evaluator._call_constructor(obj, resolved_args)
-            
+ 
             hpl_module.register_constant(obj_name, obj, f"Object instance: {obj_name}")
         
         # 注册顶层函数到模块
@@ -569,7 +548,6 @@ def _parse_hpl_module(module_name, file_path):
                 print(f"Warning: Failed to import '{module_name_to_import}' in module '{module_name}': {e}")
                 raise HPLImportError(f"Failed to import '{module_name_to_import}' in module '{module_name}': {e}") from e
 
-        
         return hpl_module
         
     except FileNotFoundError as e:
@@ -584,7 +562,6 @@ def _parse_hpl_module(module_name, file_path):
         _loading_modules.discard(module_name)
         # 恢复之前的上下文
         _loader_context._current_file_dir = previous_context
-
 
 def _parse_python_module_file(module_name, file_path):
     """
@@ -678,7 +655,6 @@ def _parse_python_module_file(module_name, file_path):
         logger.warning(f"Failed to load Python module '{module_name}': {e}")
         raise HPLImportError(f"Failed to load Python module '{module_name}': {e}") from e
 
-
 def install_package(package_name, version=None):
     """
     安装 Python 包到 HPL 包目录
@@ -709,7 +685,6 @@ def install_package(package_name, version=None):
         logger.error(f"Error installing package: {e}")
         raise HPLRuntimeError(f"Error installing package '{package_name}': {e}") from e
 
-
 def uninstall_package(package_name):
     """
     卸载 Python 包
@@ -738,7 +713,6 @@ def uninstall_package(package_name):
         logger.error(f"Error uninstalling package: {e}")
         raise HPLRuntimeError(f"Error uninstalling package '{package_name}': {e}") from e
 
-
 def list_installed_packages():
     """
     列出已安装的包
@@ -757,12 +731,10 @@ def list_installed_packages():
     
     return sorted(packages)
 
-
 def clear_cache():
     """清除模块缓存"""
     _module_cache.clear()
     _loading_modules.clear()  # 同时清除加载中集合
-
 
 def init_stdlib():
     """初始化所有标准库模块"""
@@ -794,7 +766,6 @@ def init_stdlib():
     except ImportError as e:
         # 如果某些模块导入失败，记录错误但不中断
         logger.warning(f"Some stdlib modules failed to load: {e}")
-
 
 # 初始化标准库
 init_stdlib()

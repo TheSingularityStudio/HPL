@@ -14,15 +14,11 @@ try:
     from hpl_runtime.modules.base import HPLModule
     from hpl_runtime.utils.exceptions import HPLTypeError, HPLValueError, HPLIOError
 except ImportError:
-    try:
-        from hpl_runtime.modules.base import HPLModule
-        from hpl_runtime.utils.exceptions import HPLTypeError, HPLValueError, HPLIOError
-    except ImportError:
-        import sys
-        import os
-        sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-        from hpl_runtime.modules.base import HPLModule
-        from hpl_runtime.utils.exceptions import HPLTypeError, HPLValueError, HPLIOError
+    import sys
+    import os
+    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    from hpl_runtime.modules.base import HPLModule
+    from hpl_runtime.utils.exceptions import HPLTypeError, HPLValueError, HPLIOError
 
 
 def _create_ssl_context(verify=True):
@@ -35,7 +31,6 @@ def _create_ssl_context(verify=True):
         context.check_hostname = False
         context.verify_mode = _ssl.CERT_NONE
         return context
-
 
 def _make_request(url, method='GET', data=None, headers=None, timeout=30, verify_ssl=True):
     """执行HTTP请求"""
@@ -91,7 +86,6 @@ def _make_request(url, method='GET', data=None, headers=None, timeout=30, verify
     except Exception as e:
         raise HPLIOError(f"Request error: {e}", operation=f"{method} {url}")
 
-
 def get(url, headers=None, timeout=30, verify_ssl=True):
     """
     发送HTTP GET请求
@@ -106,7 +100,6 @@ def get(url, headers=None, timeout=30, verify_ssl=True):
         raise HPLTypeError(f"get() requires number timeout, got {type(timeout).__name__}")
     
     return _make_request(url, 'GET', None, headers, timeout, verify_ssl)
-
 
 def post(url, data=None, headers=None, timeout=30, verify_ssl=True):
     """
@@ -124,7 +117,6 @@ def post(url, data=None, headers=None, timeout=30, verify_ssl=True):
     
     return _make_request(url, 'POST', data, headers, timeout, verify_ssl)
 
-
 def put(url, data=None, headers=None, timeout=30, verify_ssl=True):
     """
     发送HTTP PUT请求
@@ -140,7 +132,6 @@ def put(url, data=None, headers=None, timeout=30, verify_ssl=True):
     
     return _make_request(url, 'PUT', data, headers, timeout, verify_ssl)
 
-
 def delete(url, headers=None, timeout=30, verify_ssl=True):
     """
     发送HTTP DELETE请求
@@ -155,7 +146,6 @@ def delete(url, headers=None, timeout=30, verify_ssl=True):
         raise HPLTypeError(f"delete() requires number timeout, got {type(timeout).__name__}")
     
     return _make_request(url, 'DELETE', None, headers, timeout, verify_ssl)
-
 
 def head(url, headers=None, timeout=30, verify_ssl=True):
     """
@@ -174,7 +164,6 @@ def head(url, headers=None, timeout=30, verify_ssl=True):
     # HEAD请求通常没有body
     result['body'] = ''
     return result
-
 
 def request(method, url, data=None, headers=None, timeout=30, verify_ssl=True):
     """
@@ -195,7 +184,6 @@ def request(method, url, data=None, headers=None, timeout=30, verify_ssl=True):
     
     return _make_request(url, method, data, headers, timeout, verify_ssl)
 
-
 def encode_url(params):
     """
     URL编码参数字典
@@ -207,7 +195,6 @@ def encode_url(params):
     
     return _urllib_parse.urlencode(params)
 
-
 def decode_url(query_string):
     """
     解码URL查询字符串
@@ -218,7 +205,6 @@ def decode_url(query_string):
         raise HPLTypeError(f"decode_url() requires string, got {type(query_string).__name__}")
     
     return dict(_urllib_parse.parse_qsl(query_string))
-
 
 def parse_url(url):
     """
@@ -243,7 +229,6 @@ def parse_url(url):
         'port': parsed.port
     }
 
-
 def build_url(base, params=None):
     """
     构建完整URL
@@ -263,7 +248,6 @@ def build_url(base, params=None):
     
     return base
 
-
 def is_success(status_code):
     """
     检查HTTP状态码是否表示成功 (2xx)
@@ -274,7 +258,6 @@ def is_success(status_code):
         raise HPLTypeError(f"is_success() requires int, got {type(status_code).__name__}")
     
     return 200 <= status_code < 300
-
 
 def is_redirect(status_code):
     """
@@ -287,7 +270,6 @@ def is_redirect(status_code):
     
     return 300 <= status_code < 400
 
-
 def is_client_error(status_code):
     """
     检查HTTP状态码是否表示客户端错误 (4xx)
@@ -299,7 +281,6 @@ def is_client_error(status_code):
     
     return 400 <= status_code < 500
 
-
 def is_server_error(status_code):
     """
     检查HTTP状态码是否表示服务器错误 (5xx)
@@ -310,7 +291,6 @@ def is_server_error(status_code):
         raise HPLTypeError(f"is_server_error() requires int, got {type(status_code).__name__}")
     
     return 500 <= status_code < 600
-
 
 # 创建模块实例
 module = HPLModule('net', 'HTTP networking operations')

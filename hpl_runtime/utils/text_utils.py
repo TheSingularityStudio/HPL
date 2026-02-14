@@ -25,7 +25,6 @@ def skip_whitespace(text, pos, skip_newline=False):
         pos += 1
     return pos
 
-
 def skip_comment(text, pos, comment_char='#'):
     """
     跳过从当前位置到行尾的注释
@@ -41,7 +40,6 @@ def skip_comment(text, pos, comment_char='#'):
     while pos < len(text) and text[pos] != '\n':
         pos += 1
     return pos
-
 
 def strip_inline_comment(line):
     """
@@ -85,7 +83,6 @@ def strip_inline_comment(line):
         i += 1
     
     return ''.join(result).rstrip()
-
 
 def preprocess_functions(content):
     """
@@ -154,9 +151,6 @@ def preprocess_functions(content):
     
     return '\n'.join(result)
 
-
-
-
 def parse_call_expression(call_str):
     """
     解析 call 表达式，提取函数名和参数
@@ -199,7 +193,6 @@ def parse_call_expression(call_str):
     else:
         # 没有括号，如 call: main
         return call_str, []
-
 
 def extract_function_info(func_str):
     """

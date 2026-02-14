@@ -10,18 +10,11 @@ try:
     from hpl_runtime.modules.base import HPLModule
     from hpl_runtime.utils.exceptions import HPLTypeError, HPLValueError, HPLIOError
 except ImportError:
-    try:
-        from hpl_runtime.modules.base import HPLModule
-        from hpl_runtime.utils.exceptions import HPLTypeError, HPLValueError, HPLIOError
-    except ImportError:
-        import sys
-        import os
-        sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-        from hpl_runtime.modules.base import HPLModule
-        from hpl_runtime.utils.exceptions import HPLTypeError, HPLValueError, HPLIOError
-
-
-
+    import sys
+    import os
+    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    from hpl_runtime.modules.base import HPLModule
+    from hpl_runtime.utils.exceptions import HPLTypeError, HPLValueError, HPLIOError
 
 
 def parse(json_str):
@@ -35,8 +28,6 @@ def parse(json_str):
         return _convert_to_hpl(result)
     except _json.JSONDecodeError as e:
         raise HPLValueError(f"Invalid JSON: {e}")
-
-
 
 def stringify(value, indent=None):
     """将 HPL 值转换为 JSON 字符串"""
@@ -52,8 +43,6 @@ def stringify(value, indent=None):
     except (TypeError, ValueError) as e:
         raise HPLValueError(f"Cannot convert to JSON: {e}")
 
-
-
 def read_json(path):
     """从文件读取 JSON"""
     if not isinstance(path, str):
@@ -68,14 +57,11 @@ def read_json(path):
     
     return parse(content)
 
-
-
 def write_json(path, value, indent=None):
     """将值写入 JSON 文件"""
     if not isinstance(path, str):
         raise HPLTypeError(f"write_json() requires string path, got {type(path).__name__}")
 
-    
     json_str = stringify(value, indent)
     
     import os
@@ -87,7 +73,6 @@ def write_json(path, value, indent=None):
         f.write(json_str)
     
     return True
-
 
 def _convert_to_hpl(value):
     """将 Python 值转换为 HPL 兼容值"""
@@ -108,7 +93,6 @@ def _convert_to_hpl(value):
         return [[k, _convert_to_hpl(v)] for k, v in value.items()]
     else:
         return str(value)
-
 
 def _convert_from_hpl(value):
     """将 HPL 值转换为 Python 值"""
@@ -133,7 +117,6 @@ def _convert_from_hpl(value):
     else:
         return str(value)
 
-
 def is_valid(json_str):
     """检查字符串是否为有效 JSON"""
     if not isinstance(json_str, str):
@@ -144,7 +127,6 @@ def is_valid(json_str):
         return True
     except _json.JSONDecodeError:
         return False
-
 
 # 创建模块实例
 module = HPLModule('json', 'JSON parsing and generation')

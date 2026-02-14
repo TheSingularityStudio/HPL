@@ -19,7 +19,6 @@ def get_token_position(token):
         return getattr(token, 'line', None), getattr(token, 'column', None)
     return None, None
 
-
 def is_block_terminator(token, peek_func=None, indent_level=0):
     """
     检查当前token是否是块结束标记
@@ -45,14 +44,12 @@ def is_block_terminator(token, peek_func=None, indent_level=0):
             return token.value <= indent_level
         # 如果没有value属性，保守地视为终止符
         return True
-
     
     # else 和 catch 是明确的块终止符
     if token.type == 'KEYWORD' and token.value in ['else', 'catch']:
         return True
     
     return False
-
 
 def consume_indent(tokens, pos):
     """
@@ -69,7 +66,6 @@ def consume_indent(tokens, pos):
         return pos + 1
     return pos
 
-
 def skip_dedents(tokens, pos):
     """
     跳过连续的DEDENT token
@@ -84,7 +80,6 @@ def skip_dedents(tokens, pos):
     while pos < len(tokens) and tokens[pos].type == 'DEDENT':
         pos += 1
     return pos
-
 
 def find_matching_brace(text, start_pos, open_char='{', close_char='}'):
     """
@@ -110,7 +105,6 @@ def find_matching_brace(text, start_pos, open_char='{', close_char='}'):
         pos += 1
     
     return pos - 1 if brace_count == 0 else -1
-
 
 def extract_params_from_signature(sig_str):
     """

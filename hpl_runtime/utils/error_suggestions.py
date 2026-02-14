@@ -664,7 +664,6 @@ class ErrorSuggestionEngine:
         # 目前返回空列表，实际实现需要更多上下文信息
         return []
 
-
 # 便捷函数
 def create_suggestion_engine(global_scope=None, local_scope=None, evaluator=None):
     """
@@ -679,7 +678,6 @@ def create_suggestion_engine(global_scope=None, local_scope=None, evaluator=None
         ErrorSuggestionEngine 实例
     """
     return ErrorSuggestionEngine(global_scope, local_scope, evaluator)
-
 
 def get_smart_suggestions(error, global_scope=None, local_scope=None) -> List[str]:
     """

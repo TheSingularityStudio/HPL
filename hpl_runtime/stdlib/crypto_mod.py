@@ -15,15 +15,11 @@ try:
     from hpl_runtime.modules.base import HPLModule
     from hpl_runtime.utils.exceptions import HPLTypeError, HPLValueError
 except ImportError:
-    try:
-        from hpl_runtime.modules.base import HPLModule
-        from hpl_runtime.utils.exceptions import HPLTypeError, HPLValueError
-    except ImportError:
-        import sys
-        import os
-        sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-        from hpl_runtime.modules.base import HPLModule
-        from hpl_runtime.utils.exceptions import HPLTypeError, HPLValueError
+    import sys
+    import os
+    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    from hpl_runtime.modules.base import HPLModule
+    from hpl_runtime.utils.exceptions import HPLTypeError, HPLValueError
 
 
 # 哈希函数
@@ -37,7 +33,6 @@ def md5(data):
     
     return _hashlib.md5(data).hexdigest()
 
-
 def sha1(data):
     """计算SHA1哈希（40位十六进制字符串）"""
     if isinstance(data, str):
@@ -46,7 +41,6 @@ def sha1(data):
         raise HPLTypeError(f"sha1() requires string or bytes, got {type(data).__name__}")
     
     return _hashlib.sha1(data).hexdigest()
-
 
 def sha256(data):
     """计算SHA256哈希（64位十六进制字符串）"""
@@ -57,7 +51,6 @@ def sha256(data):
     
     return _hashlib.sha256(data).hexdigest()
 
-
 def sha512(data):
     """计算SHA512哈希（128位十六进制字符串）"""
     if isinstance(data, str):
@@ -66,7 +59,6 @@ def sha512(data):
         raise HPLTypeError(f"sha512() requires string or bytes, got {type(data).__name__}")
     
     return _hashlib.sha512(data).hexdigest()
-
 
 def sha3_256(data):
     """计算SHA3-256哈希（如果可用）"""
@@ -80,7 +72,6 @@ def sha3_256(data):
     except AttributeError:
         raise HPLValueError("sha3_256() not available in this Python version")
 
-
 def sha3_512(data):
     """计算SHA3-512哈希（如果可用）"""
     if isinstance(data, str):
@@ -92,7 +83,6 @@ def sha3_512(data):
         return _hashlib.sha3_512(data).hexdigest()
     except AttributeError:
         raise HPLValueError("sha3_512() not available in this Python version")
-
 
 def blake2b(data, digest_size=64):
     """计算BLAKE2b哈希"""
@@ -108,7 +98,6 @@ def blake2b(data, digest_size=64):
     except AttributeError:
         raise HPLValueError("blake2b() not available in this Python version")
 
-
 def blake2s(data, digest_size=32):
     """计算BLAKE2s哈希"""
     if isinstance(data, str):
@@ -122,7 +111,6 @@ def blake2s(data, digest_size=32):
         return _hashlib.blake2s(data, digest_size=digest_size).hexdigest()
     except AttributeError:
         raise HPLValueError("blake2s() not available in this Python version")
-
 
 def hash(data, algorithm='sha256'):
     """使用指定算法计算哈希"""
@@ -159,7 +147,6 @@ def hash(data, algorithm='sha256'):
     except ValueError as e:
         raise HPLValueError(f"hash() algorithm not available: {e}")
 
-
 def hmac(data, key, algorithm='sha256'):
     """计算HMAC签名"""
     if isinstance(data, str):
@@ -192,7 +179,6 @@ def hmac(data, key, algorithm='sha256'):
     
     return _hmac.new(key, data, algorithms[algorithm]).hexdigest()
 
-
 # 编码函数
 
 def base64_encode(data):
@@ -203,7 +189,6 @@ def base64_encode(data):
         raise HPLTypeError(f"base64_encode() requires string or bytes, got {type(data).__name__}")
     
     return _base64.b64encode(data).decode('ascii')
-
 
 def base64_decode(data):
     """Base64解码"""
@@ -216,7 +201,6 @@ def base64_decode(data):
         # 如果无法解码为UTF-8，返回原始bytes
         return _base64.b64decode(data)
 
-
 def base64_urlsafe_encode(data):
     """URL安全的Base64编码"""
     if isinstance(data, str):
@@ -225,7 +209,6 @@ def base64_urlsafe_encode(data):
         raise HPLTypeError(f"base64_urlsafe_encode() requires string or bytes, got {type(data).__name__}")
     
     return _base64.urlsafe_b64encode(data).decode('ascii')
-
 
 def base64_urlsafe_decode(data):
     """URL安全的Base64解码"""
@@ -237,14 +220,12 @@ def base64_urlsafe_decode(data):
     except UnicodeDecodeError:
         return _base64.urlsafe_b64decode(data)
 
-
 def url_encode(data):
     """URL编码"""
     if not isinstance(data, str):
         raise HPLTypeError(f"url_encode() requires string, got {type(data).__name__}")
     
     return _urllib_parse.quote(data, safe='')
-
 
 def url_decode(data):
     """URL解码"""
@@ -253,7 +234,6 @@ def url_decode(data):
     
     return _urllib_parse.unquote(data)
 
-
 def url_encode_plus(data):
     """URL编码（空格转为+）"""
     if not isinstance(data, str):
@@ -261,14 +241,12 @@ def url_encode_plus(data):
     
     return _urllib_parse.quote_plus(data)
 
-
 def url_decode_plus(data):
     """URL解码（+转为空格）"""
     if not isinstance(data, str):
         raise HPLTypeError(f"url_decode_plus() requires string, got {type(data).__name__}")
     
     return _urllib_parse.unquote_plus(data)
-
 
 # 安全随机数生成
 
@@ -283,7 +261,6 @@ def secure_random_bytes(length):
     
     return _secrets.token_bytes(length)
 
-
 def secure_random_hex(length):
     """生成加密安全的随机十六进制字符串"""
     if not isinstance(length, int):
@@ -294,7 +271,6 @@ def secure_random_hex(length):
         raise HPLValueError("secure_random_hex() length cannot exceed 65536")
     
     return _secrets.token_hex(length)
-
 
 def secure_random_urlsafe(length):
     """生成URL安全的随机字符串"""
@@ -307,7 +283,6 @@ def secure_random_urlsafe(length):
     
     return _secrets.token_urlsafe(length)
 
-
 def secure_choice(sequence):
     """从序列中安全地随机选择一个元素"""
     if not isinstance(sequence, (list, str, bytes)):
@@ -316,7 +291,6 @@ def secure_choice(sequence):
         raise HPLValueError("secure_choice() requires non-empty sequence")
     
     return _secrets.choice(sequence)
-
 
 def compare_digest(a, b):
     """安全地比较两个字符串（防时序攻击）"""
@@ -331,7 +305,6 @@ def compare_digest(a, b):
         raise HPLTypeError(f"compare_digest() requires string or bytes, got {type(b).__name__}")
     
     return _hmac.compare_digest(a, b)
-
 
 # 密码学工具
 
@@ -364,7 +337,6 @@ def pbkdf2_hmac(password, salt, iterations=100000, dklen=None, hash_name='sha256
     except ValueError as e:
         raise HPLValueError(f"pbkdf2_hmac() error: {e}")
 
-
 def scrypt(password, salt, n=2**14, r=8, p=1, dklen=32):
     """scrypt密钥派生（如果可用）"""
     if isinstance(password, str):
@@ -382,7 +354,6 @@ def scrypt(password, salt, n=2**14, r=8, p=1, dklen=32):
         return result.hex()
     except AttributeError:
         raise HPLValueError("scrypt() not available in this Python version")
-
 
 # 创建模块实例
 module = HPLModule('crypto', 'Cryptographic and encoding functions')

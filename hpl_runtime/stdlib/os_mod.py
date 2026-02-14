@@ -13,20 +13,12 @@ try:
     from hpl_runtime.utils.exceptions import HPLTypeError, HPLValueError, HPLIOError, HPLRuntimeError
     from hpl_runtime import __version__ as HPL_VERSION
 except ImportError:
-    try:
-        from hpl_runtime.modules.base import HPLModule
-        from hpl_runtime.utils.exceptions import HPLTypeError, HPLValueError, HPLIOError, HPLRuntimeError
-        from hpl_runtime import __version__ as HPL_VERSION
-    except ImportError:
-        import sys
-        import os
-        sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-        from hpl_runtime.modules.base import HPLModule
-        from hpl_runtime.utils.exceptions import HPLTypeError, HPLValueError, HPLIOError, HPLRuntimeError
-        from hpl_runtime import __version__ as HPL_VERSION
-
-
-
+    import sys
+    import os
+    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    from hpl_runtime.modules.base import HPLModule
+    from hpl_runtime.utils.exceptions import HPLTypeError, HPLValueError, HPLIOError, HPLRuntimeError
+    from hpl_runtime import __version__ as HPL_VERSION
 
 
 def get_env(name, default=None):
@@ -39,8 +31,6 @@ def get_env(name, default=None):
     
     return _os.environ.get(name, default)
 
-
-
 def set_env(name, value):
     """设置环境变量"""
     if not isinstance(name, str):
@@ -51,12 +41,9 @@ def set_env(name, value):
     _os.environ[name] = value
     return True
 
-
-
 def get_cwd():
     """获取当前工作目录"""
     return _os.getcwd()
-
 
 def change_dir(path):
     """改变当前工作目录"""
@@ -70,21 +57,17 @@ def change_dir(path):
     return True
 
 
-
 def get_platform():
     """获取操作系统平台"""
     return _platform.system()
-
 
 def get_python_version():
     """获取 Python 版本"""
     return _platform.python_version()
 
-
 def get_hpl_version():
     """获取 HPL 版本"""
     return HPL_VERSION
-
 
 def execute_command(command):
     """执行系统命令（谨慎使用）"""
@@ -102,8 +85,6 @@ def execute_command(command):
     except Exception as e:
         raise HPLRuntimeError(f"Command execution failed: {e}")
 
-
-
 def exit_code(code=0):
     """退出程序"""
     if not isinstance(code, int):
@@ -111,22 +92,17 @@ def exit_code(code=0):
     
     _sys.exit(code)
 
-
-
 def get_args():
     """获取命令行参数"""
     return _sys.argv[1:]  # 排除脚本名
-
 
 def get_path_sep():
     """获取路径分隔符"""
     return _os.sep
 
-
 def get_line_sep():
     """获取行分隔符"""
     return _os.linesep
-
 
 def path_join(*paths):
     """连接路径"""
@@ -139,15 +115,11 @@ def path_join(*paths):
     
     return _os.path.join(*paths)
 
-
-
 def path_abs(path):
     """获取绝对路径"""
     if not isinstance(path, str):
         raise HPLTypeError(f"path_abs() requires string path, got {type(path).__name__}")
     return _os.path.abspath(path)
-
-
 
 def path_dir(path):
     """获取目录名"""
@@ -155,15 +127,11 @@ def path_dir(path):
         raise HPLTypeError(f"path_dir() requires string path, got {type(path).__name__}")
     return _os.path.dirname(path)
 
-
-
 def path_base(path):
     """获取文件名"""
     if not isinstance(path, str):
         raise HPLTypeError(f"path_base() requires string path, got {type(path).__name__}")
     return _os.path.basename(path)
-
-
 
 def path_ext(path):
     """获取文件扩展名"""
@@ -171,20 +139,15 @@ def path_ext(path):
         raise HPLTypeError(f"path_ext() requires string path, got {type(path).__name__}")
     return _os.path.splitext(path)[1]
 
-
-
 def path_norm(path):
     """规范化路径"""
     if not isinstance(path, str):
         raise HPLTypeError(f"path_norm() requires string path, got {type(path).__name__}")
     return _os.path.normpath(path)
 
-
-
 def cpu_count():
     """获取 CPU 核心数"""
     return _os.cpu_count() or 1
-
 
 # 创建模块实例
 module = HPLModule('os', 'Operating system interface')

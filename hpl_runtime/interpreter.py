@@ -78,7 +78,6 @@ def _instantiate_objects(evaluator, handler):
                     e.line = 1  # 默认行号
                 raise
 
-
 def main():
     if len(sys.argv) != 2:
         print("Usage: python interpreter.py <hpl_file>")
