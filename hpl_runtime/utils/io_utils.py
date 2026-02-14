@@ -12,7 +12,8 @@ def echo(message):
     Args:
         message: 要输出的消息（会被转换为字符串）
     """
-    print(message)
+    print(message, flush=True)
+
 
 
 def read_input(prompt=None):

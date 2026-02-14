@@ -509,16 +509,22 @@ def _parse_hpl_module(module_name, file_path):
                     if isinstance(arg, (int, float, bool)):
                         resolved_args.append(arg)
                     elif isinstance(arg, str):
+                        # 去除字符串两端的引号（单引号或双引号）
+                        stripped_arg = arg.strip()
+                        if (stripped_arg.startswith('"') and stripped_arg.endswith('"')) or \
+                           (stripped_arg.startswith("'") and stripped_arg.endswith("'")):
+                            stripped_arg = stripped_arg[1:-1]
                         # 尝试解析为数字
                         try:
-                            resolved_args.append(int(arg))
+                            resolved_args.append(int(stripped_arg))
                         except ValueError:
                             try:
-                                resolved_args.append(float(arg))
+                                resolved_args.append(float(stripped_arg))
                             except ValueError:
-                                resolved_args.append(arg)
+                                resolved_args.append(stripped_arg)
                 # 执行构造函数
                 evaluator._call_constructor(obj, resolved_args)
+
             
             hpl_module.register_constant(obj_name, obj, f"Object instance: {obj_name}")
         

@@ -224,7 +224,9 @@ class TestExampleOutputVerification(unittest.TestCase):
         """测试 Hello World 输出"""
         # 创建一个简单的 Hello World 测试
         with tempfile.NamedTemporaryFile(mode='w', suffix='.hpl', delete=False) as f:
-            f.write('echo "Hello, World!"')
+            f.write("""main: () => {
+  echo "Hello, World!"
+}""")
             temp_file = f.name
         
         try:
@@ -239,15 +241,16 @@ class TestExampleOutputVerification(unittest.TestCase):
         finally:
             os.unlink(temp_file)
 
+
     def test_basic_arithmetic_output(self):
         """测试基本算术输出"""
         with tempfile.NamedTemporaryFile(mode='w', suffix='.hpl', delete=False) as f:
-            f.write("""
-x = 10
-y = 20
-result = x + y
-echo result
-""")
+            f.write("""main: () => {
+  x = 10
+  y = 20
+  result = x + y
+  echo result
+}""")
             temp_file = f.name
         
         try:
@@ -260,6 +263,7 @@ echo result
             self.assertIn("30", result.stdout)
         finally:
             os.unlink(temp_file)
+
 
 
 if __name__ == '__main__':
