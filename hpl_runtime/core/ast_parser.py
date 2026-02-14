@@ -14,42 +14,63 @@ HPL AST 解析器模块
 - 表达式：二元运算、函数调用、方法调用、变量、字面量、逻辑运算
 """
 
+from __future__ import annotations
+from typing import Any, Callable, Optional, Union
+
 from hpl_runtime.core.models import *
+from hpl_runtime.core.lexer import Token
 from hpl_runtime.utils.exceptions import HPLSyntaxError
 from hpl_runtime.utils.parse_utils import get_token_position, is_block_terminator, skip_dedents
 
 
 class HPLASTParser:
-    def __init__(self, tokens):
-        self.tokens = tokens
-        self.pos = 0
-        self.current_token = self.tokens[0] if tokens else None
-        self.indent_level = 0
+    def __init__(self, tokens: list[Token]) -> None:
+        self.tokens: list[Token] = tokens
+        self.pos: int = 0
+        self.current_token: Optional[Token] = self.tokens[0] if tokens else None
+        self.indent_level: int = 0
 
-    def advance(self):
+    class _IndentContext:
+        """上下文管理器风格的缩进级别管理"""
+        def __init__(self, parser: HPLASTParser, level: int) -> None:
+            self.parser = parser
+            self.new_level = level
+            self.old_level: Optional[int] = None
+        
+        def __enter__(self) -> HPLASTParser:
+            self.old_level = self.parser.indent_level
+            self.parser.indent_level = self.new_level
+            return self.parser
+        
+        def __exit__(self, *args: Any) -> None:
+            self.parser.indent_level = self.old_level
+
+
+    def advance(self) -> None:
+
         self.pos += 1
         if self.pos < len(self.tokens):
             self.current_token = self.tokens[self.pos]
         else:
             self.current_token = None
 
-    def peek(self, offset=1):
+    def peek(self, offset: int = 1) -> Optional[Token]:
         peek_pos = self.pos + offset
         if peek_pos < len(self.tokens):
             return self.tokens[peek_pos]
         return None
 
-    def _get_position(self):
+    def _get_position(self) -> tuple[Optional[int], Optional[int]]:
         """获取当前 token 的位置信息"""
         return get_token_position(self.current_token)
 
 
-    def _is_block_terminator(self):
+    def _is_block_terminator(self) -> bool:
         """检查当前 token 是否是块结束标记"""
         # 使用工具函数，传入peek方法以便检查后续token
         return is_block_terminator(self.current_token, self.peek, self.indent_level)
 
-    def _skip_dedents(self, min_indent_level=None):
+    def _skip_dedents(self, min_indent_level: Optional[int] = None) -> None:
         """跳过所有连续的 DEDENT token，但只跳过那些缩进级别大于等于min_indent_level的
         
         Args:
@@ -72,19 +93,19 @@ class HPLASTParser:
                 self.advance()
 
 
-    def _skip_indents(self):
+    def _skip_indents(self) -> None:
         """跳过所有连续的 INDENT token"""
         while self.current_token and self.current_token.type == 'INDENT':
             self.advance()
 
-    def _consume_indent(self):
+    def _consume_indent(self) -> None:
         """消费 INDENT token（如果存在）"""
         if self.current_token and self.current_token.type == 'INDENT':
             self.expect('INDENT')
 
-    def _parse_argument_list(self):
+    def _parse_argument_list(self) -> list[Expression]:
         """统一解析参数列表：解析 (arg1, arg2, ...) 中的参数"""
-        args = []
+        args: list[Expression] = []
         if self.current_token and self.current_token.type != 'RPAREN':
             args.append(self.parse_expression())
             while self.current_token and self.current_token.type == 'COMMA':
@@ -93,72 +114,60 @@ class HPLASTParser:
         self.expect('RPAREN')
         return args
 
-    def _with_indent_level(self, new_level):
+    def _with_indent_level(self, new_level: int) -> HPLASTParser._IndentContext:
         """上下文管理器风格的缩进级别管理"""
-        class IndentContext:
-            def __init__(ctx_self, parser, level):
-                ctx_self.parser = parser
-                ctx_self.new_level = level
-                ctx_self.old_level = None
-            
-            def __enter__(ctx_self):
-                ctx_self.old_level = ctx_self.parser.indent_level
-                ctx_self.parser.indent_level = ctx_self.new_level
-                return ctx_self.parser
-            
-            def __exit__(ctx_self, *args):
-                ctx_self.parser.indent_level = ctx_self.old_level
-        
-        return IndentContext(self, new_level)
+        return self._IndentContext(self, new_level)
+
+
 
     # ==================== 语句处理方法 ====================
 
     
-    def _parse_return_statement(self):
+    def _parse_return_statement(self) -> ReturnStatement:
         """解析 return 语句"""
         line, column = self._get_position()
         self.advance()  # 跳过 'return'
-        expr = None
+        expr: Optional[Expression] = None
         if self.current_token and self.current_token.type not in ['SEMICOLON', 'RBRACE', 'EOF', 'DEDENT']:
             expr = self.parse_expression()
         return ReturnStatement(expr, line, column)
 
     
-    def _parse_break_statement(self):
+    def _parse_break_statement(self) -> BreakStatement:
         """解析 break 语句"""
         line, column = self._get_position()
         self.advance()  # 跳过 'break'
         return BreakStatement(line, column)
 
-    def _parse_continue_statement(self):
+    def _parse_continue_statement(self) -> ContinueStatement:
         """解析 continue 语句"""
         line, column = self._get_position()
         self.advance()  # 跳过 'continue'
         return ContinueStatement(line, column)
 
-    def _parse_throw_statement(self):
+    def _parse_throw_statement(self) -> ThrowStatement:
         """解析 throw 语句"""
         line, column = self._get_position()
         self.advance()  # 跳过 'throw'
-        expr = None
+        expr: Optional[Expression] = None
         if self.current_token and self.current_token.type not in ['SEMICOLON', 'RBRACE', 'EOF', 'DEDENT']:
             expr = self.parse_expression()
         return ThrowStatement(expr, line, column)
 
-    def _parse_echo_statement(self):
+    def _parse_echo_statement(self) -> EchoStatement:
         """解析 echo 语句"""
         line, column = self._get_position()
         self.advance()  # 跳过 'echo'
         expr = self.parse_expression()
         return EchoStatement(expr, line, column)
     
-    def _parse_simple_assignment(self, name):
+    def _parse_simple_assignment(self, name: str) -> AssignmentStatement:
         """解析简单赋值：var = value"""
         self.advance()  # 跳过 '='
         expr = self.parse_expression()
         return AssignmentStatement(name, expr)
     
-    def _parse_array_assignment(self, name):
+    def _parse_array_assignment(self, name: str) -> ArrayAssignmentStatement:
         """解析数组赋值：arr[index] = value"""
         self.advance()  # 跳过 '['
         index_expr = self.parse_expression()
@@ -167,7 +176,7 @@ class HPLASTParser:
         value_expr = self.parse_expression()
         return ArrayAssignmentStatement(name, index_expr, value_expr)
     
-    def _parse_property_assignment(self, name, prop_name):
+    def _parse_property_assignment(self, name: str, prop_name: str) -> Union[AssignmentStatement, ArrayAssignmentStatement]:
         """解析属性赋值：obj.prop = value 或 obj.prop[index] = value"""
         self.advance()  # 跳过 '.'
         prop_name = self.expect('IDENTIFIER').value
@@ -186,7 +195,7 @@ class HPLASTParser:
         value_expr = self.parse_expression()
         return AssignmentStatement(f"{name}.{prop_name}", value_expr)
     
-    def _parse_identifier_statement(self):
+    def _parse_identifier_statement(self) -> Statement:
         """
         解析标识符开头的语句（赋值、自增、表达式）
         使用 lookahead 避免回溯
@@ -266,9 +275,10 @@ class HPLASTParser:
         return self.parse_expression()
     
 
-    def _parse_expression_suffix(self, expr):
+    def _parse_expression_suffix(self, expr: Expression) -> Expression:
         """解析表达式后缀（方法调用链、数组访问等）"""
-        current_expr = expr
+        current_expr: Expression = expr
+
         
         while self.current_token:
             # 方法调用链：expr.method() 或 expr.method
@@ -328,7 +338,7 @@ class HPLASTParser:
         return current_expr
 
     # 关键字分发表：关键字 -> 处理方法
-    _STATEMENT_KEYWORDS = {
+    _STATEMENT_KEYWORDS: dict[str, str] = {
         'return': '_parse_return_statement',
         'break': '_parse_break_statement',
         'continue': '_parse_continue_statement',
@@ -341,9 +351,10 @@ class HPLASTParser:
     }
 
 
-    def _parse_statements_until_end(self):
+    def _parse_statements_until_end(self) -> list[Statement]:
         """解析语句直到遇到块结束标记"""
-        statements = []
+        statements: list[Statement] = []
+
         # 块终止关键字
         block_terminators = ['else', 'catch', 'elif', 'finally']
         
@@ -394,7 +405,7 @@ class HPLASTParser:
         
         return statements
     
-    def _parse_indent_block(self):
+    def _parse_indent_block(self) -> BlockStatement:
         """解析缩进块（INDENT ... DEDENT）"""
         block_indent_level = self.current_token.value
         with self._with_indent_level(block_indent_level):
@@ -404,7 +415,7 @@ class HPLASTParser:
         self._skip_dedents(self.indent_level)
         return BlockStatement(statements)
     
-    def _parse_colon_block(self):
+    def _parse_colon_block(self) -> BlockStatement:
         """解析冒号开始的块（: INDENT ... 或 : { ... } 或单行语句）"""
         self.expect('COLON')
         
@@ -417,7 +428,7 @@ class HPLASTParser:
             return self._parse_indent_block()
         
         # 单行语句块
-        statements = []
+        statements: list[Statement] = []
         block_terminators = ['else', 'catch', 'elif', 'finally']
         while self.current_token and self.current_token.type not in ['RBRACE', 'EOF']:
             if self.current_token.type == 'KEYWORD' and self.current_token.value in block_terminators:
@@ -436,7 +447,7 @@ class HPLASTParser:
         self._skip_dedents(self.indent_level)
         return BlockStatement(statements)
     
-    def parse_block(self):
+    def parse_block(self) -> BlockStatement:
         """解析语句块，支持多种语法格式"""
         # 情况1: 以INDENT开始（函数体、箭头函数体等）
         if self.current_token and self.current_token.type == 'INDENT':
@@ -455,9 +466,9 @@ class HPLASTParser:
         return BlockStatement(statements)
 
 
-    def _parse_brace_block(self):
+    def _parse_brace_block(self) -> BlockStatement:
         """解析花括号块"""
-        statements = []
+        statements: list[Statement] = []
         self.expect('LBRACE')
         # 跳过可能的 INDENT token（花括号内的缩进）
         self._skip_indents()
@@ -481,8 +492,9 @@ class HPLASTParser:
         return BlockStatement(statements)
 
 
-    def parse_statement(self):
+    def parse_statement(self) -> Optional[Statement]:
         """解析语句 - 使用分发表优化关键字查找"""
+
         # 跳过行首的 INDENT token
         self._skip_indents()
         
@@ -514,7 +526,7 @@ class HPLASTParser:
         return self.parse_expression()
 
 
-    def parse_if_statement(self):
+    def parse_if_statement(self) -> IfStatement:
         self.expect_keyword('if')
         self.expect('LPAREN')
         condition = self.parse_expression()
@@ -526,7 +538,8 @@ class HPLASTParser:
         
         then_block = self.parse_block()
         
-        else_block = None
+        else_block: Optional[BlockStatement] = None
+
         # 在检查else之前，可能需要跳过多个DEDENT token
         # 持续检查：如果当前是DEDENT，且后面跟着else，则跳过DEDENT
         while self.current_token and self.current_token.type == 'DEDENT':
@@ -556,7 +569,7 @@ class HPLASTParser:
         return IfStatement(condition, then_block, else_block)
 
 
-    def parse_for_statement(self):
+    def parse_for_statement(self) -> ForInStatement:
         self.expect_keyword('for')
         self.expect('LPAREN')
         
@@ -570,7 +583,7 @@ class HPLASTParser:
         return ForInStatement(var_name, iterable_expr, body)
 
 
-    def parse_while_statement(self):
+    def parse_while_statement(self) -> WhileStatement:
         self.expect_keyword('while')
         self.expect('LPAREN')
         condition = self.parse_expression()
@@ -580,13 +593,14 @@ class HPLASTParser:
         
         return WhileStatement(condition, body)
 
-    def parse_try_catch_statement(self):
+    def parse_try_catch_statement(self) -> TryCatchStatement:
         line, column = self._get_position()
         self.expect_keyword('try')
         try_block = self.parse_block()
         
         # 解析多个 catch 子句
-        catch_clauses = []
+        catch_clauses: list[CatchClause] = []
+
         
         while True:
             # 在检查catch之前，可能需要跳过多个DEDENT token
@@ -631,7 +645,7 @@ class HPLASTParser:
             catch_clauses.append(CatchClause(error_type, catch_var, catch_block))
         
         # 解析可选的 finally 块
-        finally_block = None
+        finally_block: Optional[BlockStatement] = None
         if self.current_token and self.current_token.type == 'KEYWORD' and self.current_token.value == 'finally':
             self.advance()  # 跳过 'finally'
             finally_block = self.parse_block()
@@ -639,14 +653,15 @@ class HPLASTParser:
         return TryCatchStatement(try_block, catch_clauses, finally_block, line, column)
 
 
-    def parse_expression(self):
+    def parse_expression(self) -> Expression:
+
         # 跳过任何DEDENT token（处理空行后的缩进变化）
         # 使用当前缩进级别，避免跳过应该终止块的DEDENT
         self._skip_dedents(self.indent_level)
         return self.parse_or()
 
 
-    def parse_or(self):
+    def parse_or(self) -> Expression:
         """解析逻辑或 (||)"""
         left = self.parse_and()
 
@@ -658,7 +673,7 @@ class HPLASTParser:
 
         return left
 
-    def parse_and(self):
+    def parse_and(self) -> Expression:
         """解析逻辑与 (&&)"""
         left = self.parse_equality()
 
@@ -670,7 +685,7 @@ class HPLASTParser:
 
         return left
 
-    def parse_equality(self):
+    def parse_equality(self) -> Expression:
         left = self.parse_comparison()
 
         while self.current_token and self.current_token.type in ['EQ', 'NE']:
@@ -682,7 +697,7 @@ class HPLASTParser:
 
         return left
 
-    def parse_comparison(self):
+    def parse_comparison(self) -> Expression:
         left = self.parse_additive()
 
         while self.current_token and self.current_token.type in ['LT', 'LE', 'GT', 'GE']:
@@ -700,7 +715,7 @@ class HPLASTParser:
 
         return left
 
-    def parse_additive(self):
+    def parse_additive(self) -> Expression:
         left = self.parse_multiplicative()
 
         while self.current_token and self.current_token.type in ['PLUS', 'MINUS']:
@@ -712,7 +727,7 @@ class HPLASTParser:
 
         return left
 
-    def parse_multiplicative(self):
+    def parse_multiplicative(self) -> Expression:
         # 跳过任何DEDENT token
         # 使用当前缩进级别，避免跳过应该终止块的DEDENT
         self._skip_dedents(self.indent_level)
@@ -733,7 +748,8 @@ class HPLASTParser:
         return left
 
 
-    def parse_unary(self):
+    def parse_unary(self) -> Expression:
+
         # 跳过任何DEDENT token
         # 使用当前缩进级别，避免跳过应该终止块的DEDENT
         self._skip_dedents(self.indent_level)
@@ -757,10 +773,11 @@ class HPLASTParser:
 
     # ==================== 主表达式解析辅助方法 ====================
     
-    def _parse_literal(self):
+    def _parse_literal(self) -> Optional[Expression]:
         """解析字面量：布尔值、数字、字符串"""
-        token_type = self.current_token.type
+        token_type = self.current_token.type if self.current_token else None
         line, column = self._get_position()
+
 
         if token_type == 'BOOLEAN':
             value = self.current_token.value
@@ -782,7 +799,7 @@ class HPLASTParser:
 
         return None
     
-    def _parse_function_call_expr(self, name):
+    def _parse_function_call_expr(self, name: Union[str, Expression]) -> FunctionCall:
         """解析函数调用表达式"""
         line, column = self._get_position()
         self.advance()  # 跳过 '('
@@ -790,10 +807,11 @@ class HPLASTParser:
         return FunctionCall(name, args, line, column)
 
     
-    def _parse_method_chain_expr(self, name):
+    def _parse_method_chain_expr(self, name: str) -> Expression:
         """解析方法调用链：obj.method() 或 obj.prop"""
         line, column = self._get_position()
-        current_expr = Variable(name, line, column)
+        current_expr: Expression = Variable(name, line, column)
+
         
         while self.current_token and self.current_token.type == 'DOT':
             self.advance()
@@ -812,11 +830,12 @@ class HPLASTParser:
         return current_expr
 
     
-    def _parse_identifier_primary(self):
+    def _parse_identifier_primary(self) -> Expression:
         """解析标识符开头的主表达式"""
         name = self.current_token.value
         line, column = self._get_position()
         self.advance()
+
 
         if self.current_token and self.current_token.type == 'LPAREN':
             return self._parse_function_call_expr(name)
@@ -840,7 +859,7 @@ class HPLASTParser:
         return Variable(name, line, column)
 
     
-    def _parse_paren_expression(self):
+    def _parse_paren_expression(self) -> Optional[Expression]:
         """解析括号表达式或箭头函数参数列表"""
         line, column = self._get_position()
         self.advance()  # 跳过 '('
@@ -858,8 +877,9 @@ class HPLASTParser:
         
         # 检查是否是箭头函数参数列表 (param1, param2, ...) => { ... }
         # 通过lookahead判断：如果括号内是逗号分隔的标识符，后跟 ) 和 =>
-        params = []
+        params: list[str] = []
         is_arrow_function = False
+
         
         # 尝试解析参数列表
         if self.current_token and self.current_token.type == 'IDENTIFIER':
@@ -896,13 +916,14 @@ class HPLASTParser:
 
 
     
-    def _parse_arrow_function(self):
+    def _parse_arrow_function(self) -> ArrowFunction:
         """解析箭头函数: () => { ... } 或 (params) => { ... }"""
         line, column = self._get_position()
         
         # 解析参数列表
-        params = []
+        params: list[str] = []
         if self.current_token and self.current_token.type == 'LPAREN':
+
             self.advance()  # 跳过 '('
             if self.current_token and self.current_token.type != 'RPAREN':
                 # 解析参数
@@ -923,11 +944,12 @@ class HPLASTParser:
         return ArrowFunction(params, body, line, column)
 
     
-    def _parse_array_literal_expr(self):
+    def _parse_array_literal_expr(self) -> ArrayLiteral:
         """解析数组字面量"""
         self.advance()  # 跳过 '['
-        elements = []
+        elements: list[Expression] = []
         if self.current_token and self.current_token.type != 'RBRACKET':
+
             elements.append(self.parse_expression())
             while self.current_token and self.current_token.type == 'COMMA':
                 self.advance()
@@ -935,12 +957,13 @@ class HPLASTParser:
         self.expect('RBRACKET')
         return ArrayLiteral(elements)
     
-    def _parse_dict_literal_expr(self):
+    def _parse_dict_literal_expr(self) -> DictionaryLiteral:
         """解析字典/对象字面量"""
         self.advance()  # 跳过 '{'
         self._skip_indents()  # 跳过可能的 INDENT token
-        pairs = {}
+        pairs: dict[str, Expression] = {}
         if self.current_token and self.current_token.type != 'RBRACE':
+
             # 解析第一个键值对
             key = self.expect('STRING').value
             self.expect('COLON')
@@ -960,14 +983,14 @@ class HPLASTParser:
         self.expect('RBRACE')
         return DictionaryLiteral(pairs)
 
-    def _parse_null_literal(self):
+    def _parse_null_literal(self) -> NullLiteral:
         """解析 null 字面量"""
         line, column = self._get_position()
         self.advance()
         return NullLiteral(line, column)
 
     # 主表达式分发表：token 类型 -> 处理方法
-    _PRIMARY_HANDLERS = {
+    _PRIMARY_HANDLERS: dict[str, str] = {
         'BOOLEAN': '_parse_literal',
         'NUMBER': '_parse_literal',
         'STRING': '_parse_literal',
@@ -979,7 +1002,8 @@ class HPLASTParser:
     }
 
 
-    def parse_primary(self):
+    def parse_primary(self) -> Expression:
+
         """解析主表达式 - 使用分发表优化"""
         # 跳过任何DEDENT token
         # 使用当前缩进级别，避免跳过应该终止块的DEDENT
@@ -1010,7 +1034,7 @@ class HPLASTParser:
         )
 
 
-    def expect(self, type):
+    def expect(self, type: str) -> Token:
         if not self.current_token or self.current_token.type != type:
             line, column = self._get_position()
             raise HPLSyntaxError(
@@ -1023,7 +1047,7 @@ class HPLASTParser:
         return token
 
 
-    def expect_keyword(self, value):
+    def expect_keyword(self, value: str) -> None:
         if not self.current_token or self.current_token.type != 'KEYWORD' or self.current_token.value != value:
             line, column = self._get_position()
             raise HPLSyntaxError(
@@ -1034,7 +1058,8 @@ class HPLASTParser:
         self.advance()
 
 
-    def parse_import_statement(self):
+    def parse_import_statement(self) -> ImportStatement:
+
         """解析 import 语句: import module_name [as alias]"""
         self.expect_keyword('import')
         

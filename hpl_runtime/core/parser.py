@@ -16,13 +16,16 @@ HPL 顶层解析器模块
 - 协调 lexer 和 ast_parser 生成最终 AST
 """
 
+from __future__ import annotations
+from typing import Any, Optional, Union
+
 import yaml
 import os
 import re
 from pathlib import Path
 
-from hpl_runtime.core.models import HPLClass, HPLObject, HPLFunction
-from hpl_runtime.core.lexer import HPLLexer
+from hpl_runtime.core.models import HPLClass, HPLObject, HPLFunction, BlockStatement
+from hpl_runtime.core.lexer import HPLLexer, Token
 from hpl_runtime.core.ast_parser import HPLASTParser
 from hpl_runtime.modules.loader import HPL_MODULE_PATHS
 from hpl_runtime.utils.exceptions import HPLSyntaxError, HPLImportError
@@ -30,29 +33,33 @@ from hpl_runtime.utils.path_utils import resolve_include_path
 from hpl_runtime.utils.text_utils import preprocess_functions, parse_call_expression
 
 
+
 class HPLParser:
-    def __init__(self, hpl_file):
-        self.hpl_file = hpl_file
-        self.classes = {}
-        self.objects = {}
-        self.functions = {}  # 存储所有顶层函数
-        self.main_func = None
-        self.call_target = None
-        self.imports = []  # 存储导入语句
-        self.source_code = None  # 存储源代码用于错误显示
-        self.data = self.load_and_parse()
+    def __init__(self, hpl_file: str) -> None:
+        self.hpl_file: str = hpl_file
+        self.classes: dict[str, HPLClass] = {}
+        self.objects: dict[str, HPLObject] = {}
+        self.functions: dict[str, HPLFunction] = {}  # 存储所有顶层函数
+        self.main_func: Optional[HPLFunction] = None
+        self.call_target: Optional[str] = None
+        self.call_args: list[Any] = []  # 存储 call 的参数
+        self.imports: list[dict[str, Any]] = []  # 存储导入语句
+        self.source_code: Optional[str] = None  # 存储源代码用于错误显示
+        self.data: dict[str, Any] = self.load_and_parse()
 
 
-    def _merge_duplicate_keys(self, content):
+
+    def _merge_duplicate_keys(self, content: str) -> str:
         """合并 YAML 中重复的键（如多个 objects 或 classes 段）"""
         # 只合并特定的字典类型键
         keys_to_merge = ['objects', 'classes']
         
         lines = content.split('\n')
-        key_contents = {}  # 存储每个键的所有内容
-        key_order = []  # 记录键的出现顺序
-        current_key = None
-        current_lines = []
+        key_contents: dict[str, list[str]] = {}  # 存储每个键的所有内容
+        key_order: list[str] = []  # 记录键的出现顺序
+        current_key: Optional[str] = None
+        current_lines: list[str] = []
+
         
         for line in lines:
             stripped = line.strip()
@@ -98,11 +105,12 @@ class HPLParser:
             return content
         
         # 重建内容，合并重复的键
-        result = []
-        processed_keys = set()
+        result: list[str] = []
+        processed_keys: set[str] = set()
         current_key = None
         
         for line in lines:
+
             stripped = line.strip()
             
             # 检查是否是顶级键
@@ -131,8 +139,9 @@ class HPLParser:
         return '\n'.join(result)
 
 
-    def load_and_parse(self):
+    def load_and_parse(self) -> dict[str, Any]:
         """加载并解析 HPL 文件"""
+
         with open(self.hpl_file, 'r', encoding='utf-8') as f:
             content = f.read()
         
@@ -191,8 +200,9 @@ class HPLParser:
         return data
 
 
-    def merge_data(self, main_data, include_data):
+    def merge_data(self, main_data: dict[str, Any], include_data: dict[str, Any]) -> None:
         """合并include数据到主数据，支持classes、objects、functions、imports"""
+
         # 预定义的保留键，不是函数
         reserved_keys = {'includes', 'imports', 'classes', 'objects', 'call'}
         
@@ -221,7 +231,7 @@ class HPLParser:
                 main_data['imports'].extend(include_data['imports'])
 
 
-    def parse(self):
+    def parse(self) -> tuple[dict[str, HPLClass], dict[str, HPLObject], dict[str, HPLFunction], Optional[HPLFunction], Optional[str], list[Any], list[dict[str, Any]]]:
         # 处理顶层 import 语句
         if 'imports' in self.data:
             self.parse_imports()
@@ -244,8 +254,10 @@ class HPLParser:
         return self.classes, self.objects, self.functions, self.main_func, self.call_target, self.call_args, self.imports
 
 
-    def parse_top_level_functions(self):
+
+    def parse_top_level_functions(self) -> None:
         """解析所有顶层函数定义"""
+
         # 预定义的保留键，不是函数
         reserved_keys = {'includes', 'imports', 'classes', 'objects', 'call'}
         
@@ -265,7 +277,7 @@ class HPLParser:
                     self.main_func = func
 
 
-    def _find_function_line(self, func_name):
+    def _find_function_line(self, func_name: str) -> tuple[int, int]:
         """找到函数定义在源代码中的行号"""
         if not self.source_code:
             return 1, 1
@@ -281,8 +293,10 @@ class HPLParser:
         return 1, 1
 
 
-    def parse_imports(self):
+
+    def parse_imports(self) -> None:
         """解析顶层 import 语句"""
+
         imports_data = self.data['imports']
         if isinstance(imports_data, list):
             for imp in imports_data:
@@ -295,11 +309,11 @@ class HPLParser:
                         self.imports.append({'module': module, 'alias': alias})
 
 
-    def parse_classes(self):
+    def parse_classes(self) -> None:
         for class_name, class_def in self.data['classes'].items():
             if isinstance(class_def, dict):
-                methods = {}
-                parent = None
+                methods: dict[str, HPLFunction] = {}
+                parent: Optional[str] = None
                 for key, value in class_def.items():
                     if key == 'parent':
                         parent = value
@@ -311,7 +325,8 @@ class HPLParser:
                 self.classes[class_name] = HPLClass(class_name, methods, parent)
 
 
-    def _find_method_line(self, class_name, method_name):
+
+    def _find_method_line(self, class_name: str, method_name: str) -> tuple[int, int]:
         """找到类方法定义在源代码中的行号"""
         if not self.source_code:
             return 1, 1
@@ -320,6 +335,7 @@ class HPLParser:
 
         in_target_class = False
         class_indent = 0
+
         
         for i, line in enumerate(lines, 1):
             stripped = line.strip()
@@ -348,8 +364,9 @@ class HPLParser:
         return 1, 1
 
 
-    def parse_objects(self):
+    def parse_objects(self) -> None:
         for obj_name, obj_def in self.data['objects'].items():
+
             # 解析构造函数参数
             if '(' in obj_def and ')' in obj_def:
                 class_name = obj_def[:obj_def.find('(')].strip()
@@ -365,7 +382,8 @@ class HPLParser:
                 self.objects[obj_name] = HPLObject(obj_name, hpl_class, {'__init_args__': args})
 
 
-    def parse_function(self, func_str, start_line=1, start_column=1):
+    def parse_function(self, func_str: str, start_line: int = 1, start_column: int = 1) -> HPLFunction:
+
         func_str = func_str.strip()
         
         # 新语法: (params) => { body }
