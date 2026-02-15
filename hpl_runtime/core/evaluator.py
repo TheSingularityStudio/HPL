@@ -203,6 +203,7 @@ class HPLEvaluator:
             Expression: self._execute_expression_statement,
             MethodCall: self._execute_method_call_statement,
             FunctionCall: self._execute_function_call_statement,
+            ArrayLiteral: self._execute_array_literal_statement,
         }
     
     def execute_statement(self, stmt: Statement, local_scope: dict[str, Any]) -> Any:
@@ -523,6 +524,12 @@ class HPLEvaluator:
     def _execute_function_call_statement(self, stmt, local_scope):
         """执行函数调用语句（作为独立语句使用）"""
         return self._eval_function_call(stmt, local_scope)
+    
+    def _execute_array_literal_statement(self, stmt, local_scope):
+        """执行数组字面量语句（作为独立语句使用）"""
+        # 评估数组字面量但不返回结果（作为语句使用）
+        self._eval_array_literal(stmt, local_scope)
+        return None
 
     def _init_expression_handlers(self):
         """初始化表达式处理器映射表"""
@@ -976,6 +983,25 @@ class HPLEvaluator:
                     local_scope=local_scope,
                     error_key='RUNTIME_KEY_NOT_FOUND'
                 )
+        elif isinstance(obj, list):
+            # 支持列表属性访问（如 length）或方法调用
+            if expr.method_name == 'length' or expr.method_name == 'size':
+                if len(expr.args) == 0:
+                    return len(obj)
+            # 检查是否是列表的内置方法
+            if hasattr(obj, expr.method_name) and callable(getattr(obj, expr.method_name)):
+                args = [self.evaluate_expression(arg, local_scope) for arg in expr.args]
+                method = getattr(obj, expr.method_name)
+                return method(*args)
+            raise self._create_error(
+                HPLTypeError,
+                f"Cannot access property '{expr.method_name}' on list. Lists only support 'length' property and standard array methods.",
+                line=expr.line if hasattr(expr, 'line') else None,
+                column=expr.column if hasattr(expr, 'column') else None,
+                local_scope=local_scope,
+                error_key='TYPE_INVALID_OPERATION'
+            )
+
         elif is_hpl_module(obj):
             if len(expr.args) == 0:
                 try:

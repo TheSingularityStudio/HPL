@@ -114,9 +114,15 @@ main: () => {
       # 执行选择
       selected = scene.choices[choice_num - 1]
       
-      if (selected.target) :
+      # 检查是否有target属性（使用字典访问方式）
+      has_target = false
+      for (key in selected) :
+        if (key == "target") :
+          has_target = true
+      
+      if (has_target) :
         # 切换场景
-        target_scene_id = selected.target
+        target_scene_id = selected["target"]
         game_state.current_scene = target_scene_id
         game_state.visited_count = game_state.visited_count + 1
         target_scene = scenes[target_scene_id]
@@ -141,6 +147,7 @@ main: () => {
           echo ""
           echo "感谢游玩！"
           game_running = false
+
     
     # 游戏结束统计
     echo ""

@@ -31,12 +31,12 @@ class TestHPLParser(unittest.TestCase):
         example_file = os.path.join(self.examples_dir, 'example.hpl')
         if os.path.exists(example_file):
             parser = HPLParser(example_file)
-            classes, objects, functions, main_func, call_target, call_args, imports = parser.parse()
-
+            (classes, objects, functions, main_func, call_target, call_args, imports,
+             user_data) = parser.parse()
             
             # 验证解析结果
-
             self.assertIn('MessagePrinter', classes)
+
             self.assertIn('printer', objects)
             self.assertIsNotNone(main_func)
             self.assertEqual(call_target, 'main')
@@ -46,12 +46,12 @@ class TestHPLParser(unittest.TestCase):
         base_file = os.path.join(self.examples_dir, 'base.hpl')
         if os.path.exists(base_file):
             parser = HPLParser(base_file)
-            classes, objects, functions, main_func, call_target, call_args, imports = parser.parse()
-
+            (classes, objects, functions, main_func, call_target, call_args, imports,
+             user_data) = parser.parse()
             
             # 验证 BasePrinter 类
-
             self.assertIn('BasePrinter', classes)
+
             base_printer = classes['BasePrinter']
             self.assertIn('print', base_printer.methods)
     
@@ -60,7 +60,8 @@ class TestHPLParser(unittest.TestCase):
         example_file = os.path.join(self.examples_dir, 'example.hpl')
         if os.path.exists(example_file):
             parser = HPLParser(example_file)
-            classes, _, _, _, _, _, _ = parser.parse()
+            classes, _, _, _, _, _, _, _ = parser.parse()
+
 
 
             
@@ -73,7 +74,8 @@ class TestHPLParser(unittest.TestCase):
         example_file = os.path.join(self.examples_dir, 'example.hpl')
         if os.path.exists(example_file):
             parser = HPLParser(example_file)
-            classes, _, _, main_func, _, _, _ = parser.parse()
+            classes, _, _, main_func, _, _, _, _ = parser.parse()
+
 
 
             
@@ -87,7 +89,8 @@ class TestHPLParser(unittest.TestCase):
         example_file = os.path.join(self.examples_dir, 'example.hpl')
         if os.path.exists(example_file):
             parser = HPLParser(example_file)
-            _, objects, _, _, _, _, _ = parser.parse()
+            _, objects, _, _, _, _, _, _ = parser.parse()
+
 
 
             
@@ -180,4 +183,3 @@ class TestNewParsingFeatures(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
-

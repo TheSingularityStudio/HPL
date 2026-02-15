@@ -164,7 +164,8 @@ class DebugInterpreter:
             parser = HPLParser(hpl_file)
             handler.set_parser(parser)
             
-            classes, objects, functions, main_func, _, _, imports = parser.parse()
+            classes, objects, functions, main_func, _, _, imports, user_data = parser.parse()
+
             
             # 检查 main 函数
             if main_func is None:

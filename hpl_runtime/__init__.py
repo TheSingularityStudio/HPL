@@ -18,7 +18,7 @@ HPL (H Programming Language) 是一种基于 YAML 格式的面向对象编程语
     from hpl_runtime import HPLError, HPLSyntaxError
 """
 
-__version__ = "1.1.5"
+__version__ = "1.1.6"
 __author__ = "奇点工作室"
 
 # 导出主要类，方便外部使用
@@ -34,7 +34,7 @@ try:
     from .core.ast_parser import HPLASTParser
     
     # 执行器
-    from .core.evaluator import HPLEvaluator
+    from .core.evaluator import HPLEvaluator, HPLArrowFunction
     
     # 数据模型 - 基础类
     from .core.models import (
@@ -45,7 +45,8 @@ try:
         IntegerLiteral, FloatLiteral, StringLiteral, BooleanLiteral, NullLiteral,
         # 表达式
         BinaryOp, Variable, FunctionCall, MethodCall, 
-        PostfixIncrement, UnaryOp, ArrayLiteral, ArrayAccess, DictionaryLiteral,
+        PostfixIncrement, PrefixIncrement, UnaryOp, ArrayLiteral, ArrayAccess, DictionaryLiteral,
+        ArrowFunction,
         # 语句
         AssignmentStatement, ArrayAssignmentStatement, ReturnStatement, 
         BlockStatement, IfStatement, ForInStatement, WhileStatement, 
@@ -64,13 +65,26 @@ try:
     )
     
     # 调试工具
-    from .debug import ErrorAnalyzer, DebugInterpreter
+    from .debug import (
+        ErrorAnalyzer, DebugInterpreter,
+        ErrorContext, ExecutionLogger, VariableInspector, 
+        CallStackAnalyzer, ErrorTracer,
+    )
     
     # 模块加载
     from .modules.loader import (
         load_module, register_module, get_module, set_current_hpl_file,
         add_module_path, clear_cache,
+        ModuleCache, ModuleLoaderContext,
     )
+    
+    # 模块基类
+    from .modules.base import HPLModule
+    
+    # 错误处理工具
+    from .utils.error_handler import HPLErrorHandler
+    from .utils.error_suggestions import ErrorSuggestionEngine
+
 except ImportError:
     # 如果相对导入失败，使用绝对导入
     pass
@@ -90,7 +104,7 @@ __all__ = [
     'HPLParser', 'HPLASTParser',
     
     # 执行器
-    'HPLEvaluator',
+    'HPLEvaluator', 'HPLArrowFunction',
     
     # 数据模型 - 基础类
     'HPLClass', 'HPLObject', 'HPLFunction',
@@ -102,8 +116,8 @@ __all__ = [
     
     # 数据模型 - 表达式
     'BinaryOp', 'Variable', 'FunctionCall', 'MethodCall',
-    'PostfixIncrement', 'UnaryOp', 'ArrayLiteral', 'ArrayAccess', 
-    'DictionaryLiteral',
+    'PostfixIncrement', 'PrefixIncrement', 'UnaryOp', 'ArrayLiteral', 'ArrayAccess', 
+    'DictionaryLiteral', 'ArrowFunction',
     
     # 数据模型 - 语句
     'AssignmentStatement', 'ArrayAssignmentStatement', 'ReturnStatement',
@@ -120,8 +134,17 @@ __all__ = [
     
     # 调试工具
     'ErrorAnalyzer', 'DebugInterpreter',
+    'ErrorContext', 'ExecutionLogger', 'VariableInspector',
+    'CallStackAnalyzer', 'ErrorTracer',
     
     # 模块加载
     'load_module', 'register_module', 'get_module', 'set_current_hpl_file',
     'add_module_path', 'clear_cache',
+    'ModuleCache', 'ModuleLoaderContext',
+    
+    # 模块基类
+    'HPLModule',
+    
+    # 错误处理工具
+    'HPLErrorHandler', 'ErrorSuggestionEngine',
 ]

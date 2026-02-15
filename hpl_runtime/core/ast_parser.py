@@ -850,7 +850,8 @@ class HPLASTParser:
             return self._parse_function_call_expr(name)
 
         if self.current_token and self.current_token.type == 'DOT':
-            return self._parse_method_chain_expr(name)
+            expr = self._parse_method_chain_expr(name)
+            return self._parse_expression_suffix(expr)
 
         if self.current_token and self.current_token.type == 'INCREMENT':
             self.advance()
@@ -865,6 +866,7 @@ class HPLASTParser:
             return ArrayAccess(Variable(name, line, column), index, bracket_line, bracket_column)
 
         return Variable(name, line, column)
+
     
     def _parse_paren_expression(self) -> Optional[Expression]:
         """解析括号表达式或箭头函数参数列表"""
