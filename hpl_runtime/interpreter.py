@@ -23,9 +23,13 @@ try:
 except ImportError:
     yaml = None
 
+# 导入版本信息
+from hpl_runtime import __version__
+
 # 确保 hpl_runtime 目录在 Python 路径中
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
+
 # 获取父目录（项目根目录）以便正确导入
 project_dir = os.path.dirname(script_dir)
 if project_dir not in sys.path:
@@ -79,11 +83,30 @@ def _instantiate_objects(evaluator, handler):
                 raise
 
 def main():
+    # 处理命令行选项
+    if len(sys.argv) == 1 or sys.argv[1] in ('--help', '-h'):
+        print(f"HPL Runtime {__version__}")
+        print("Usage: hpl <hpl_file>")
+        print("       hpl --version")
+        print("       hpl --help")
+        print()
+        print("Options:")
+        print("  --version, -v    Show version information")
+        print("  --help, -h       Show this help message")
+        sys.exit(0)
+    
+    if sys.argv[1] in ('--version', '-v'):
+        print(f"HPL Runtime {__version__}")
+        sys.exit(0)
+    
     if len(sys.argv) != 2:
-        print("Usage: python interpreter.py <hpl_file>")
+        print("Usage: hpl <hpl_file>")
+        print("       hpl --version")
+        print("       hpl --help")
         sys.exit(1)
 
     hpl_file = sys.argv[1]
+
     
     # 设置当前 HPL 文件路径，用于相对导入
     set_current_hpl_file(hpl_file)
