@@ -105,7 +105,12 @@ class HPLEvaluator:
         self._init_statement_handlers()
         # 初始化表达式处理器映射表
         self._init_expression_handlers()
-
+        
+        # 调用预定义对象的构造函数
+        for obj_name, obj in self.objects.items():
+            if isinstance(obj, HPLObject) and '__init_args__' in obj.attributes:
+                init_args = obj.attributes.pop('__init_args__')  # 移除并获取参数
+                self._call_constructor(obj, init_args)
 
     def run(self) -> None:
         # 如果指定了 call_target，执行对应的函数
