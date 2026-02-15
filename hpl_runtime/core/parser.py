@@ -44,7 +44,11 @@ class HPLParser:
         self.call_args: list[Any] = []  # 存储 call 的参数
         self.imports: list[dict[str, Any]] = []  # 存储导入语句
         self.source_code: Optional[str] = None  # 存储源代码用于错误显示
+        # 用户数据对象：所有非HPL原生顶级键都作为数据对象存储
+        self.user_data: dict[str, Any] = {}  # 用户声明式数据对象
         self.data: dict[str, Any] = self.load_and_parse()
+
+
 
     def _merge_duplicate_keys(self, content: str) -> str:
         """合并 YAML 中重复的键（如多个 objects 或 classes 段）"""
@@ -194,9 +198,9 @@ class HPLParser:
         return data
 
     def merge_data(self, main_data: dict[str, Any], include_data: dict[str, Any]) -> None:
-        """合并include数据到主数据，支持classes、objects、functions、imports"""
+        """合并include数据到主数据，支持classes、objects、functions、imports、用户数据对象"""
 
-        # 预定义的保留键，不是函数
+        # 预定义的保留键，不是函数也不是数据
         reserved_keys = {'includes', 'imports', 'classes', 'objects', 'call'}
         
         # 合并字典类型的数据（classes, objects）
@@ -207,7 +211,7 @@ class HPLParser:
                 if isinstance(include_data[key], dict):
                     main_data[key].update(include_data[key])
         
-        # 合并函数定义（HPL中函数是顶层键值对，值包含'=>'）
+        # 合并函数定义和用户数据对象
         for key, value in include_data.items():
             if key not in reserved_keys:
                 # 检查是否是函数定义（包含 =>）
@@ -215,6 +219,16 @@ class HPLParser:
                     # 只合并主数据中不存在的函数（避免覆盖）
                     if key not in main_data:
                         main_data[key] = value
+                else:
+                    # 这是用户数据对象（config, scenes, player等）
+                    # 递归合并字典类型的数据对象
+                    if key not in main_data:
+                        # 主数据中不存在，直接复制
+                        main_data[key] = value
+                    elif isinstance(main_data[key], dict) and isinstance(value, dict):
+                        # 两者都是字典，递归合并
+                        self._deep_merge_dict(main_data[key], value)
+                    # 如果主数据已存在且不是字典，保留主数据（避免覆盖）
         
         # 合并imports
         if 'imports' in include_data:
@@ -223,10 +237,26 @@ class HPLParser:
             if isinstance(include_data['imports'], list):
                 main_data['imports'].extend(include_data['imports'])
 
-    def parse(self) -> tuple[dict[str, HPLClass], dict[str, HPLObject], dict[str, HPLFunction], Optional[HPLFunction], Optional[str], list[Any], list[dict[str, Any]]]:
+    def _deep_merge_dict(self, target: dict[str, Any], source: dict[str, Any]) -> None:
+        """递归合并两个字典，target（主文件）优先，source（include）补充缺失的键"""
+        for key, value in source.items():
+            if key not in target:
+                # 主文件中没有这个键，从include添加
+                target[key] = value
+            elif isinstance(target[key], dict) and isinstance(value, dict):
+                # 两者都是字典，递归合并（主文件优先）
+                self._deep_merge_dict(target[key], value)
+            # 如果主文件中已存在，保留主文件的值（不覆盖）
+
+
+
+    def parse(self) -> tuple[dict[str, HPLClass], dict[str, HPLObject], dict[str, HPLFunction], Optional[HPLFunction], Optional[str], list[Any], list[dict[str, Any]], dict[str, Any]]:
         # 处理顶层 import 语句
         if 'imports' in self.data:
             self.parse_imports()
+        
+        # 处理用户数据对象（所有非HPL原生顶级键）
+        self.parse_user_data()
         
         if 'classes' in self.data:
             self.parse_classes()
@@ -243,7 +273,25 @@ class HPLParser:
             # 解析函数名和参数，如 add(5, 3) -> 函数名: add, 参数: [5, 3]
             self.call_target, self.call_args = parse_call_expression(call_str)
 
-        return self.classes, self.objects, self.functions, self.main_func, self.call_target, self.call_args, self.imports
+        return (self.classes, self.objects, self.functions, self.main_func, 
+                self.call_target, self.call_args, self.imports, self.user_data)
+    
+    def parse_user_data(self) -> None:
+        """解析用户数据对象：所有非HPL原生顶级键都作为数据对象存储"""
+        # HPL原生保留键
+        reserved_keys = {'includes', 'imports', 'classes', 'objects', 'call'}
+        
+        for key, value in self.data.items():
+            # 跳过保留键和函数定义（包含=>的是函数）
+            if key in reserved_keys:
+                continue
+            if isinstance(value, str) and '=>' in value:
+                continue  # 这是函数定义，不是数据
+            
+            # 其他所有键都作为用户数据对象存储
+            self.user_data[key] = value
+
+
 
     def parse_top_level_functions(self) -> None:
         """解析所有顶层函数定义"""

@@ -1,0 +1,152 @@
+# 声明式游戏数据示例
+# 展示如何利用YAML格式优势简化HPL代码
+
+# 游戏元数据
+metadata:
+  title: "迷雾森林冒险"
+  author: "HPL开发者"
+  version: "2.0.0"
+
+# 游戏配置
+settings:
+  starting_scene: "forest_entrance"
+  max_inventory: 10
+  difficulty: "normal"
+
+# 场景定义（声明式）
+scenes:
+  forest_entrance:
+    name: "森林入口"
+    description: "你站在一片神秘森林的入口。古老的树木高耸入云，雾气在林间缭绕。"
+    choices:
+      - text: "进入森林深处"
+        target: "deep_forest"
+      - text: "检查背包"
+        action: check_inventory
+      - text: "离开游戏"
+        action: quit_game
+
+  deep_forest:
+    name: "森林深处"
+    description: "这里的雾气更浓了。你听到远处传来奇怪的声音，似乎有什么东西在注视着你。"
+    choices:
+      - text: "返回入口"
+        target: "forest_entrance"
+      - text: "探索洞穴"
+        target: "cave"
+      - text: "采集草药"
+        action: gather_herbs
+
+  cave:
+    name: "幽暗洞穴"
+    description: "一个阴暗潮湿的洞穴。水滴从洞顶落下，发出滴答声。"
+    choices:
+      - text: "返回森林"
+        target: "deep_forest"
+      - text: "深入探索"
+        action: explore_cave
+
+# 物品定义
+items:
+  lantern:
+    name: "旧灯笼"
+    description: "一个还能用的旧灯笼，可以照亮黑暗的地方"
+    usable: true
+  herb:
+    name: "草药"
+    description: "常见的药草，可以恢复少量生命值"
+    heal: 10
+  coin:
+    name: "金币"
+    description: "闪闪发光的金币"
+    value: 1
+
+# 玩家初始状态
+player:
+  hp: 100
+  max_hp: 100
+  gold: 0
+
+# 游戏状态
+game_state:
+  current_scene: "forest_entrance"
+  visited_count: 0
+
+# 主函数
+main: () => {
+    # 显示游戏标题
+    echo "========== " + metadata.title + " =========="
+    echo "作者: " + metadata.author
+    echo "版本: " + metadata.version
+    echo ""
+    
+    # 显示玩家初始状态
+    echo "=== 玩家状态 ==="
+    echo "生命值: " + player.hp + "/" + player.max_hp
+    echo "金币: " + player.gold
+    echo ""
+    
+    # 游戏主循环
+    game_running = true
+    while (game_running) :
+      # 获取当前场景
+      current = game_state.current_scene
+      scene = scenes[current]
+      
+      # 显示场景信息
+      echo ""
+      echo "=== " + scene.name + " ==="
+      echo scene.description
+      echo ""
+      
+      # 显示可用选项
+      echo "可选操作:"
+      choice_index = 0
+      for (choice in scene.choices) :
+        choice_index = choice_index + 1
+        echo "  " + choice_index + ". " + choice.text
+      
+      # 获取玩家选择
+      echo ""
+      input_str = input("请选择 (输入数字): ")
+      choice_num = int(input_str)
+      
+      # 执行选择
+      selected = scene.choices[choice_num - 1]
+      
+      if (selected.target) :
+        # 切换场景
+        target_scene_id = selected.target
+        game_state.current_scene = target_scene_id
+        game_state.visited_count = game_state.visited_count + 1
+        target_scene = scenes[target_scene_id]
+        echo ""
+        echo "你移动到了: " + target_scene.name
+      else :
+        if (selected.action == "check_inventory") :
+          echo ""
+          echo "=== 背包内容 ==="
+          echo "你有一个旧灯笼和一些草药"
+        
+        if (selected.action == "gather_herbs") :
+          echo ""
+          echo "你在森林中采集了一些草药！"
+        
+        if (selected.action == "explore_cave") :
+          echo ""
+          echo "你在洞穴深处发现了一些金币！"
+          player.gold = player.gold + 10
+        
+        if (selected.action == "quit_game") :
+          echo ""
+          echo "感谢游玩！"
+          game_running = false
+    
+    # 游戏结束统计
+    echo ""
+    echo "========== 游戏结束 =========="
+    echo "探索次数: " + game_state.visited_count
+    echo "最终金币: " + player.gold
+  }
+
+call: main()

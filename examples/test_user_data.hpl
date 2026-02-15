@@ -1,0 +1,72 @@
+# 测试用户数据对象功能
+# 所有非HPL原生顶级键都会作为数据对象暴露给HPL代码
+
+# 游戏配置
+config:
+  title: "测试游戏"
+  version: "1.0.0"
+  max_players: 4
+
+# 场景数据
+scenes:
+  - id: "start"
+    name: "起始场景"
+    description: "这是游戏的开始"
+  - id: "forest"
+    name: "森林"
+    description: "一片神秘的森林"
+
+# 物品数据（字典格式）
+items:
+  sword:
+    name: "长剑"
+    damage: 10
+  shield:
+    name: "盾牌"
+    defense: 5
+
+# 玩家初始数据
+player_data:
+  hp: 100
+  mp: 50
+  inventory: []
+
+# 其他任意数据
+game_settings:
+  difficulty: "normal"
+  sound_enabled: true
+  volume: 80
+
+main: () => {
+    # 访问config对象
+    echo "游戏标题: " + config.title
+    echo "版本: " + config.version
+    echo "最大玩家数: " + config.max_players
+    
+    # 访问scenes数组
+    echo ""
+    echo "场景列表:"
+    for (scene in scenes) :
+      echo "  - " + scene.name + ": " + scene.description
+    
+    # 访问items字典
+    echo ""
+    echo "物品列表:"
+    for (item_id in items) :
+      item = items[item_id]
+      echo "  " + item_id + ": " + item.name
+    
+    # 访问player_data
+    echo ""
+    echo "玩家初始状态:"
+    echo "  HP: " + player_data.hp
+    echo "  MP: " + player_data.mp
+    
+    # 访问game_settings
+    echo ""
+    echo "游戏设置:"
+    echo "  难度: " + game_settings.difficulty
+    echo "  音量: " + game_settings.volume
+  }
+
+call: main()

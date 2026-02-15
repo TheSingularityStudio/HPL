@@ -1,0 +1,29 @@
+# 数据定义库 - 用于测试include合并声明式数据
+
+# 游戏配置
+config:
+  title: "Library Game"
+  version: "1.0.0"
+  difficulty: "normal"
+
+# 场景定义
+scenes:
+  library_scene:
+    name: "Library"
+    description: "You are in a library full of books."
+    items: ["book", "scroll"]
+
+# 物品定义
+items:
+  book:
+    name: "Magic Book"
+    value: 100
+  scroll:
+    name: "Ancient Scroll"
+    value: 50
+
+# 玩家初始数据
+player:
+  hp: 100
+  mp: 50
+  inventory: []

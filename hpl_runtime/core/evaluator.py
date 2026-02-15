@@ -82,15 +82,19 @@ class HPLEvaluator:
                  functions: Optional[dict[str, HPLFunction]] = None, 
                  main_func: Optional[HPLFunction] = None, 
                  call_target: Optional[str] = None, 
-                 call_args: Optional[list[Any]] = None) -> None:
+                 call_args: Optional[list[Any]] = None,
+                 user_data: Optional[dict[str, Any]] = None) -> None:
         self.classes: dict[str, HPLClass] = classes
         self.objects: dict[str, HPLObject] = objects
         self.functions: dict[str, HPLFunction] = functions or {}  # 所有顶层函数
         self.main_func: Optional[HPLFunction] = main_func
         self.call_target: Optional[str] = call_target
         self.call_args: list[Any] = call_args or []  # call 调用的参数
+        self.user_data: dict[str, Any] = user_data or {}  # 用户声明式数据对象
 
-        self.global_scope: dict[str, HPLObject] = self.objects  # 全局变量，包括预定义对象
+        self.global_scope: dict[str, Any] = {}  # 全局变量
+        self.global_scope.update(self.objects)  # 添加预定义对象
+        self.global_scope.update(self.user_data)  # 添加用户数据对象（config, scenes等）
         self.current_obj: Optional[HPLObject] = None  # 用于方法中的'this'
         self.current_class: Optional[HPLClass] = None  # 用于跟踪当前执行的类（支持多级继承）
         self.call_stack: list[str] = []  # 调用栈，用于错误跟踪
@@ -101,6 +105,7 @@ class HPLEvaluator:
         self._init_statement_handlers()
         # 初始化表达式处理器映射表
         self._init_expression_handlers()
+
 
     def run(self) -> None:
         # 如果指定了 call_target，执行对应的函数
@@ -218,7 +223,7 @@ class HPLEvaluator:
     def _execute_assignment(self, stmt, local_scope):
         """执行赋值语句"""
         value = self.evaluate_expression(stmt.expr, local_scope)
-        # 检查是否是属性赋值（如 this.name = value）
+        # 检查是否是属性赋值（如 this.name = value 或 config.title = value）
         if '.' in stmt.var_name:
             obj_name, prop_name = stmt.var_name.split('.', 1)
             # 获取对象
@@ -229,6 +234,9 @@ class HPLEvaluator:
 
             if isinstance(obj, HPLObject):
                 obj.attributes[prop_name] = value
+            elif isinstance(obj, dict):
+                # 支持字典属性赋值：config.title = value 等价于 config["title"] = value
+                obj[prop_name] = value
             else:
                 raise self._create_error(
                     HPLTypeError,
@@ -241,6 +249,7 @@ class HPLEvaluator:
 
         else:
             local_scope[stmt.var_name] = value
+
     
     def _execute_array_assignment(self, stmt, local_scope):
         """执行数组元素赋值语句"""
@@ -935,6 +944,38 @@ class HPLEvaluator:
         elif isinstance(obj, HPLClass):
             args = [self.evaluate_expression(arg, local_scope) for arg in expr.args]
             return self._call_method(obj, expr.method_name, args)
+        elif isinstance(obj, dict):
+            # 支持字典属性访问：config.title 等价于 config["title"]
+            if expr.method_name in obj:
+                # 如果是属性访问（无参数），返回字典值
+                if len(expr.args) == 0:
+                    return obj[expr.method_name]
+                # 如果带参数，尝试作为方法调用（如字典的get方法）
+                else:
+                    args = [self.evaluate_expression(arg, local_scope) for arg in expr.args]
+                    # 检查是否是字典的内置方法
+                    if hasattr(obj, expr.method_name) and callable(getattr(obj, expr.method_name)):
+                        method = getattr(obj, expr.method_name)
+                        return method(*args)
+                    raise self._create_error(
+                        HPLAttributeError,
+                        f"Cannot call method '{expr.method_name}' on dictionary",
+                        line=expr.line if hasattr(expr, 'line') else None,
+                        column=expr.column if hasattr(expr, 'column') else None,
+                        local_scope=local_scope,
+                        error_key='TYPE_MISSING_PROPERTY'
+                    )
+            else:
+                available_keys = list(obj.keys())[:5]
+                hint = f"Available keys: {available_keys}" if available_keys else "Dictionary is empty"
+                raise self._create_error(
+                    HPLKeyError,
+                    f"Key '{expr.method_name}' not found in dictionary. {hint}",
+                    line=expr.line if hasattr(expr, 'line') else None,
+                    column=expr.column if hasattr(expr, 'column') else None,
+                    local_scope=local_scope,
+                    error_key='RUNTIME_KEY_NOT_FOUND'
+                )
         elif is_hpl_module(obj):
             if len(expr.args) == 0:
                 try:
@@ -952,6 +993,7 @@ class HPLEvaluator:
             local_scope=local_scope,
             error_key='TYPE_INVALID_OPERATION'
         )
+
     
     def _eval_postfix_increment(self, expr, local_scope):
         var_name = expr.var.name
@@ -1266,7 +1308,7 @@ class HPLEvaluator:
 
     def _lookup_variable(self, name, local_scope, line=None, column=None):
         """统一变量查找逻辑"""
-        # 处理 this.property 形式的属性访问
+        # 处理 this.property 或 dict.key 形式的属性访问
         if '.' in name:
             obj_name, prop_name = name.split('.', 1)
             if obj_name == 'this':
@@ -1301,8 +1343,9 @@ class HPLEvaluator:
                         error_key='TYPE_INVALID_OPERATION'
                     )
             else:
-                # 普通对象属性访问
+                # 普通对象或字典属性访问
                 obj = self._lookup_variable(obj_name, local_scope, line, column)
+                # 支持 HPLObject 属性访问
                 if isinstance(obj, HPLObject):
                     if prop_name in obj.attributes:
                         return obj.attributes[prop_name]
@@ -1314,14 +1357,30 @@ class HPLEvaluator:
                             local_scope,
                             error_key='TYPE_MISSING_PROPERTY'
                         )
+                # 支持字典键访问（新增）
+                elif isinstance(obj, dict):
+                    if prop_name in obj:
+                        return obj[prop_name]
+                    else:
+                        # 尝试将 prop_name 作为变量解析
+                        available_keys = list(obj.keys())[:5]
+                        hint = f"Available keys: {available_keys}" if available_keys else "Dictionary is empty"
+                        raise self._create_error(
+                            HPLKeyError,
+                            f"Key '{prop_name}' not found in '{obj_name}'. {hint}",
+                            line, column,
+                            local_scope,
+                            error_key='RUNTIME_KEY_NOT_FOUND'
+                        )
                 else:
                     raise self._create_error(
                         HPLTypeError,
-                        f"Cannot access property '{prop_name}' on non-object '{obj_name}'",
+                        f"Cannot access property '{prop_name}' on '{obj_name}' of type {type(obj).__name__}",
                         line, column,
                         local_scope,
                         error_key='TYPE_INVALID_OPERATION'
                     )
+
         
         if name in local_scope:
             return local_scope[name]

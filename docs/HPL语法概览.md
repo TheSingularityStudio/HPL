@@ -7,20 +7,21 @@
 ## 目录
 
 1. [基本结构](#基本结构)
-2. [数据类型](#数据类型)
-3. [变量与操作符](#变量与操作符)
-4. [控制流](#控制流)
-5. [函数与类](#函数与类)
-6. [模块系统](#模块系统)
-7. [异常处理](#异常处理)
-8. [内置函数](#内置函数)
-9. [标准库概览](#标准库概览)
+2. [声明式数据定义](#声明式数据定义)
+3. [数据类型](#数据类型)
+4. [变量与操作符](#变量与操作符)
+5. [控制流](#控制流)
+6. [函数与类](#函数与类)
+7. [模块系统](#模块系统)
+8. [异常处理](#异常处理)
+9. [内置函数](#内置函数)
+10. [标准库概览](#标准库概览)
 
 ---
 
 ## 基本结构
 
-HPL 程序以 YAML 文件形式编写，包含以下顶级键：
+HPL 程序以 YAML 文件形式编写，包含以下**原生顶级键**：
 
 ```yaml
 includes:   # 包含其他 HPL 文件
@@ -40,6 +41,68 @@ main: () => {
 
 call: main()
 ```
+
+---
+
+## 声明式数据定义
+
+**HPL 新特性**：除了六个原生顶级键外，**任何其他顶级键都会自动成为可在 HPL 代码中访问的数据对象**。
+
+### 保留键（原生HPL键）
+- `includes`, `imports`, `classes`, `objects`, `main`, `call`
+
+### 自定义数据键示例
+
+```yaml
+# 游戏配置
+config:
+  title: "迷雾森林冒险"
+  version: "2.0.0"
+
+# 场景定义
+scenes:
+  forest:
+    name: "迷雾森林"
+    description: "你站在一片神秘的森林入口..."
+    choices:
+      - text: "进入洞穴"
+        target: "cave"
+
+# 玩家初始状态
+player:
+  name: "勇者"
+  hp: 100
+  gold: 0
+```
+
+### 在代码中访问
+
+```yaml
+main: () => {
+    # 使用点号访问（obj.key 等价于 obj["key"]）
+    echo "游戏: " + config.title
+    echo "版本: " + config.version
+    
+    # 嵌套访问
+    scene = scenes.forest
+    echo "场景: " + scene.name
+    
+    # 修改数据
+    player.hp = 80
+    player.gold = player.gold + 10
+    
+    # 遍历数组
+    for (choice in scene.choices) :
+      echo "选项: " + choice.text
+  }
+```
+
+### 优势
+
+- **数据与逻辑分离**：配置、场景、物品等数据声明在 YAML 中，逻辑在 `main` 中
+- **充分利用 YAML 结构**：支持嵌套字典、数组等复杂数据结构
+- **简洁的访问语法**：使用 `config.title` 代替 `config["title"]`
+- **动态修改**：可以在运行时修改数据对象的属性
 
 ---
 
@@ -80,6 +143,13 @@ name = person["name"]  # "Alice"
 # 修改/添加元素
 person["age"] = 31
 person["city"] = "Beijing"
+```
+
+**字典属性访问（新特性）**：
+```yaml
+config = {"title": "游戏", "version": "1.0"}
+echo config.title      # 等价于 config["title"]
+config.version = "2.0" # 等价于 config["version"] = "2.0"
 ```
 
 ---
@@ -177,17 +247,23 @@ for (item in arr) :
 ```yaml
 person = {"name": "Alice", "age": 30}
 for (key in person) :
-  echo key    # 输出 "name", "age"
+  echo key  # 输出 "name", "age"
 ```
 
-**遍历字符串：**
+**遍历声明式数据：**
 ```yaml
-text = "Hello"
-for (char in text) :
-  echo char   # 输出 H, e, l, l, o
+scenes:
+  forest: {name: "森林", description: "..."}
+  cave: {name: "洞穴", description: "..."}
+
+main: () => {
+    for (scene_id in scenes) :
+      scene = scenes[scene_id]
+      echo scene.name
+  }
 ```
 
-### While 循环
+### while 循环
 
 ```yaml
 while (condition) :
@@ -198,23 +274,18 @@ while (condition) :
 ```yaml
 i = 0
 while (i < 5) :
-  echo i
+  echo "i = " + i
   i++
 ```
 
-### Break 和 Continue
+### break 和 continue
 
 ```yaml
-# break - 立即退出循环
 for (i in range(10)) :
-  if (i == 5) :
-    break
-  echo i
-
-# continue - 跳过当前迭代
-for (i in range(5)) :
-  if (i == 2) :
-    continue
+  if (i == 3) :
+    continue  # 跳过 3
+  if (i == 7) :
+    break     # 在 7 时退出
   echo i
 ```
 
@@ -222,7 +293,7 @@ for (i in range(5)) :
 
 ## 函数与类
 
-### 顶层函数
+### 函数定义
 
 ```yaml
 functionName: (param1, param2) => {
@@ -231,37 +302,13 @@ functionName: (param1, param2) => {
   }
 ```
 
-**示例：**
-```yaml
-add: (a, b) => {
-    return a + b
-  }
-
-greet: (name) => {
-    echo "Hello, " + name + "!"
-  }
-
-# 调用任意函数
-call: add(5, 3)
-```
-
 ### 类定义
 
 ```yaml
 classes:
   ClassName:
-    # 构造函数（init 或 __init__）
-    init: (param) => {
-        this.property = param
-      }
-    
-    # 方法定义
-    methodName: () => {
-        code
-      }
-    
-    methodWithParams: (a, b) => {
-        return a + b
+    methodName: (param) => {
+        return param * 2
       }
 ```
 
@@ -271,16 +318,24 @@ classes:
 classes:
   BaseClass:
     baseMethod: () => {
-        code
+        echo "Base"
       }
 
   DerivedClass:
     parent: BaseClass
-    init: () => {
-        this.parent.init()    # 调用父类构造函数
-      }
     derivedMethod: () => {
-        this.baseMethod()     # 调用父类方法
+        this.baseMethod()
+      }
+```
+
+### 构造函数
+
+```yaml
+classes:
+  Person:
+    init: (name, age) => {
+        this.name = name
+        this.age = age
       }
 ```
 
@@ -288,172 +343,30 @@ classes:
 
 ```yaml
 objects:
-  objectName: ClassName()
-  objectWithParams: ClassName(arg1, arg2)
-```
-
-### 完整 OOP 示例
-
-```yaml
-classes:
-  Rectangle:
-    init: (width, height) => {
-        this.width = width
-        this.height = height
-      }
-    
-    getArea: () => {
-        return this.width * this.height
-      }
-
-objects:
-  rect: Rectangle(10, 5)
-
-main: () => {
-    area = rect.getArea()
-    echo "Area: " + area    # 输出 50
-  }
-
-call: main()
+  myObj: ClassName()
+  person: Person("Alice", 30)
 ```
 
 ---
 
 ## 模块系统
 
-### 文件包含 (includes)
-
-用于包含其他 HPL 源代码文件：
+### 包含其他 HPL 文件
 
 ```yaml
 includes:
   - utils.hpl
-  - subdir/helpers.hpl
-  - ../common.hpl
+  - lib/helpers.hpl
 ```
 
-### 模块导入 (imports)
-
-用于导入标准库或第三方模块：
+### 导入标准库模块
 
 ```yaml
 imports:
   - math
   - io
   - json
-  - os
-  - time
-  - crypto
-  - random
-  - string
-  - re
-  - net
 ```
-
-### 别名导入
-
-```yaml
-imports:
-  - math: m        # 使用 m 代替 math
-  - time: t        # 使用 t 代替 time
-
-main: () => {
-    echo m.PI           # 使用别名访问
-    echo t.now()
-  }
-```
-
----
-
-## 异常处理
-
-### Try-Catch
-
-```yaml
-try :
-  # 可能出错的代码
-  code
-catch (error) :
-  # 错误处理
-  code
-```
-
-### Throw 语句
-
-```yaml
-try :
-  if (x == 0) :
-    throw "除数不能为零"
-  result = 10 / x
-catch (error) :
-  echo "错误: " + error
-```
-
-### 嵌套异常处理
-
-```yaml
-try :
-  echo "外层 try"
-  try :
-    throw "内层错误"
-  catch (innerError) :
-    echo "内层捕获: " + innerError
-catch (outerError) :
-  echo "外层捕获: " + outerError
-```
-
----
-
-## 内置函数
-
-### 输入输出
-
-| 函数 | 说明 | 示例 |
-|------|------|------|
-| `echo value` | 输出到控制台 | `echo "Hello"` |
-| `input()` | 获取用户输入 | `name = input()` |
-| `input(prompt)` | 带提示的输入 | `age = input("Enter age: ")` |
-
-### 类型转换
-
-| 函数 | 说明 | 示例 |
-|------|------|------|
-| `int(value)` | 转为整数 | `int("123")` → `123` |
-| `str(value)` | 转为字符串 | `str(42)` → `"42"` |
-
-### 数组/字符串操作
-
-| 函数 | 说明 | 示例 |
-|------|------|------|
-| `len(arr_or_str)` | 获取长度 | `len([1,2,3])` → `3` |
-| `type(value)` | 获取类型 | `type(42)` → `"int"` |
-
-### 数值函数
-
-| 函数 | 说明 | 示例 |
-|------|------|------|
-| `abs(x)` | 绝对值 | `abs(-42)` → `42` |
-| `max(a, b, ...)` | 最大值 | `max(10, 20, 5)` → `20` |
-| `min(a, b, ...)` | 最小值 | `min(10, 20, 5)` → `5` |
-
----
-
-## 标准库概览
-
-HPL 提供丰富的标准库模块，详细 API 请参考《HPL语法手册》。
-
-| 模块 | 主要功能 |
-|------|----------|
-| `math` | 数学函数（sqrt, sin, cos, log 等）和常量（PI, E） |
-| `io` | 文件读写、目录操作 |
-| `json` | JSON 解析和生成 |
-| `os` | 环境变量、路径操作、系统命令 |
-| `time` | 时间戳、格式化、休眠 |
-| `crypto` | 哈希（MD5, SHA256）、Base64、URL 编码 |
-| `random` | 随机数、UUID 生成 |
-| `string` | 字符串分割、替换、大小写转换 |
-| `re` | 正则表达式匹配、查找、替换 |
-| `net` | HTTP 请求（GET, POST）、URL 处理 |
 
 **使用示例：**
 ```yaml
@@ -471,6 +384,104 @@ main: () => {
     
     # json 模块
     data = json.parse('{"a": 1}')
+  }
+```
+
+---
+
+## 异常处理
+
+### try-catch
+
+```yaml
+try :
+  # 可能抛出异常的代码
+  result = 10 / 0
+catch (error) :
+  echo "错误: " + error
+```
+
+### 多 catch 子句
+
+```yaml
+try :
+  arr = [1, 2, 3]
+  val = arr["invalid"]
+catch (HPLTypeError type_err) :
+  echo "类型错误"
+catch (other_err) :
+  echo "其他错误"
+```
+
+### finally 块
+
+```yaml
+try :
+  resource = "opened"
+  # 使用资源
+catch (err) :
+  echo "错误"
+finally :
+  resource = "closed"
+  echo "清理完成"
+```
+
+### throw 语句
+
+```yaml
+try :
+  if (x < 0) :
+    throw "不能为负数"
+  result = math.sqrt(x)
+catch (e) :
+  echo "错误: " + e
+```
+
+---
+
+## 内置函数
+
+| 函数 | 说明 | 示例 |
+|------|------|------|
+| `echo value` | 输出到控制台 | `echo "Hello"` |
+| `len(arr/str)` | 获取长度 | `len([1,2,3])` → `3` |
+| `int(value)` | 转为整数 | `int("123")` → `123` |
+| `str(value)` | 转为字符串 | `str(42)` → `"42"` |
+| `type(value)` | 获取类型 | `type(42)` → `"int"` |
+| `abs(number)` | 绝对值 | `abs(-5)` → `5` |
+| `max(a, b, ...)` | 最大值 | `max(1, 5, 3)` → `5` |
+| `min(a, b, ...)` | 最小值 | `min(1, 5, 3)` → `1` |
+| `range(n)` | 生成序列 | `range(3)` → `[0, 1, 2]` |
+| `input(prompt?)` | 用户输入 | `name = input("名字: ")` |
+
+---
+
+## 标准库概览
+
+| 模块 | 功能 |
+|------|------|
+| `math` | 数学函数（sqrt, sin, cos, PI等） |
+| `io` | 文件操作（read_file, write_file等） |
+| `json` | JSON解析（parse, stringify等） |
+| `os` | 系统接口（get_cwd, get_platform等） |
+| `time` | 时间处理（now, format, sleep等） |
+| `crypto` | 加密哈希（md5, sha256, base64等） |
+| `random` | 随机数（random_int, uuid等） |
+| `string` | 字符串处理（split, trim, replace等） |
+| `re` | 正则表达式（match, find_all, replace等） |
+| `net` | 网络请求（get, post, parse_url等） |
+
+**使用示例：**
+```yaml
+imports:
+  - math
+  - io
+  - json
+
+main: () => {
+    echo "PI = " + math.PI
+    content = io.read_file("test.txt")
+    data = json.parse('{"key": "value"}')
   }
 ```
 
@@ -504,6 +515,7 @@ classes:
 │  变量: x = 10                                           │
 │  数组: arr = [1, 2, 3], arr[0], arr + [4]               │
 │  字典: d = {"a": 1}, d["a"], d["b"] = 2                 │
+│  字典属性: config.title, player.hp = 100                │
 ├─────────────────────────────────────────────────────────┤
 │  算术: +  -  *  /  %  ++  -x                             │
 │  比较: ==  !=  <  >  <=  >=                              │
@@ -527,6 +539,9 @@ classes:
 │  异常: try : ... catch (e) : ...                       │
 │  抛出: throw "message"                                  │
 ├─────────────────────────────────────────────────────────┤
+│  声明式数据: config, scenes, items, player 等           │
+│  任意顶级键自动成为可访问的数据对象                      │
+├─────────────────────────────────────────────────────────┤
 │  内置: echo, input, len, type, int, str                 │
 │        abs, max, min, range                             │
 └─────────────────────────────────────────────────────────┘
@@ -535,3 +550,5 @@ classes:
 ---
 
 > **提示**: HPL 基于 YAML 格式，缩进非常重要（建议使用 2 个空格）！
+> 
+> **新特性**: 利用声明式数据定义，将配置、场景、物品等数据与逻辑分离，代码更简洁！
