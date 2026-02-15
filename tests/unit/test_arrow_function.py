@@ -33,12 +33,15 @@ def interpret_code(code):
     try:
         set_current_hpl_file(temp_file)
         parser = HPLParser(temp_file)
-        classes, objects, functions, main_func, call_target, call_args, imports = parser.parse()
+        (classes, objects, functions, main_func, call_target, call_args, imports,
+         user_data) = parser.parse()
         
         if main_func is None:
             raise ValueError("No main function found")
         
-        evaluator = HPLEvaluator(classes, objects, functions, main_func, call_target, call_args)
+        evaluator = HPLEvaluator(classes, objects, functions, main_func, call_target, call_args,
+                                  user_data)
+
         
         # 处理导入
         from hpl_runtime.core.models import ImportStatement

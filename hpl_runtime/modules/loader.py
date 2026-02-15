@@ -503,7 +503,9 @@ def _parse_hpl_module(module_name, file_path):
 
         # 解析 HPL 文件
         parser = HPLParser(str(file_path))
-        classes, objects, functions, main_func, call_target, call_args, imports = parser.parse()
+        (classes, objects, functions, main_func, call_target, call_args, imports,
+         user_data) = parser.parse()
+
         
         # 创建 HPL 模块
         hpl_module = HPLModule(module_name, f"HPL module: {module_name}")
