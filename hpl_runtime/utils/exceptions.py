@@ -308,9 +308,11 @@ class HPLIOError(HPLRuntimeError):
     
     def __init__(self, message, line=None, column=None, file=None, context=None,
                  path=None, operation=None, error_code=None, error_key=None, **kwargs):
-        super().__init__(message, line, column, file, context, error_code, **kwargs)
+        super().__init__(message, line=line, column=column, file=file, context=context, 
+                         error_code=error_code, error_key=error_key, **kwargs)
         self.path = path
         self.operation = operation
+
     
     def get_error_code(self):
         """IO错误代码"""
@@ -335,11 +337,11 @@ class HPLRecursionError(HPLRuntimeError):
     
     def __init__(self, message, line=None, column=None, file=None, context=None,
                  recursion_depth=None, max_depth=None, error_code=None, error_key=None, **kwargs):
-        # 从 kwargs 中提取 call_stack，以避免将其传递给父类时重复
-        call_stack = kwargs.pop('call_stack', None)
-        super().__init__(message, line, column, file, context, call_stack, error_code, error_key=error_key, **kwargs)
+        super().__init__(message, line=line, column=column, file=file, context=context,
+                         error_code=error_code, error_key=error_key, **kwargs)
         self.recursion_depth = recursion_depth
         self.max_depth = max_depth
+
     
     def get_error_code(self):
         """递归错误代码"""
