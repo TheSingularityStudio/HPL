@@ -1,0 +1,22 @@
+# 简单的声明式数据示例
+
+config:
+  title: "简单游戏"
+  version: "1.0"
+
+player:
+  name: "勇者"
+  hp: 100
+
+main: () => {
+    echo "游戏: " + config.title
+    echo "版本: " + config.version
+    echo "玩家: " + player.name
+    echo "生命值: " + player.hp
+    
+    # 修改数据
+    player.hp = 80
+    echo "受伤后生命值: " + player.hp
+  }
+
+call: main()

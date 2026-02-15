@@ -44,7 +44,11 @@ class HPLParser:
         self.call_args: list[Any] = []  # 存储 call 的参数
         self.imports: list[dict[str, Any]] = []  # 存储导入语句
         self.source_code: Optional[str] = None  # 存储源代码用于错误显示
+        # 用户数据对象：所有非HPL原生顶级键都作为数据对象存储
+        self.user_data: dict[str, Any] = {}  # 用户声明式数据对象
         self.data: dict[str, Any] = self.load_and_parse()
+
+
 
     def _merge_duplicate_keys(self, content: str) -> str:
         """合并 YAML 中重复的键（如多个 objects 或 classes 段）"""
@@ -223,10 +227,13 @@ class HPLParser:
             if isinstance(include_data['imports'], list):
                 main_data['imports'].extend(include_data['imports'])
 
-    def parse(self) -> tuple[dict[str, HPLClass], dict[str, HPLObject], dict[str, HPLFunction], Optional[HPLFunction], Optional[str], list[Any], list[dict[str, Any]]]:
+    def parse(self) -> tuple[dict[str, HPLClass], dict[str, HPLObject], dict[str, HPLFunction], Optional[HPLFunction], Optional[str], list[Any], list[dict[str, Any]], dict[str, Any]]:
         # 处理顶层 import 语句
         if 'imports' in self.data:
             self.parse_imports()
+        
+        # 处理用户数据对象（所有非HPL原生顶级键）
+        self.parse_user_data()
         
         if 'classes' in self.data:
             self.parse_classes()
@@ -243,7 +250,25 @@ class HPLParser:
             # 解析函数名和参数，如 add(5, 3) -> 函数名: add, 参数: [5, 3]
             self.call_target, self.call_args = parse_call_expression(call_str)
 
-        return self.classes, self.objects, self.functions, self.main_func, self.call_target, self.call_args, self.imports
+        return (self.classes, self.objects, self.functions, self.main_func, 
+                self.call_target, self.call_args, self.imports, self.user_data)
+    
+    def parse_user_data(self) -> None:
+        """解析用户数据对象：所有非HPL原生顶级键都作为数据对象存储"""
+        # HPL原生保留键
+        reserved_keys = {'includes', 'imports', 'classes', 'objects', 'call'}
+        
+        for key, value in self.data.items():
+            # 跳过保留键和函数定义（包含=>的是函数）
+            if key in reserved_keys:
+                continue
+            if isinstance(value, str) and '=>' in value:
+                continue  # 这是函数定义，不是数据
+            
+            # 其他所有键都作为用户数据对象存储
+            self.user_data[key] = value
+
+
 
     def parse_top_level_functions(self) -> None:
         """解析所有顶层函数定义"""

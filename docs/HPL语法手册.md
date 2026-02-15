@@ -18,6 +18,72 @@ HPL 程序以 YAML 文件的形式编写，主要包含以下顶级键：
 - `includes` 用于包含其他 HPL 源代码文件
 - `imports` 用于导入标准库模块（如 math、io、json 等）
 
+### 1.1 声明式数据定义（用户数据对象）
+
+除了六个原生顶级键外，**任何其他顶级键都会自动成为可在 HPL 代码中访问的数据对象**。这充分利用了 YAML 格式的优势，允许以声明式方式定义游戏数据、配置信息等。
+
+**保留键（原生HPL键）**：
+- `includes`, `imports`, `classes`, `objects`, `main`, `call`
+
+**自定义数据键示例**：
+```yaml
+# 游戏配置
+config:
+  title: "迷雾森林冒险"
+  version: "2.0.0"
+  difficulty: "normal"
+
+# 场景定义
+scenes:
+  forest:
+    name: "迷雾森林"
+    description: "你站在一片神秘的森林入口..."
+    choices:
+      - text: "进入洞穴"
+        target: "cave"
+
+# 物品定义
+items:
+  sword:
+    name: "生锈的剑"
+    attack: 5
+    value: 50
+
+# 玩家初始状态
+player:
+  name: "勇者"
+  hp: 100
+  gold: 0
+```
+
+**在代码中访问**：
+```yaml
+main: () => {
+    # 使用点号访问（obj.key 等价于 obj["key"]）
+    echo "游戏: " + config.title
+    echo "版本: " + config.version
+    
+    # 嵌套访问
+    scene = scenes.forest
+    echo "场景: " + scene.name
+    
+    # 修改数据
+    player.hp = 80
+    player.gold = player.gold + 10
+    
+    # 遍历数组
+    for (choice in scene.choices) :
+      echo "选项: " + choice.text
+  }
+```
+
+**优势**：
+- **数据与逻辑分离**：配置、场景、物品等数据声明在 YAML 中，逻辑在 `main` 中
+- **充分利用 YAML 结构**：支持嵌套字典、数组等复杂数据结构
+- **简洁的访问语法**：使用 `config.title` 代替 `config["title"]`
+- **动态修改**：可以在运行时修改数据对象的属性
+
+
 
 ## 2. 文件包含（includes）
 
