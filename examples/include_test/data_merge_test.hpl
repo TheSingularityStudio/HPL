@@ -1,0 +1,61 @@
+# 测试include合并声明式数据
+
+includes:
+  - data_lib.hpl  # 包含声明式数据定义
+
+# 主文件可以覆盖或扩展include的数据
+config:
+  title: "Main Game"  # 覆盖include中的title
+  author: "HPL Developer"  # 新增字段
+
+# 扩展场景定义
+scenes:
+  main_scene:
+    name: "Main Hall"
+    description: "The main hall of the castle."
+    items: ["sword", "shield"]
+
+# 扩展物品定义
+items:
+  sword:
+    name: "Excalibur"
+    damage: 50
+  shield:
+    name: "Dragon Shield"
+    defense: 30
+
+# 扩展玩家数据
+player:
+  level: 1  # 新增字段
+  exp: 0
+
+main: () => {
+    echo "=== Testing Include Data Merge ==="
+    
+    # 测试config合并（include的 + 主文件的覆盖/新增）
+    echo "\nConfig:"
+    echo "  Title: " + config.title  # 应该是"Main Game"（被覆盖）
+    echo "  Version: " + config.version  # 来自include
+    echo "  Author: " + config.author  # 主文件新增
+    echo "  Difficulty: " + config.difficulty  # 来自include
+    
+    # 测试scenes合并
+    echo "\nScenes:"
+    echo "  Library: " + scenes.library_scene.name  # 来自include
+    echo "  Main Hall: " + scenes.main_scene.name  # 主文件新增
+    
+    # 测试items合并
+    echo "\nItems:"
+    echo "  Book: " + items.book.name  # 来自include
+    echo "  Sword: " + items.sword.name  # 主文件新增
+    
+    # 测试player数据合并
+    echo "\nPlayer:"
+    echo "  HP: " + player.hp  # 来自include
+    echo "  MP: " + player.mp  # 来自include
+    echo "  Level: " + player.level  # 主文件新增
+    
+    echo "\n=== Data Merge Test Passed! ==="
+  }
+
+call: main()
