@@ -1093,6 +1093,23 @@ class HPLEvaluator:
                 )
         elif isinstance(obj, HPLObject):
             # HPL对象属性访问
+            # 处理 parent 特殊属性访问
+            if prop_name == 'parent':
+                # 使用 current_class（当前执行的类）来确定 parent，而不是对象的实际类
+                # 这支持多级继承：在 Parent 的方法中调用 this.parent.init() 应该调用 GrandParent 的 init
+                reference_class = self.current_class if self.current_class else obj.hpl_class
+                if reference_class.parent and reference_class.parent in self.classes:
+                    parent_class = self.classes[reference_class.parent]
+                    return parent_class
+                raise self._create_error(
+                    HPLAttributeError,
+                    f"Class '{reference_class.name}' has no parent class",
+                    line=expr.line if hasattr(expr, 'line') else None,
+                    column=expr.column if hasattr(expr, 'column') else None,
+                    local_scope=local_scope,
+                    error_key='TYPE_MISSING_PROPERTY'
+                )
+            
             if prop_name in obj.attributes:
                 return obj.attributes[prop_name]
             else:
@@ -1105,6 +1122,7 @@ class HPLEvaluator:
                     error_key='TYPE_MISSING_PROPERTY'
                 )
         elif isinstance(obj, list):
+
             # 列表属性访问（如 length）
             if prop_name == 'length' or prop_name == 'size':
                 return len(obj)
@@ -1130,6 +1148,22 @@ class HPLEvaluator:
                     local_scope=local_scope,
                     error_key='TYPE_INVALID_OPERATION'
                 )
+        elif is_hpl_module(obj):
+            # HPL模块属性访问 - 尝试获取常量
+            try:
+                return obj.get_constant(prop_name)
+            except HPLAttributeError:
+                # 如果不是常量，尝试作为函数返回（用于后续调用）
+                if prop_name in obj.functions:
+                    return obj.functions[prop_name]['func']
+                raise self._create_error(
+                    HPLAttributeError,
+                    f"Property '{prop_name}' not found in module '{obj.name}'",
+                    line=expr.line if hasattr(expr, 'line') else None,
+                    column=expr.column if hasattr(expr, 'column') else None,
+                    local_scope=local_scope,
+                    error_key='TYPE_MISSING_PROPERTY'
+                )
         else:
             raise self._create_error(
                 HPLTypeError,
@@ -1139,6 +1173,7 @@ class HPLEvaluator:
                 local_scope=local_scope,
                 error_key='TYPE_INVALID_OPERATION'
             )
+
 
     def _eval_array_access(self, expr, local_scope):
         """评估数组/字典/字符串索引访问"""
