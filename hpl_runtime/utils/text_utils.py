@@ -84,6 +84,38 @@ def strip_inline_comment(line):
     
     return ''.join(result).rstrip()
 
+def _arrow_outside_string(line):
+    """检查 => 是否在字符串外部（不在引号内）"""
+    in_string = False
+    string_char = None
+    i = 0
+    while i < len(line) - 1:
+        char = line[i]
+        
+        # 处理字符串
+        if char in ('"', "'"):
+            if not in_string:
+                in_string = True
+                string_char = char
+            elif string_char == char:
+                # 检查是否是转义
+                backslash_count = 0
+                j = i - 1
+                while j >= 0 and line[j] == '\\':
+                    backslash_count += 1
+                    j -= 1
+                if backslash_count % 2 == 0:  # 不是转义
+                    in_string = False
+                    string_char = None
+        
+        # 检查 =>
+        if not in_string and char == '=' and line[i+1] == '>':
+            return True  # => 在字符串外部
+        
+        i += 1
+    
+    return False  # 没找到 => 或在字符串内部
+
 def preprocess_functions(content):
     """
     预处理函数定义，将其转换为 YAML 字面量块格式
@@ -106,11 +138,14 @@ def preprocess_functions(content):
         # 匹配模式：methodName: (params) => {
         # 支持任意缩进（用于类方法和顶层函数）
         # 排除 YAML 列表项（以 - 开头的行）
-        func_pattern = r'^(\s*)(?!-)(\w+):\s*\(.*\)\s*=>.*\{'
+        # 关键：确保 => 不在字符串内部
+        func_pattern = r'^(\s*)(?!-)(\w+):\s*\(.*\)\s*=>\s*\{'
 
         match = re.match(func_pattern, line)
         
-        if match:
+        # 额外检查：确保 => 不在字符串内部
+        if match and _arrow_outside_string(line):
+
             indent = match.group(1)
             key = match.group(2)
             

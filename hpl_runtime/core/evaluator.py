@@ -550,6 +550,7 @@ class HPLEvaluator:
             ArrayAccess: self._eval_array_access,
             DictionaryLiteral: self._eval_dictionary_literal,
             ArrowFunction: self._eval_arrow_function,
+            PropertyAccess: self._eval_property_access,
         }
     
     def evaluate_expression(self, expr: Expression, local_scope: dict[str, Any]) -> Any:
@@ -1069,6 +1070,75 @@ class HPLEvaluator:
     def _eval_arrow_function(self, expr, local_scope):
         """评估箭头函数表达式，返回可调用对象"""
         return HPLArrowFunction(expr.params, expr.body, local_scope, self)
+    
+    def _eval_property_access(self, expr, local_scope):
+        """评估属性访问表达式（如 obj.prop）"""
+        obj = self.evaluate_expression(expr.obj, local_scope)
+        prop_name = expr.property_name
+        
+        if isinstance(obj, dict):
+            # 字典属性访问
+            if prop_name in obj:
+                return obj[prop_name]
+            else:
+                available_keys = list(obj.keys())[:5]
+                hint = f"Available keys: {available_keys}" if available_keys else "Dictionary is empty"
+                raise self._create_error(
+                    HPLKeyError,
+                    f"Key '{prop_name}' not found in dictionary. {hint}",
+                    line=expr.line if hasattr(expr, 'line') else None,
+                    column=expr.column if hasattr(expr, 'column') else None,
+                    local_scope=local_scope,
+                    error_key='RUNTIME_KEY_NOT_FOUND'
+                )
+        elif isinstance(obj, HPLObject):
+            # HPL对象属性访问
+            if prop_name in obj.attributes:
+                return obj.attributes[prop_name]
+            else:
+                raise self._create_error(
+                    HPLAttributeError,
+                    f"Property '{prop_name}' not found in object",
+                    line=expr.line if hasattr(expr, 'line') else None,
+                    column=expr.column if hasattr(expr, 'column') else None,
+                    local_scope=local_scope,
+                    error_key='TYPE_MISSING_PROPERTY'
+                )
+        elif isinstance(obj, list):
+            # 列表属性访问（如 length）
+            if prop_name == 'length' or prop_name == 'size':
+                return len(obj)
+            else:
+                raise self._create_error(
+                    HPLTypeError,
+                    f"Cannot access property '{prop_name}' on list. Lists only support 'length' property.",
+                    line=expr.line if hasattr(expr, 'line') else None,
+                    column=expr.column if hasattr(expr, 'column') else None,
+                    local_scope=local_scope,
+                    error_key='TYPE_INVALID_OPERATION'
+                )
+        elif isinstance(obj, str):
+            # 字符串属性访问（如 length）
+            if prop_name == 'length' or prop_name == 'size':
+                return len(obj)
+            else:
+                raise self._create_error(
+                    HPLTypeError,
+                    f"Cannot access property '{prop_name}' on string. Strings only support 'length' property.",
+                    line=expr.line if hasattr(expr, 'line') else None,
+                    column=expr.column if hasattr(expr, 'column') else None,
+                    local_scope=local_scope,
+                    error_key='TYPE_INVALID_OPERATION'
+                )
+        else:
+            raise self._create_error(
+                HPLTypeError,
+                f"Cannot access property '{prop_name}' on {type(obj).__name__}",
+                line=expr.line if hasattr(expr, 'line') else None,
+                column=expr.column if hasattr(expr, 'column') else None,
+                local_scope=local_scope,
+                error_key='TYPE_INVALID_OPERATION'
+            )
 
     def _eval_array_access(self, expr, local_scope):
         """评估数组/字典/字符串索引访问"""

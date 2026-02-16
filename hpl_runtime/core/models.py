@@ -106,6 +106,13 @@ class MethodCall(Expression):
         self.method_name: str = method_name
         self.args: list[Expression] = args
 
+class PropertyAccess(Expression):
+    """属性访问表达式: obj.property（不带括号的方法调用）"""
+    def __init__(self, obj: Expression, property_name: str, line: Optional[int] = None, column: Optional[int] = None) -> None:
+        super().__init__(line, column)
+        self.obj: Expression = obj  # 对象表达式
+        self.property_name: str = property_name  # 属性名
+
 class PostfixIncrement(Expression):
     def __init__(self, var: Union[Variable, ArrayAccess], line: Optional[int] = None, column: Optional[int] = None) -> None:
         super().__init__(line, column)

@@ -18,6 +18,7 @@ from __future__ import annotations
 from typing import Any, Callable, Optional, Union
 
 from hpl_runtime.core.models import *
+
 from hpl_runtime.core.lexer import Token
 from hpl_runtime.utils.exceptions import HPLSyntaxError
 from hpl_runtime.utils.parse_utils import get_token_position, is_block_terminator, skip_dedents
@@ -262,7 +263,7 @@ class HPLASTParser:
                     return ArrayAssignmentStatement(f"{name}.{prop_name}", index_expr, value_expr)
                 else:
                     # 不是赋值，构造属性数组访问表达式
-                    prop_access = MethodCall(Variable(name, line, column), prop_name, [], line, column)
+                    prop_access = PropertyAccess(Variable(name, line, column), prop_name, line, column)
                     array_access = ArrayAccess(prop_access, index_expr, line, column)
                     return self._parse_expression_suffix(array_access)
             
@@ -273,7 +274,7 @@ class HPLASTParser:
                 return AssignmentStatement(f"{name}.{prop_name}", value_expr)
             
             # 构造属性访问表达式，继续解析可能的链式调用
-            prop_access = MethodCall(Variable(name, line, column), prop_name, [], line, column)
+            prop_access = PropertyAccess(Variable(name, line, column), prop_name, line, column)
             return self._parse_expression_suffix(prop_access)
 
         # 检查是否是自增：var++
@@ -302,8 +303,9 @@ class HPLASTParser:
                     args = self._parse_argument_list()
                     current_expr = MethodCall(current_expr, member_name, args, call_line, call_column)
                 else:
-                    # 属性访问
-                    current_expr = MethodCall(current_expr, member_name, [])
+                    # 属性访问 - 使用 PropertyAccess
+                    prop_line, prop_column = self._get_position()
+                    current_expr = PropertyAccess(current_expr, member_name, prop_line, prop_column)
             
             # 直接方法调用：expr()
             elif self.current_token.type == 'LPAREN':
@@ -311,8 +313,11 @@ class HPLASTParser:
                 call_line, call_column = self._get_position()
                 self.advance()
                 args = self._parse_argument_list()
-                # 如果 current_expr 是 MethodCall（属性访问），转换为带参数的方法调用
-                if isinstance(current_expr, MethodCall):
+                # 如果 current_expr 是 PropertyAccess，需要获取其对象和属性名
+                if isinstance(current_expr, PropertyAccess):
+                    # 将属性访问转换为方法调用
+                    current_expr = MethodCall(current_expr.obj, current_expr.property_name, args, call_line, call_column)
+                elif isinstance(current_expr, MethodCall):
                     current_expr = MethodCall(current_expr.obj_name, current_expr.method_name, args, call_line, call_column)
                 else:
                     # 函数调用
@@ -835,10 +840,12 @@ class HPLASTParser:
                 args = self._parse_argument_list()
                 current_expr = MethodCall(current_expr, member_name, args, call_line, call_column)
             else:
-                # 属性访问
-                current_expr = MethodCall(current_expr, member_name, [], line, column)
+                # 属性访问 - 使用 PropertyAccess 而不是 MethodCall
+                prop_line, prop_column = self._get_position()
+                current_expr = PropertyAccess(current_expr, member_name, prop_line, prop_column)
         
         return current_expr
+
     
     def _parse_identifier_primary(self) -> Expression:
         """解析标识符开头的主表达式"""
@@ -885,43 +892,51 @@ class HPLASTParser:
             return None
         
         # 检查是否是箭头函数参数列表 (param1, param2, ...) => { ... }
-        # 通过lookahead判断：如果括号内是逗号分隔的标识符，后跟 ) 和 =>
+        # 先进行lookahead检查，避免不必要的回溯
         params: list[str] = []
         is_arrow_function = False
 
-        # 尝试解析参数列表
-        if self.current_token and self.current_token.type == 'IDENTIFIER':
-            # 检查下一个token是否是DOT，如果是则不是箭头函数参数（而是属性访问）
-            next_token = self.peek(1)
-            if next_token and next_token.type == 'DOT':
-                # 这是属性访问表达式，不是箭头函数参数
-                pass
-            elif next_token and next_token.type in ['PLUS', 'MINUS', 'MUL', 'DIV', 'MOD', 'EQ', 'NE', 'LT', 'LE', 'GT', 'GE', 'AND', 'OR']:
-                # 如果下一个token是运算符，则这是普通表达式，不是箭头函数参数
-                pass
-            else:
+        # Lookahead检查：从当前位置开始，检查是否是 ( [ident [, ident]*] ) => 模式
+        lookahead_pos = self.pos
+        if lookahead_pos < len(self.tokens) and self.tokens[lookahead_pos].type == 'IDENTIFIER':
+            # 可能是参数列表，继续检查
+            while lookahead_pos < len(self.tokens):
+                token = self.tokens[lookahead_pos]
+                if token.type == 'IDENTIFIER':
+                    lookahead_pos += 1
+                    if lookahead_pos < len(self.tokens):
+                        next_tok = self.tokens[lookahead_pos]
+                        if next_tok.type == 'COMMA':
+                            lookahead_pos += 1
+                            continue
+                        elif next_tok.type == 'RPAREN':
+                            lookahead_pos += 1
+                            if lookahead_pos < len(self.tokens) and self.tokens[lookahead_pos].type == 'ARROW':
+                                is_arrow_function = True
+                            break
+                        else:
+                            break
+                    else:
+                        break
+                else:
+                    break
+        elif lookahead_pos < len(self.tokens) and self.tokens[lookahead_pos].type == 'RPAREN':
+            # 空参数列表 () =>
+            lookahead_pos += 1
+            if lookahead_pos < len(self.tokens) and self.tokens[lookahead_pos].type == 'ARROW':
+                is_arrow_function = True
+
+        if is_arrow_function:
+            # 真正解析参数列表
+            while self.current_token and self.current_token.type == 'IDENTIFIER':
                 params.append(self.current_token.value)
                 self.advance()
-                
-                # 继续解析更多参数
-                while self.current_token and self.current_token.type == 'COMMA':
-                    self.advance()  # 跳过 ','
-                    if self.current_token and self.current_token.type == 'IDENTIFIER':
-                        params.append(self.current_token.value)
-                        self.advance()
-                    else:
-                        # 不是标识符，说明不是箭头函数参数列表
-                        break
-                
-                # 检查是否以 ) 结束，并且后面跟着 =>
-                if self.current_token and self.current_token.type == 'RPAREN':
-                    # 向前看一个token检查是否是 =>
-                    next_token = self.peek(1)
-                    if next_token and next_token.type == 'ARROW':
-                        is_arrow_function = True
-        
-        if is_arrow_function:
-            self.expect('RPAREN')  # 跳过 ')'
+                if self.current_token and self.current_token.type == 'COMMA':
+                    self.advance()
+                else:
+                    break
+            
+            self.expect('RPAREN')
             self.advance()  # 跳过 =>
             body = self.parse_block()
             return ArrowFunction(params, body, line, column)

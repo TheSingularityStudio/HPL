@@ -458,25 +458,24 @@ class HPLParser:
         body_str = func_str[body_start+1:body_end].strip()
         
         # 计算函数体在原始文件中的起始行号
-        # 计算函数定义字符串中，函数体开始位置 '{'' 之前有多少个换行符
-        body_start_in_func = func_str.find('{', arrow_pos)
-        newlines_before_body = func_str[:body_start_in_func].count('\n')
-        # +1 因为函数体内容从开括号 '{' 的下一行开始
-        # 在提取的函数字符串中，函数体位于第 2 行（在 '{' 后面的 '\n' 之后）
-
-        actual_start_line = start_line + newlines_before_body + 1
+        # 由于 preprocess_functions 改变了格式，我们需要从原始源代码重新计算
+        actual_start_line = start_line
+        actual_start_column = start_column
         
-        # 计算函数体在原始文件中的起始列号
-        # 找到函数体开始位置 '{' 在函数定义字符串中的位置
-        brace_pos_in_func = body_start_in_func
-        # 计算 '{' 之前的换行符位置，确定 '{' 在其所在行的偏移
-        last_newline_pos = func_str.rfind('\n', 0, brace_pos_in_func)
-        if last_newline_pos == -1:
-            # '{' 在第一行，列号 = 函数定义起始列号 + '{' 在函数定义中的位置
-            actual_start_column = start_column + brace_pos_in_func + 1  # +1 因为 '{' 本身占一列
-        else:
-            # '{' 不在第一行，列号 = '{' 在其所在行的偏移 + 1
-            actual_start_column = brace_pos_in_func - last_newline_pos
+        if self.source_code:
+            source_lines = self.source_code.split('\n')
+            # 从函数定义行开始向下查找包含 '{' 的行
+            for i in range(start_line - 1, len(source_lines)):
+                line = source_lines[i]
+                if '{' in line and '=>' in line:
+                    # 找到了函数体开始的行
+                    actual_start_line = i + 2  # +1 因为行号从1开始，再+1因为函数体在'{'的下一行
+                    # 计算列号：找到函数体实际开始行的缩进
+                    if actual_start_line <= len(source_lines):
+                        body_line = source_lines[actual_start_line - 1]
+                        leading_spaces = len(body_line) - len(body_line.lstrip())
+                        actual_start_column = leading_spaces + 1
+                    break
         
         # 标记化和解析AST，传递起始行号和列号
         lexer = HPLLexer(body_str, start_line=actual_start_line, start_column=actual_start_column)
