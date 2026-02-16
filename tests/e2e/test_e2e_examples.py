@@ -125,16 +125,6 @@ class TestEndToEndExamples(unittest.TestCase):
         returncode, stdout, stderr = self.run_hpl_file(include_main)
         self.assertIn(returncode, [0, 1])
 
-    def test_hpl_game_framework(self):
-        """测试游戏框架"""
-        game_framework = self.examples_dir / "hpl_game_framework"
-        if not game_framework.exists():
-            self.skipTest("hpl_game_framework not found")
-        
-        # 检查核心文件存在
-        core_dir = game_framework / "core"
-        self.assertTrue(core_dir.exists() or True)  # 目录结构检查
-
     def test_examples_tests_directory(self):
         """测试示例测试目录"""
         tests_dir = self.examples_dir / "tests"

@@ -84,7 +84,14 @@ def _instantiate_objects(evaluator, handler):
 
 def main():
     # 处理命令行选项
-    if len(sys.argv) == 1 or sys.argv[1] in ('--help', '-h'):
+    if len(sys.argv) == 1:
+        # 没有提供参数，显示用法并返回错误码
+        print("Usage: hpl <hpl_file>")
+        print("       hpl --version")
+        print("       hpl --help")
+        sys.exit(1)
+    
+    if sys.argv[1] in ('--help', '-h'):
         print(f"HPL Runtime {__version__}")
         print("Usage: hpl <hpl_file>")
         print("       hpl --version")
@@ -94,6 +101,7 @@ def main():
         print("  --version, -v    Show version information")
         print("  --help, -h       Show this help message")
         sys.exit(0)
+
     
     if sys.argv[1] in ('--version', '-v'):
         print(f"HPL Runtime {__version__}")
