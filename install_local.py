@@ -155,24 +155,25 @@ def install_package(files, force=False, editable=False, user=False,
     else:
         # Select file to install
         if wheel_only:
-            wheels = [f for f in files if f["is_wheel"]]
+            wheels = [f for f in files if f.suffix == ".whl"]
             if wheels:
-                target = wheels[0]["path"]
+                target = wheels[0]
                 print(f"📦 Installing wheel: {target.name}")
             else:
                 print("⚠️  No wheel found, using source distribution")
-                target = files[0]["path"]
+                target = files[0]
         else:
             # Prefer wheel, but use whatever is available
-            wheels = [f for f in files if f["is_wheel"]]
+            wheels = [f for f in files if f.suffix == ".whl"]
             if wheels:
-                target = wheels[0]["path"]
+                target = wheels[0]
                 print(f"📦 Installing: {target.name}")
             else:
-                target = files[0]["path"]
+                target = files[0]
                 print(f"📦 Installing source: {target.name}")
         
         cmd = [sys.executable, "-m", "pip", "install", str(target)]
+
     
     # Add flags
     if force or upgrade:
@@ -423,4 +424,3 @@ Examples:
 
 if __name__ == "__main__":
     main()
-
