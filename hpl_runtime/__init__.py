@@ -18,7 +18,7 @@ HPL (H Programming Language) 是一种基于 YAML 格式的面向对象编程语
     from hpl_runtime import HPLError, HPLSyntaxError
 """
 
-__version__ = "1.1.6"
+__version__ = "1.1.7"
 __author__ = "奇点工作室"
 
 # 导出主要类，方便外部使用
@@ -49,7 +49,7 @@ try:
         ArrowFunction,
         # 语句
         AssignmentStatement, ArrayAssignmentStatement, ReturnStatement, 
-        BlockStatement, IfStatement, ForInStatement, WhileStatement, 
+        BlockStatement, IfStatement, ElifClause, ForInStatement, WhileStatement, 
         TryCatchStatement, CatchClause,
         EchoStatement, ImportStatement, IncrementStatement,
         BreakStatement, ContinueStatement, ThrowStatement,
@@ -62,6 +62,7 @@ try:
         HPLImportError, HPLDivisionError, HPLValueError, HPLIOError,
         HPLRecursionError, HPLControlFlowException, HPLBreakException,
         HPLContinueException, HPLReturnValue, format_error_for_user,
+        get_error_suggestion, format_error_with_suggestions,
     )
     
     # 调试工具
@@ -74,7 +75,8 @@ try:
     # 模块加载
     from .modules.loader import (
         load_module, register_module, get_module, set_current_hpl_file,
-        add_module_path, clear_cache,
+        add_module_path, clear_cache, get_loader_context,
+        install_package, uninstall_package, list_installed_packages,
         ModuleCache, ModuleLoaderContext,
     )
     
@@ -115,13 +117,13 @@ __all__ = [
     'BooleanLiteral', 'NullLiteral',
     
     # 数据模型 - 表达式
-    'BinaryOp', 'Variable', 'FunctionCall', 'MethodCall',
+    'BinaryOp', 'Variable', 'FunctionCall', 'MethodCall', 'PropertyAccess',
     'PostfixIncrement', 'PrefixIncrement', 'UnaryOp', 'ArrayLiteral', 'ArrayAccess', 
     'DictionaryLiteral', 'ArrowFunction',
     
     # 数据模型 - 语句
     'AssignmentStatement', 'ArrayAssignmentStatement', 'ReturnStatement',
-    'BlockStatement', 'IfStatement', 'ForInStatement', 'WhileStatement',
+    'BlockStatement', 'IfStatement', 'ElifClause', 'ForInStatement', 'WhileStatement',
     'TryCatchStatement', 'CatchClause', 'EchoStatement', 'ImportStatement',
     'IncrementStatement', 'BreakStatement', 'ContinueStatement', 'ThrowStatement',
     
@@ -131,6 +133,7 @@ __all__ = [
     'HPLImportError', 'HPLDivisionError', 'HPLValueError', 'HPLIOError',
     'HPLRecursionError', 'HPLControlFlowException', 'HPLBreakException',
     'HPLContinueException', 'HPLReturnValue', 'format_error_for_user',
+    'get_error_suggestion', 'format_error_with_suggestions',
     
     # 调试工具
     'ErrorAnalyzer', 'DebugInterpreter',
@@ -139,7 +142,8 @@ __all__ = [
     
     # 模块加载
     'load_module', 'register_module', 'get_module', 'set_current_hpl_file',
-    'add_module_path', 'clear_cache',
+    'add_module_path', 'clear_cache', 'get_loader_context',
+    'install_package', 'uninstall_package', 'list_installed_packages',
     'ModuleCache', 'ModuleLoaderContext',
     
     # 模块基类

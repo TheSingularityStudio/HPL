@@ -308,10 +308,12 @@ objects:
 
 HPL 支持基本的控制流结构，使用冒号和缩进表示代码块。
 
-### 条件语句（if-else）
+### 条件语句（if-elif-else）
 
 ```yaml
 if (condition) :
+  code
+elif (condition2) :
   code
 else :
   code
@@ -319,6 +321,36 @@ else :
 
 - 条件：如 `i % 2 == 0`。
 - 使用冒号 `:` 表示代码块开始，后续代码缩进。
+- 支持多个 `elif` 子句，按顺序检查条件。
+- `elif` 是 `else if` 的简写形式，使代码更简洁。
+
+**示例：**
+```yaml
+score = 85
+if (score >= 90) :
+  grade = "A"
+elif (score >= 80) :
+  grade = "B"
+elif (score >= 70) :
+  grade = "C"
+elif (score >= 60) :
+  grade = "D"
+else :
+  grade = "F"
+echo "Grade: " + grade  # 输出 "Grade: B"
+```
+
+**花括号语法：**
+```yaml
+if (x > 0) {
+  sign = "正数"
+} elif (x < 0) {
+  sign = "负数"
+} else {
+  sign = "零"
+}
+```
+
 
 ### 循环语句（for in）
 

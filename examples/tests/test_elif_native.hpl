@@ -1,0 +1,210 @@
+# 原生 elif 语法测试 - Native Elif Syntax Test
+# 测试HPL语言中原生elif语句的各种用法
+
+classes:
+  ElifTester:
+    # 测试1: 基本的 if-elif-else 链
+    test_basic_elif: () => {
+        score = 85
+        
+        if (score >= 90) :
+          grade = "A"
+        elif (score >= 80) :
+          grade = "B"
+        elif (score >= 70) :
+          grade = "C"
+        elif (score >= 60) :
+          grade = "D"
+        else :
+          grade = "F"
+        
+        echo "Score: " + score + ", Grade: " + grade
+        return grade
+      }
+    
+    # 测试2: 只有 if-elif（没有else）
+    test_elif_no_else: (value) => {
+        result = "unknown"
+        
+        if (value < 0) :
+          result = "负数"
+        elif (value == 0) :
+          result = "零"
+        elif (value < 10) :
+          result = "个位数"
+        elif (value < 100) :
+          result = "两位数"
+        
+        echo "Value " + value + " is: " + result
+        return result
+      }
+    
+    # 测试3: 多个elif条件
+    test_multiple_elif: (command) => {
+        if (command == "start") :
+          action = "启动系统"
+        elif (command == "stop") :
+          action = "停止系统"
+        elif (command == "pause") :
+          action = "暂停系统"
+        elif (command == "resume") :
+          action = "恢复系统"
+        elif (command == "restart") :
+          action = "重启系统"
+        else :
+          action = "未知命令"
+        
+        echo "Command '" + command + "' -> " + action
+        return action
+      }
+    
+    # 测试4: elif中嵌套if
+    test_nested_if_in_elif: (age, isStudent) => {
+        price = 0
+        
+        if (age < 12) :
+          price = 50
+        elif (age < 18) :
+          if (isStudent) :
+            price = 60
+          else :
+            price = 80
+        elif (age < 60) :
+          if (isStudent) :
+            price = 100
+          else :
+            price = 120
+        else :
+          price = 70
+        
+        echo "Age: " + age + ", Student: " + isStudent + ", Price: " + price
+        return price
+      }
+    
+    # 测试5: 使用花括号语法
+    test_brace_syntax_elif: (x) => {
+        if (x > 0) {
+          sign = "正数"
+        } elif (x < 0) {
+          sign = "负数"
+        } else {
+          sign = "零"
+        }
+        
+        echo "Value " + x + " is " + sign
+        return sign
+      }
+    
+    # 测试6: elif中返回值
+    test_return_in_elif: (n) => {
+        if (n == 1) :
+          return "一"
+        elif (n == 2) :
+          return "二"
+        elif (n == 3) :
+          return "三"
+        elif (n == 4) :
+          return "四"
+        elif (n == 5) :
+          return "五"
+        else :
+          return "其他"
+      }
+    
+    # 测试7: 混合使用原生elif和嵌套if-else
+    test_mixed_usage: (status) => {
+        if (status == "active") :
+          message = "系统运行中"
+        elif (status == "inactive") :
+          message = "系统已停止"
+        elif (status == "pending") :
+          message = "系统启动中"
+        else :
+          if (status == "error") :
+            message = "系统错误"
+          else :
+            message = "未知状态"
+        
+        echo "Status: " + status + " -> " + message
+        return message
+      }
+    
+    # 测试8: 复杂条件组合
+    test_complex_conditions: (a, b, c) => {
+        if (a && b && c) :
+          result = "全部满足"
+        elif (a && b) :
+          result = "满足A和B"
+        elif (a && c) :
+          result = "满足A和C"
+        elif (b && c) :
+          result = "满足B和C"
+        elif (a) :
+          result = "仅满足A"
+        elif (b) :
+          result = "仅满足B"
+        elif (c) :
+          result = "仅满足C"
+        else :
+          result = "都不满足"
+        
+        echo "Conditions: a=" + a + ", b=" + b + ", c=" + c + " -> " + result
+        return result
+      }
+
+objects:
+  tester: ElifTester()
+
+main: () => {
+    echo "=== Test 1: Basic If-Elif-Else ==="
+    tester.test_basic_elif()
+    
+    echo ""
+    echo "=== Test 2: Elif Without Else ==="
+    tester.test_elif_no_else(5)
+    tester.test_elif_no_else(50)
+    tester.test_elif_no_else(500)
+    
+    echo ""
+    echo "=== Test 3: Multiple Elif ==="
+    tester.test_multiple_elif("start")
+    tester.test_multiple_elif("pause")
+    tester.test_multiple_elif("unknown")
+    
+    echo ""
+    echo "=== Test 4: Nested If in Elif ==="
+    tester.test_nested_if_in_elif(8, true)
+    tester.test_nested_if_in_elif(15, true)
+    tester.test_nested_if_in_elif(25, false)
+    tester.test_nested_if_in_elif(65, false)
+    
+    echo ""
+    echo "=== Test 5: Brace Syntax Elif ==="
+    tester.test_brace_syntax_elif(10)
+    tester.test_brace_syntax_elif(-5)
+    tester.test_brace_syntax_elif(0)
+    
+    echo ""
+    echo "=== Test 6: Return in Elif ==="
+    echo "Number 3 in Chinese: " + tester.test_return_in_elif(3)
+    echo "Number 7 in Chinese: " + tester.test_return_in_elif(7)
+    
+    echo ""
+    echo "=== Test 7: Mixed Usage ==="
+    tester.test_mixed_usage("active")
+    tester.test_mixed_usage("inactive")
+    tester.test_mixed_usage("error")
+    tester.test_mixed_usage("unknown")
+    
+    echo ""
+    echo "=== Test 8: Complex Conditions ==="
+    tester.test_complex_conditions(true, false, true)
+    tester.test_complex_conditions(false, true, false)
+    tester.test_complex_conditions(true, true, true)
+    tester.test_complex_conditions(false, false, false)
+    
+    echo ""
+    echo "All native elif tests completed!"
+  }
+
+call: main()

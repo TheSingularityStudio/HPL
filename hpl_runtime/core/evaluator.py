@@ -352,16 +352,32 @@ class HPLEvaluator:
         return HPLReturnValue(value)
     
     def _execute_if(self, stmt, local_scope):
-        """执行条件语句"""
+        """执行条件语句（支持 if-elif-else）"""
+        # 首先检查 if 条件
         cond = self.evaluate_expression(stmt.condition, local_scope)
         if cond:
             result = self.execute_block(stmt.then_block, local_scope)
             if isinstance(result, HPLReturnValue):
                 return result
-        elif stmt.else_block:
+            return None
+        
+        # 依次检查 elif 条件
+        for elif_clause in stmt.elif_clauses:
+            elif_cond = self.evaluate_expression(elif_clause.condition, local_scope)
+            if elif_cond:
+                result = self.execute_block(elif_clause.block, local_scope)
+                if isinstance(result, HPLReturnValue):
+                    return result
+                return None
+        
+        # 最后执行 else 块（如果存在）
+        if stmt.else_block:
             result = self.execute_block(stmt.else_block, local_scope)
             if isinstance(result, HPLReturnValue):
                 return result
+        
+        return None
+
     
     def _execute_for_in(self, stmt, local_scope):
         """执行for-in循环语句"""
