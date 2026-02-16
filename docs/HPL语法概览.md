@@ -200,14 +200,17 @@ flag = true         # 布尔值
 
 ## 控制流
 
-### 条件语句 (if-else)
+### 条件语句 (if-elif-else)
 
 ```yaml
 if (condition) :
   # 条件为真时执行
   code
+elif (condition2) :
+  # 第二个条件为真时执行
+  code
 else :
-  # 条件为假时执行
+  # 以上条件都不满足时执行
   code
 ```
 
@@ -216,12 +219,25 @@ else :
 score = 85
 if (score >= 90) :
   grade = "A"
+elif (score >= 80) :
+  grade = "B"
+elif (score >= 70) :
+  grade = "C"
 else :
-  if (score >= 80) :
-    grade = "B"
-  else :
-    grade = "C"
+  grade = "D"
 ```
+
+**花括号语法：**
+```yaml
+if (x > 0) {
+  sign = "正数"
+} elif (x < 0) {
+  sign = "负数"
+} else {
+  sign = "零"
+}
+```
+
 
 ### 循环语句 (for in)
 
@@ -521,7 +537,7 @@ classes:
 │  比较: ==  !=  <  >  <=  >=                              │
 │  逻辑: !  &&  ||                                         │
 ├─────────────────────────────────────────────────────────┤
-│  条件: if (cond) : ... else : ...                        │
+│  条件: if (cond) : ... elif (cond2) : ... else : ...     │
 │  循环: for (i in range(n)) : ...                         │
 │        for (item in arr) : ...                           │
 │        while (cond) : ...                                │

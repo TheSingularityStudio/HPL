@@ -101,7 +101,6 @@ def main():
         print("  --version, -v    Show version information")
         print("  --help, -h       Show this help message")
         sys.exit(0)
-
     
     if sys.argv[1] in ('--version', '-v'):
         print(f"HPL Runtime {__version__}")
@@ -114,7 +113,6 @@ def main():
         sys.exit(1)
 
     hpl_file = sys.argv[1]
-
     
     # 设置当前 HPL 文件路径，用于相对导入
     set_current_hpl_file(hpl_file)
@@ -136,8 +134,6 @@ def main():
         (classes, objects, functions, main_func, call_target, call_args, imports,
          user_data) = parser.parse()
 
-
-
         # 检查是否有 main 函数
         if main_func is None:
             print("[ERROR] No main function found in the HPL file")
@@ -147,7 +143,6 @@ def main():
                                   user_data)
 
         handler.set_evaluator(evaluator)
-
 
         # 处理顶层导入（必须在对象实例化之前，以便构造函数可以使用导入的模块）
         for imp in imports:

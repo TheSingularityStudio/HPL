@@ -49,7 +49,7 @@ try:
         ArrowFunction,
         # 语句
         AssignmentStatement, ArrayAssignmentStatement, ReturnStatement, 
-        BlockStatement, IfStatement, ForInStatement, WhileStatement, 
+        BlockStatement, IfStatement, ElifClause, ForInStatement, WhileStatement, 
         TryCatchStatement, CatchClause,
         EchoStatement, ImportStatement, IncrementStatement,
         BreakStatement, ContinueStatement, ThrowStatement,
@@ -123,7 +123,7 @@ __all__ = [
     
     # 数据模型 - 语句
     'AssignmentStatement', 'ArrayAssignmentStatement', 'ReturnStatement',
-    'BlockStatement', 'IfStatement', 'ForInStatement', 'WhileStatement',
+    'BlockStatement', 'IfStatement', 'ElifClause', 'ForInStatement', 'WhileStatement',
     'TryCatchStatement', 'CatchClause', 'EchoStatement', 'ImportStatement',
     'IncrementStatement', 'BreakStatement', 'ContinueStatement', 'ThrowStatement',
     

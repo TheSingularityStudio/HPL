@@ -172,12 +172,22 @@ class BlockStatement(Statement):
         super().__init__(line, column)
         self.statements: list[Statement] = statements
 
+class ElifClause:
+    """elif 子句：条件 + 代码块"""
+    def __init__(self, condition: Expression, block: BlockStatement, line: Optional[int] = None, column: Optional[int] = None) -> None:
+        self.condition: Expression = condition
+        self.block: BlockStatement = block
+        self.line: Optional[int] = line
+        self.column: Optional[int] = column
+
 class IfStatement(Statement):
-    def __init__(self, condition: Expression, then_block: BlockStatement, else_block: Optional[BlockStatement] = None, line: Optional[int] = None, column: Optional[int] = None) -> None:
+    def __init__(self, condition: Expression, then_block: BlockStatement, elif_clauses: Optional[list[ElifClause]] = None, else_block: Optional[BlockStatement] = None, line: Optional[int] = None, column: Optional[int] = None) -> None:
         super().__init__(line, column)
         self.condition: Expression = condition
         self.then_block: BlockStatement = then_block
+        self.elif_clauses: list[ElifClause] = elif_clauses if elif_clauses is not None else []
         self.else_block: Optional[BlockStatement] = else_block
+
 
 class ForInStatement(Statement):
     def __init__(self, var_name: str, iterable_expr: Expression, body: BlockStatement, line: Optional[int] = None, column: Optional[int] = None) -> None:

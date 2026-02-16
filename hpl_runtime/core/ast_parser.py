@@ -534,6 +534,7 @@ class HPLASTParser:
         return self.parse_expression()
 
     def parse_if_statement(self) -> IfStatement:
+        line, column = self._get_position()
         self.expect_keyword('if')
         self.expect('LPAREN')
         condition = self.parse_expression()
@@ -545,25 +546,50 @@ class HPLASTParser:
         
         then_block = self.parse_block()
         
+        # 解析多个 elif 子句
+        elif_clauses: list[ElifClause] = []
+        
+        while True:
+            # 在检查elif之前，可能需要跳过多个DEDENT token
+            while self.current_token and self.current_token.type == 'DEDENT':
+                next_token = self.peek(1)
+                if next_token and next_token.type == 'KEYWORD' and next_token.value in ['elif', 'else']:
+                    self.advance()
+                    break
+                if hasattr(self.current_token, 'value') and self.current_token.value is not None:
+                    if self.current_token.value < self.indent_level:
+                        break
+                self.advance()
+            
+            # 检查是否有 elif
+            if not (self.current_token and self.current_token.type == 'KEYWORD' and self.current_token.value == 'elif'):
+                break
+            
+            # 解析 elif 子句
+            elif_line, elif_column = self._get_position()
+            self.advance()  # 跳过 'elif'
+            self.expect('LPAREN')
+            elif_condition = self.parse_expression()
+            self.expect('RPAREN')
+            
+            # 跳过DEDENT（如果有）
+            self._skip_dedents(self.indent_level)
+            
+            elif_block = self.parse_block()
+            elif_clauses.append(ElifClause(elif_condition, elif_block, elif_line, elif_column))
+        
+        # 解析可选的 else 块
         else_block: Optional[BlockStatement] = None
-
+        
         # 在检查else之前，可能需要跳过多个DEDENT token
-        # 持续检查：如果当前是DEDENT，且后面跟着else，则跳过DEDENT
         while self.current_token and self.current_token.type == 'DEDENT':
-            # 查看DEDENT后的token
             next_token = self.peek(1)
             if next_token and next_token.type == 'KEYWORD' and next_token.value == 'else':
-                # 这是当前if的else，跳过这个DEDENT并停止
                 self.advance()
                 break
-            # 如果不是通向else的DEDENT，检查是否应该终止
-            # 如果DEDENT的value小于当前缩进级别，说明块已结束
             if hasattr(self.current_token, 'value') and self.current_token.value is not None:
                 if self.current_token.value < self.indent_level:
-                    # 块已结束，停止查找else
                     break
-
-            # 否则跳过这个DEDENT继续检查
             self.advance()
         
         if self.current_token and self.current_token.type == 'KEYWORD' and self.current_token.value == 'else':
@@ -573,7 +599,8 @@ class HPLASTParser:
                 self.advance()
             else_block = self.parse_block()
         
-        return IfStatement(condition, then_block, else_block)
+        return IfStatement(condition, then_block, elif_clauses, else_block, line, column)
+
 
     def parse_for_statement(self) -> ForInStatement:
         self.expect_keyword('for')
