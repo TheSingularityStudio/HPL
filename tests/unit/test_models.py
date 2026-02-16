@@ -343,10 +343,11 @@ class TestStatements(unittest.TestCase):
         condition = BooleanLiteral(True)
         then_block = BlockStatement([AssignmentStatement("x", IntegerLiteral(1))])
         else_block = BlockStatement([AssignmentStatement("x", IntegerLiteral(2))])
-        stmt = IfStatement(condition, then_block, else_block, line=1, column=0)
+        stmt = IfStatement(condition, then_block, else_block=else_block, line=1, column=0)
         self.assertIs(stmt.condition, condition)
         self.assertIs(stmt.then_block, then_block)
         self.assertIs(stmt.else_block, else_block)
+
 
     def test_while_statement(self):
         """测试 while 语句"""
