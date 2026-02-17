@@ -1,0 +1,48 @@
+# YAML 语法错误测试文件
+# 用于测试 YAML 解析错误的定位精准度
+
+# ========== 错误 1: 无效的 YAML 键值对（第 7 行） ==========
+invalid_yaml_key: : : :
+
+# ========== 错误 2: 缩进不一致（第 10-12 行） ==========
+classes:
+  TestClass:
+    method1: () => {
+        echo "hello"
+      }
+   method2: () => {  # 缩进错误：使用了3个空格而不是2个
+        echo "world"
+      }
+
+# ========== 错误 3: 列表格式错误（第 15-17 行） ==========
+includes:
+  - file1.hpl
+  - file2.hpl
+  -  # 空列表项错误
+
+# ========== 错误 4: 未闭合的字符串（第 20 行） ==========
+unclosed_string: "这是一个未闭合的字符串
+
+# ========== 错误 5: 重复的键（第 23-25 行） ==========
+duplicate_key: "value1"
+duplicate_key: "value2"
+
+# ========== 错误 6: 无效的 YAML 标签（第 28 行） ==========
+invalid_tag: !invalid_tag value
+
+# ========== 错误 7: 制表符和空格混用（第 31-34 行） ==========
+mixed_indent:
+	good_key: "value"  # 使用制表符
+  bad_key: "value"   # 使用空格
+
+# ========== 错误 8: 未闭合的 YAML 块（第 37-40 行） ==========
+unclosed_block: |
+  这是一个未闭合的块
+  第二行
+  # 缺少闭合
+
+main: () => {
+    echo "YAML syntax error test"
+  }
+
+call: main()

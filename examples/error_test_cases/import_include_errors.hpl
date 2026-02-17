@@ -1,0 +1,80 @@
+# 导入和包含语法错误测试文件
+# 用于测试 imports 和 includes 错误的定位精准度
+
+# ========== 错误 1: imports 格式错误（第 7 行） ==========
+imports:
+  math  # 缺少列表标记 -
+
+# ========== 错误 2: includes 格式错误（第 11 行） ==========
+includes:
+  "file.hpl"  # 不应该使用引号
+
+# ========== 错误 3: 无效的模块别名格式（第 15 行） ==========
+imports:
+  - math as m  # 错误：应该使用 math: m 格式
+
+# ========== 错误 4: 空的 imports（第 19 行） ==========
+imports:
+  -  # 空模块名
+
+# ========== 错误 5: 空的 includes（第 23 行） ==========
+includes:
+  -  # 空文件名
+
+# ========== 错误 6: 重复的模块导入（第 27-29 行） ==========
+imports:
+  - math
+  - math  # 重复导入
+
+# ========== 错误 7: 无效的模块名（第 33 行） ==========
+imports:
+  - 123invalid  # 模块名不能以数字开头
+
+# ========== 错误 8: 嵌套的 imports（第 37 行） ==========
+classes:
+  TestClass:
+    imports:  # imports 不能在类内部
+      - math
+    method: () => {
+        echo "test"
+      }
+
+# ========== 错误 9: 嵌套的 includes（第 46 行） ==========
+main: () => {
+    includes:  # includes 不能在函数内部
+      - "test.hpl"
+    echo "test"
+  }
+
+# ========== 错误 10: imports 和 includes 混用（第 53 行） ==========
+mixed_imports:
+  - math
+  - file.hpl
+
+# ========== 错误 11: 无效的 YAML 字典格式（第 59 行） ==========
+imports:
+  - math: m: alias  # 双重冒号错误
+
+# ========== 错误 12: 包含自身（第 63 行） ==========
+includes:
+  - import_include_errors.hpl  # 循环包含自身
+
+# ========== 错误 13: 绝对路径格式错误（第 67 行） ==========
+includes:
+  - C:\Program Files\HPL\lib.hpl  # 路径中包含空格但未引号
+
+# ========== 错误 14: 模块别名循环（第 71-73 行） ==========
+imports:
+  - math: m
+  - string: m  # 别名冲突
+
+main: () => {
+    # ========== 错误 15: 动态导入（第 78 行） ==========
+    module_name = "math"
+    imports:  # 不能在运行时动态导入
+      - module_name
+    
+    echo "Import and include error test"
+  }
+
+call: main()

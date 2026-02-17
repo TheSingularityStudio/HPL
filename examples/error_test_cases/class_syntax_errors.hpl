@@ -1,0 +1,92 @@
+# 类语法错误测试文件
+# 用于测试类定义和方法定义错误的定位精准度
+
+classes:
+  # ========== 错误 1: 缺少 parent 关键字的类名（第 7 行） ==========
+  ChildClass:
+    parent:  # 缺少父类名
+    method: () => {
+        echo "test"
+      }
+
+  # ========== 错误 2: 无效的构造函数（第 14 行） ==========
+  BadConstructor:
+    __init__: {  # 构造函数应该是箭头函数
+        this.value = 10
+      }
+
+  # ========== 错误 3: 方法名以数字开头（第 21 行） ==========
+  InvalidMethodName:
+    123method: () => {  # 无效的方法名
+        echo "test"
+      }
+
+  # ========== 错误 4: 缺少 this 关键字的方法调用（第 28 行） ==========
+  MissingThis:
+    method1: () => {
+        method2()  # 应该使用 this.method2()
+      }
+    method2: () => {
+        echo "test"
+      }
+
+  # ========== 错误 5: 无效的继承链（第 37 行） ==========
+  GrandChild:
+    parent: NonExistentClass  # 继承不存在的类
+    method: () => {
+        echo "test"
+      }
+
+  # ========== 错误 6: 重复的类名（第 44-50 行） ==========
+  DuplicateClass:
+    method1: () => {
+        echo "first"
+      }
+
+  DuplicateClass:  # 重复的类名
+    method2: () => {
+        echo "second"
+      }
+
+  # ========== 错误 7: 类中的顶层代码（第 53 行） ==========
+  ClassWithTopLevel:
+    x = 10  # 类中不应该有顶层变量赋值
+    method: () => {
+        echo x
+      }
+
+  # ========== 错误 8: 无效的方法参数（第 61 行） ==========
+  BadMethodParams:
+    method: (a, , b) => {  # 多余的逗号
+        return a + b
+      }
+
+  # ========== 错误 9: 构造函数返回值（第 67 行） ==========
+  ConstructorWithReturn:
+    init: () => {
+        this.value = 10
+        return this.value  # 构造函数不应该返回值
+      }
+
+  # ========== 错误 10: 嵌套类定义（第 74 行） ==========
+  OuterClass:
+    InnerClass:  # 类中不能嵌套定义类
+      method: () => {
+          echo "nested"
+        }
+    method: () => {
+        echo "outer"
+      }
+
+objects:
+  # ========== 错误 11: 无效的对象实例化（第 85 行） ==========
+  bad_obj: NonExistentClass()  # 实例化不存在的类
+
+  # ========== 错误 12: 缺少构造函数参数（第 88 行） ==========
+  obj_missing_args: BadConstructor()  # 缺少必需的参数
+
+main: () => {
+    echo "Class syntax error test"
+  }
+
+call: main()

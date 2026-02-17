@@ -1,0 +1,132 @@
+# 综合错误测试文件
+# 包含多种类型的错误，用于测试复杂场景下的错误定位
+
+imports:
+  - math
+
+includes:
+  - nonexistent_file.hpl
+
+# ========== 第 1 组：YAML 结构错误 ==========
+classes:
+  BadClass:
+    parent:  # 缺少父类名
+    
+    # 缩进错误的方法
+    method1: () => {
+        echo "level 1"
+         echo "level 2"  # 缩进不一致
+      }
+
+# ========== 第 2 组：类和方法错误 ==========
+  AnotherBadClass:
+    init: (name) => {
+        this.name = name
+        # 构造函数中返回值
+        return this
+      }
+    
+    # 无效的方法名
+    123badMethod: () => {
+        echo "test"
+      }
+
+# ========== 第 3 组：控制流错误 ==========
+main: () => {
+    # if 语句错误
+    if () :  # 缺少条件
+      echo "bad if"
+    
+    # for 循环错误
+    for (i in) :  # 缺少迭代对象
+      echo i
+    
+    # while 循环错误
+    while (true)  # 缺少冒号
+      echo "infinite"
+    
+    # try-catch 错误
+    try :
+      echo "trying"
+    # 缺少 catch
+    
+    # 在循环外使用 break
+    break
+
+    # ========== 第 4 组：表达式错误 ==========
+    # 括号不匹配
+    x = (10 + 20
+    
+    # 运算符错误
+    y = 10 ++ 20
+    
+    # 赋值错误
+    10 = x
+    
+    # 函数调用错误
+    echo("unclosed"
+    
+    # 数组错误
+    arr = [1, 2, 3
+    val = arr[
+    
+    # 字典错误
+    dict = {key: "value"}
+    
+    # 字符串错误
+    msg = "unclosed string
+    
+    # ========== 第 5 组：变量和作用域错误 ==========
+    # 未定义变量
+    echo undefined_var
+    
+    # 重复定义
+    z = 10
+    z = 20  # 重复赋值（警告）
+    
+    # 无效变量名
+    $invalid = 10
+    
+    # ========== 第 6 组：类型错误 ==========
+    # 字符串算术运算
+    str_result = "hello" - "world"
+    
+    # 数组和数字运算
+    arr_num = [1, 2, 3] + 10
+    
+    # 无效的类型转换
+    bad_int = int("not a number")
+    
+    # ========== 第 7 组：对象和方法调用错误 ==========
+    # 调用不存在的方法
+    obj = BadClass()
+    obj.nonexistentMethod()
+    
+    # 访问不存在的属性
+    echo obj.nonexistentProperty
+    
+    # 错误的 this 使用
+    wrong_this: () => {
+        this.method()  # this 在顶层函数中无效
+      }
+    
+    # ========== 第 8 组：模块使用错误 ==========
+    # 使用未导入的模块
+    result = json.parse("{}")
+    
+    # 错误的模块函数调用
+    math.nonexistentFunction()
+    
+    # 模块常量错误使用
+    pi = math.PIE  # 拼写错误
+    
+    echo "Combined error test"
+  }
+
+# ========== 第 9 组：对象实例化错误 ==========
+objects:
+  bad_obj: NonExistentClass()
+  another_bad: BadClass()  # 缺少构造函数参数
+
+# ========== 第 10 组：调用错误 ==========
+call: nonexistentFunction()  # 调用不存在的函数

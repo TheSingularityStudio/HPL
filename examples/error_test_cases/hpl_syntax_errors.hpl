@@ -1,0 +1,71 @@
+# HPL 语法错误测试文件
+# 用于测试 HPL 核心语法错误的定位精准度
+
+# ========== 错误 1: 箭头函数语法错误（第 7 行） ==========
+bad_arrow_function: () = > {  # 箭头中间有空格
+    echo "hello"
+  }
+
+# ========== 错误 2: 括号不匹配（第 12 行） ==========
+unmatched_paren: (a, b => {  # 缺少右括号
+    return a + b
+  }
+
+# ========== 错误 3: 花括号不匹配（第 17 行） ==========
+unmatched_brace: () => {
+    echo "missing closing brace"
+  # 缺少 }
+
+# ========== 错误 4: 无效的参数列表（第 22 行） ==========
+invalid_params: (a b c) => {  # 缺少逗号分隔
+    return a + b + c
+  }
+
+# ========== 错误 5: 缺少箭头（第 27 行） ==========
+missing_arrow: (x) {
+    return x * 2
+  }
+
+# ========== 错误 6: 无效的标识符（第 32 行） ==========
+123invalid_name: () => {  # 以数字开头
+    echo "test"
+  }
+
+# ========== 错误 7: 嵌套花括号不匹配（第 37-42 行） ==========
+nested_brace_error: () => {
+    if (true) {
+      echo "level 1"
+      if (false) {
+        echo "level 2"
+      # 缺少两个 }
+  }
+
+# ========== 错误 8: 无效的字符（第 45 行） ==========
+invalid_chars: () => {
+    echo "hello" @#$%^&  # 无效字符
+  }
+
+# ========== 错误 9: 字符串引号不匹配（第 50 行） ==========
+mismatched_quotes: () => {
+    msg = "unclosed string
+    echo msg
+  }
+
+# ========== 错误 10: 缺少函数体（第 55 行） ==========
+missing_body: () =>
+
+# ========== 错误 11: 无效的 return 语句（第 58 行） ==========
+invalid_return: () => {
+    return  # 缺少返回值
+  }
+
+# ========== 错误 12: 多重箭头（第 63 行） ==========
+double_arrow: () => => {  # 双重箭头
+    echo "test"
+  }
+
+main: () => {
+    echo "HPL syntax error test"
+  }
+
+call: main()

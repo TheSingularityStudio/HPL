@@ -1,0 +1,82 @@
+# 控制流语法错误测试文件
+# 用于测试 if/for/while/try-catch 等控制流错误的定位精准度
+
+main: () => {
+    # ========== 错误 1: if 语句缺少条件（第 7 行） ==========
+    if () :  # 缺少条件表达式
+      echo "no condition"
+
+    # ========== 错误 2: if 语句缺少冒号（第 11 行） ==========
+    if (true)
+      echo "missing colon"
+
+    # ========== 错误 3: elif 在 else 之后（第 15-19 行） ==========
+    x = 10
+    if (x > 5) :
+      echo "greater"
+    else :
+      echo "not greater"
+    elif (x > 3) :  # elif 不能在 else 之后
+      echo "elif after else"
+
+    # ========== 错误 4: for 循环语法错误（第 23 行） ==========
+    for (i in) :  # 缺少迭代对象
+      echo i
+
+    # ========== 错误 5: for 循环使用错误语法（第 27 行） ==========
+    for i in range(5) :  # 缺少括号
+      echo i
+
+    # ========== 错误 6: while 循环缺少条件（第 31 行） ==========
+    while () :  # 缺少条件
+      echo "loop"
+
+    # ========== 错误 7: while 循环缺少冒号（第 35 行） ==========
+    while (true)
+      echo "infinite loop"
+
+    # ========== 错误 8: try-catch 缺少 catch（第 39 行） ==========
+    try :
+      echo "try block"
+    # 缺少 catch
+
+    # ========== 错误 9: catch 缺少参数（第 45 行） ==========
+    try :
+      echo "try"
+    catch :  # catch 需要参数
+      echo "caught"
+
+    # ========== 错误 10: try-catch 顺序错误（第 50-54 行） ==========
+    catch (err) :
+      echo "error"
+    try :  # try 应该在 catch 之前
+      echo "try after catch"
+
+    # ========== 错误 11: break 在循环外（第 58 行） ==========
+    break  # break 只能在循环内使用
+
+    # ========== 错误 12: continue 在循环外（第 61 行） ==========
+    continue  # continue 只能在循环内使用
+
+    # ========== 错误 13: 嵌套控制流缩进错误（第 65-72 行） ==========
+    for (i in range(3)) :
+      if (i == 1) :
+        echo "one"
+       else :  # 缩进错误
+          echo "other"
+
+    # ========== 错误 14: 无效的控制流组合（第 76-80 行） ==========
+    if (true) :
+      for (j in range(2)) :
+        if (j == 0) :
+          echo "zero"
+    elif (j == 1) :  # j 在这个作用域不可见
+      echo "one"
+
+    # ========== 错误 15: throw 在 try 外（第 83 行） ==========
+    throw "error outside try"  # throw 只能在 try 块中使用
+
+    echo "Control flow error test"
+  }
+
+call: main()
